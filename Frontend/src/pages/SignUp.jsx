@@ -1,23 +1,21 @@
 import React, { useState } from 'react'
 
-const SignIn = (onBack) => {
+const SignUp = () => {
+    const [ name, setName ] = useState('');
  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  
 
   const handleSignIn = () => {
-    alert('Sign in with:', `${ email, password }`);
+    if( !email || !password || !name ) {
+        alert('Please fill all the fields');
+    }
     // Add sign in logic here
   };
 
   const handleGoogleSignIn = () => {
     console.log('Sign in with Google');
     // Add Google sign in logic here
-  };
-
-  const handleBack = () => {
-    if (onBack) {
-      onBack();
-    }
   };
 
 
@@ -28,12 +26,25 @@ const SignIn = (onBack) => {
       <div className="bg-gray-800 rounded-lg p-8 w-full max-w-md relative">
 
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-white">Sign in to your account</h1>
+        <div className="mb-4">
+          <h1 className="text-2xl font-bold text-white">Sign Up to your account</h1>
         </div>
 
         {/* Form Fields */}
         <div>
+            {/* {Name Fields} */}
+            <div className="mb-6">
+            <label className="block text-white text-sm font-medium mb-2">
+              Name
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Enter your Full Name"
+              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400"
+            />
+          </div>
           {/* Email Field */}
           <div className="mb-6">
             <label className="block text-white text-sm font-medium mb-2">
@@ -64,12 +75,8 @@ const SignIn = (onBack) => {
 
           {/* Buttons */}
           <div className="flex gap-4 mb-6">
-            <button
-              onClick={handleBack}
-              className="flex-1 bg-transparent border border-gray-600 text-white py-3 rounded-lg font-medium hover:bg-gray-700 transition-colors"
-            >
-              Back
-            </button>
+         
+         
             <button
               onClick={handleSignIn}
               className="flex-1 bg-green-400 hover:bg-green-500 text-gray-900 py-3 rounded-lg font-medium transition-colors"
@@ -102,4 +109,4 @@ const SignIn = (onBack) => {
   );
 };
 
-export default SignIn
+export default SignUp

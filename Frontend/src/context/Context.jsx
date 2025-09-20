@@ -9,9 +9,14 @@ export const ContextProvider = ({children}) => {
   const nextStep = () => setSteps((prev) => Math.min(prev + 1, 6));
   const prevStep = () => setSteps((prev) => Math.max(prev - 1, 1));
 
+  const logOut = () => {
+    setUser(null);
+  }
+
  const value = {
    user,
    setUser,
+   logOut,
     steps,
     setSteps,
     nextStep,

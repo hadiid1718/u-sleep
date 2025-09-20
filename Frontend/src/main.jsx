@@ -7,6 +7,8 @@ import { ContextProvider } from "./context/Context.jsx"
 import HomePage from './pages/HomePage.jsx'
 import SignIn from './pages/SignIn.jsx'
 import JobSelectionPage from './pages/JobResultPage.jsx'
+import SignUp from './pages/SignUp.jsx'
+import ScheduleDemo from './components/Demo.jsx'
 const router = createBrowserRouter([
   {
     path: "/",
@@ -20,6 +22,14 @@ const router = createBrowserRouter([
         path: "/user/sign-in",
         element: <SignIn/>
       }, 
+      {
+        path: "/user/sign-up",
+        element: <SignUp/>
+      },
+      {
+        path: "/demo-scheduling",
+        element: <ScheduleDemo/>
+      },
       {
         path: "/job-result",
         element: <JobSelectionPage/>

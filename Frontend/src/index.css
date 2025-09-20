@@ -1,1 +1,9 @@
 @import "tailwindcss";
+
+
+
+button,Link {
+    @apply cursor-pointer;
+    @apply transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-lg
+    ;
+}

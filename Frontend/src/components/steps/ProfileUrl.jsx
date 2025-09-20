@@ -11,6 +11,7 @@ const ProfileUrl = () => {
       setShowError(true);
     } else {
       setShowError(false);
+      nextStep()
       // Continue with the flow
       console.log('Profile link submitted:', profileLink);
     }
@@ -90,7 +91,10 @@ const ProfileUrl = () => {
           <button
             className="text-black py-2 px-6  border  rounded-lg font-bold bg-lime-400 hover:bg-lime-300 border-lime-400 cursor-pointer"
     
-            onClick={nextStep}
+            onClick={()=>{
+              handleContinue();
+              
+            }}
           >
             Next questions
           </button>
