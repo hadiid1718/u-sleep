@@ -26,7 +26,7 @@ const Header = () => {
           (
             <>
               <Link  onClick={logOut} to="/" className="border border-lime-400 bg-gray-900 px-3 py-1 text-white ">Logout</Link>
-              <Link   to="/user/dashboard" className="border border-lime-400 bg-gray-900 px-3 py-1 text-white ">Dashboard</Link>
+              <Link   to="/user/dashboard" className="border border-lime-400  bg-lime-400 hover:bg-lime-500 hover:opacity-90 px-3 py-1 text-black ">Dashboard</Link>
             </>
           )
         }
