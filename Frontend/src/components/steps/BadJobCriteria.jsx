@@ -1,8 +1,8 @@
 import React, { use, useContext, useState } from 'react'
 import { AppContext } from '../../context/Context';
 
-const BadJobCriteria = (steps, setSteps) => {
-    const { prevStep, nextStep} = useContext(AppContext);
+const BadJobCriteria = () => {
+    const { prevStep, nextStep, steps} = useContext(AppContext);
      const [selected, setSelected] = useState([]);
      const criteria = [
     { text: "Looking for employee", icon: "👎" },
@@ -73,7 +73,7 @@ const BadJobCriteria = (steps, setSteps) => {
             Previous Question
           </button>
           <button
-            className="bg-lime-400 hover:bg-lime-300 border-lime-400 cursor-pointer"
+            className="bg-lime-400 hover:bg-lime-300 border-lime-400 cursor-pointer py-2 px-6 rounded-lg"
 
             onClick={nextStep}
           >

@@ -1,4 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
+
 
 
 
@@ -6,4 +8,8 @@ button,Link {
     @apply cursor-pointer;
     @apply transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-lg
     ;
+}
+
+body{
+     font-family: 'Poppins', sans-serif;
 }
