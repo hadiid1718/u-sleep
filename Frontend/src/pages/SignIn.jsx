@@ -5,7 +5,7 @@ const SignIn = (onBack) => {
   const [password, setPassword] = useState('');
 
   const handleSignIn = () => {
-    alert('Sign in with:', `${ email, password }`);
+    alert(`Sign in with: ${ email, password }`);
     // Add sign in logic here
   };
 

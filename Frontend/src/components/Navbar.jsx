@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { AppContext } from "../context/Context";
 
 const Header = () => {
-  const { user , logOut} = useContext(AppContext)
+  const { user , logOut, userRole} = useContext(AppContext)
 
   return (
     <header className="flex justify-between items-center px-6 py-4 bg-black">
@@ -26,8 +26,20 @@ const Header = () => {
           (
             <>
               <Link  onClick={logOut} to="/" className="border border-lime-400 bg-gray-900 px-3 py-1 text-white ">Logout</Link>
+              {
+                userRole === 'user' ? (
+                  <>
               <Link   to="/user/dashboard" className="border border-lime-400  bg-lime-400 hover:bg-lime-500 hover:opacity-90 px-3 py-1 text-black ">Dashboard</Link>
-            </>
+                  </>
+
+                ): (
+                  <>
+              <Link   to="/admin/dashboard" className="border border-lime-400  bg-lime-400 hover:bg-lime-500 hover:opacity-90 px-3 py-1 text-black ">Dashboard</Link>
+
+                  </>
+                )
+              }
+              </>
           )
         }
       </nav>
