@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Home, Heart, MessageSquare, Bell, Settings, Plus, Trash2, User, Building, Clock, Users, Mail, Check, X, Save, Edit3, Filter, Search, Menu, ChevronLeft } from 'lucide-react';
+import React, { useState, useEffect, useContext } from 'react';
+import { Home, Heart, MessageSquare, Bell, Settings, Plus, Trash2, User, Building, Clock, Users, Mail, Check, X, Save, Edit3, Filter, Search, Menu, ChevronLeft, LogOut } from 'lucide-react';
+import { AppContext } from  "../context/Context"
 
 const UserDashboard = () => {
+  const { user, logOut } = useContext(AppContext)
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [showCountdown, setShowCountdown] = useState(false);
   const [countdown, setCountdown] = useState(3);
@@ -322,7 +324,7 @@ const UserDashboard = () => {
                     : 'bg-gray-700 text-white hover:bg-gray-600'
                 }`}
               >
-                Applied ({jobs.filter(j => j.applied).length})
+                Applied ({jobs.filter(job => job.applied).length})
               </button>
             </div>
           </div>
@@ -919,7 +921,7 @@ const UserDashboard = () => {
       {isMobile && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-black/95 backdrop-blur border-b border-gray-800 px-4 py-3">
           <div className="flex items-center justify-between">
-            <h1 className="text-lg font-bold bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent">U never sleep</h1>
+            <h1 className="text-lg font-bold text-slate-200 bg-clip-text ">U never sleep</h1>
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               className="text-white p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors"
@@ -945,12 +947,16 @@ const UserDashboard = () => {
               isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
             }`
           : 'relative'
-      } w-64 lg:w-72 bg-black text-white flex flex-col border-r border-gray-800 shadow-2xl`}>
+      } w-64 lg:w-72 bg-gray-900 text-white flex flex-col border-r border-gray-800 shadow-2xl`}>
         
         {/* Mobile Close Button */}
         {isMobile && (
           <div className="flex items-center justify-between p-4 border-b border-gray-800">
-            <h1 className="text-xl font-bold bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent">U never sleep</h1>
+            <div className= "flex justify-center items-center gap-2">
+            <LogOut className='cursor-pointer ' onClick={LogOut}/>
+            <h1 className="text-xl font-bold  bg-clip-text bg-lime-400 text-transparent ">Hadeed Malik</h1>
+
+            </div>
             <button
               onClick={() => setIsSidebarOpen(false)}
               className="text-white p-1 rounded hover:bg-gray-800 transition-colors"
@@ -963,7 +969,11 @@ const UserDashboard = () => {
         {/* Desktop Header */}
         {!isMobile && (
           <div className="p-4 lg:p-6 border-b border-gray-800">
-            <h1 className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent">U never sleep</h1>
+            <div className='flex justify-center items-center gap-6'>
+            <LogOut className='cursor-pointer ' onClick={LogOut}/>
+            <h1 className="text-xl lg:text-2xl font-bol bg-lime-400 bg-clip-text text-transparent">Hadeed Malik</h1>
+
+              </div>
           </div>
         )}
 
@@ -977,7 +987,7 @@ const UserDashboard = () => {
                     onClick={() => handleMenuClick(item.id)}
                     className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all duration-200 font-medium hover:scale-[1.02] active:scale-[0.98] ${
                       activeMenu === item.id || (activeMenu === 'job-result' && item.id === 'tinder')
-                        ? 'bg-gradient-to-r from-yellow-500/20 to-yellow-600/10 text-yellow-400 border border-yellow-400/30 shadow-lg'
+                        ? 'bg-lime-400 text-black border border-yellow-400/30 shadow-lg'
                         : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                     }`}
                   >

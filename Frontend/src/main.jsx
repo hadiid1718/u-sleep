@@ -10,6 +10,7 @@ import JobSelectionPage from './pages/JobResultPage.jsx'
 import SignUp from './pages/SignUp.jsx'
 import ScheduleDemo from './components/Demo.jsx'
 import UserDashboard from './pages/Dashboard.jsx'
+import AdminDashboard from './pages/AdminDashboard.jsx'
 const router = createBrowserRouter([
   {
     path: "/",
@@ -30,6 +31,10 @@ const router = createBrowserRouter([
       {
         path: "/user/dashboard",
         element: <UserDashboard/>
+      },
+      {
+          path: "/admin/dashboard",
+          element: <AdminDashboard/>
       },
       {
         path: "/demo-scheduling",
