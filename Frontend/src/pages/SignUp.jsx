@@ -1,21 +1,76 @@
-import React, { useState } from 'react'
+import React, { useContext, useEffect, useState } from 'react'
+import { AppContext } from '../context/Context';
+import summaryApi from '../common';
 
 const SignUp = () => {
     const [ name, setName ] = useState('');
  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+    const [ authenticated, setAuthenticated] = useState(false)
+    const  [ error, setError] = useState(null)
+
+    
+const {user,  setUser, setUserRole} = useContext(AppContext)
+
+
+     useEffect(()=> {
+    const token = localStorage.getItem("accessToken")
+    const savedUser = localStorage.getItem("user")
+    const saveUserRole = localStorage.getItem('user')
+    if(token && authenticated){
+      setAuthenticated(true)
+      setUser(JSON.parse(savedUser));
+      setUserRole(JSON.parse(saveUserRole))
+
+    }
+  }, [])
+  
+ const handleSignUp = async () => {
+  try {
+    const res = await fetch(summaryApi.signUp.url, {
+      method: summaryApi.signUp.method, 
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ name, email, password }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      console.error("Signup failed:", data.message || data);
+      return;
+    }
+
+    console.log("Signup success:", data);
+  } catch (err) {
+    console.error("Network error:", err);
+  }
+};
+
+       
   
 
-  const handleSignIn = () => {
-    if( !email || !password || !name ) {
-        alert('Please fill all the fields');
-    }
-    // Add sign in logic here
-  };
+  const handleGoogleSignIn = async() => {
+      try {
+            const googleRes = await fetch(summaryApi.googleLogin.url, {
+      method: summaryApi.googleLogin.method,
+      headers: {
+        "Content-Type" : "application/json"
+      },
+      body: JSON.stringify({ token: googleToken})
+    })
 
-  const handleGoogleSignIn = () => {
-    console.log('Sign in with Google');
-    // Add Google sign in logic here
+    const data = await googleRes.json()
+
+    if(data.success) {
+      localStorage.setItem("access token", data?.data?.tokens?.accessToken);
+      localStorage.setItem("refress token", data?.data?.tokens?.refreshToken)
+    } 
+    return data
+    } catch (error) {
+       console.log("Error:", error)
+    }
   };
 
 
@@ -78,10 +133,10 @@ const SignUp = () => {
          
          
             <button
-              onClick={handleSignIn}
+              onClick={handleSignUp}
               className="flex-1 bg-green-400 hover:bg-green-500 text-gray-900 py-3 rounded-lg font-medium transition-colors"
             >
-              Sign In
+              Sign Up
             </button>
           </div>
         </div>

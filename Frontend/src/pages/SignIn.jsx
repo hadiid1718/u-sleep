@@ -1,17 +1,92 @@
-import React, { useState } from 'react'
-
+import React, { useContext, useEffect, useState } from 'react'
+import { AppContext } from '../context/Context';
+import summaryApi from '../common';
+import { useNavigate } from "react-router-dom"
 const SignIn = (onBack) => {
  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+    const [ authenticated, setAuthenticated] = useState(false)
+  const  [ error, setError] = useState(null)
 
-  const handleSignIn = () => {
-    alert(`Sign in with: ${ email, password }`);
-    // Add sign in logic here
-  };
 
-  const handleGoogleSignIn = () => {
-    console.log('Sign in with Google');
-    // Add Google sign in logic here
+  const navigate = useNavigate()
+
+
+  const { user, setUser,  userRole, setUserRole} = useContext(AppContext)
+
+       useEffect(()=> {
+    const token = localStorage.getItem("accessToken")
+    const savedUser = localStorage.getItem("user")
+    const userRole = localStorage.getItem("user")
+    if(token && authenticated){
+      setAuthenticated(true)
+      setUser(JSON.parse(savedUser));
+      setUserRole(JSON.parse(userRole)) 
+
+
+    }
+  }, [])
+
+  const handleSignIn = async() => {
+    
+
+    try {
+       const dataResponse = await fetch(summaryApi.signIn.url, {
+        method: summaryApi.signIn.method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body : JSON.stringify({
+          email,
+          password
+        })
+
+       })
+        const data = await dataResponse.json()
+        console.log("User Data ", data)
+
+        if(data.success) {
+        localStorage.setItem("accessToken", data.data.tokens.accessToken);
+        localStorage.setItem("refreshToken", data.data.tokens.refreshToken);
+        localStorage.setItem("user", JSON.stringify(data.data.user));
+        setUser(userRole)
+        setUserRole(data.data.userRole)
+        setAuthenticated(true);
+        navigate("/")
+        } else {
+        setError(data.message);
+        console.log(data.message)
+      }
+
+    } catch (error) {
+       setError("Network error")
+    }
+  }
+
+
+  const handleGoogleSignIn = async() => {
+    try {
+            const googleRes = await fetch(summaryApi.googleLogin.url, {
+      method: summaryApi.googleLogin.method,
+      headers: {
+        "Content-Type" : "application/json"
+      },
+      body: JSON.stringify({ token: googleToken})
+    })
+
+    const data = await googleRes.json()
+
+    if(data.success) {
+      localStorage.setItem("access token", data?.data?.tokens.accessToken);
+      localStorage.setItem("refress token", data?.data?.tokens?.refreshToken)
+      setAuthenticated(true)
+      setUser(data.data.user)
+
+    } 
+    return data
+    } catch (error) {
+       console.log("Error:", error)
+    }
   };
 
   const handleBack = () => {
@@ -64,12 +139,7 @@ const SignIn = (onBack) => {
 
           {/* Buttons */}
           <div className="flex gap-4 mb-6">
-            <button
-              onClick={handleBack}
-              className="flex-1 bg-transparent border border-gray-600 text-white py-3 rounded-lg font-medium hover:bg-gray-700 transition-colors"
-            >
-              Back
-            </button>
+      
             <button
               onClick={handleSignIn}
               className="flex-1 bg-green-400 hover:bg-green-500 text-gray-900 py-3 rounded-lg font-medium transition-colors"
