@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
 import { Copy, Send } from 'lucide-react';
 
-const GeneratedResponse = ({ onLike, onDislike }) => {
+const GeneratedResponse = ({ onLike, onDislike, onUpgrade, responseText }) => {
   const [copied, setCopied] = useState(false);
 
-  const responseText = `Hi, what specific features or functionalities do you envision for your real-time video communication platform? Have you identified any particular challenges or requirements for integrating AI captions?
+  const defaultResponse = `Hi, what specific features or functionalities do you envision for your real-time video communication platform? Have you identified any particular challenges or requirements for integrating AI captions?
 
 Similar project: We developed a real-time video communication solution with group call functionalities and AI captioning for a client, enhancing user engagement.
 
 What time are you available tomorrow for a quick call?`;
 
+  const displayText = responseText || defaultResponse;
+
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(responseText);
+      await navigator.clipboard.writeText(displayText);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
@@ -39,19 +41,14 @@ What time are you available tomorrow for a quick call?`;
         </div>
       </div>
       
-      <div className="text-gray-300 text-base leading-relaxed space-y-5 mb-8">
-        <p>
-          Hi, what specific features or functionalities do you envision for your real-time video communication platform? Have you identified any particular challenges or requirements for integrating AI captions?
-        </p>
-        <p>
-          Similar project: We developed a real-time video communication solution with group call functionalities and AI captioning for a client, enhancing user engagement.
-        </p>
-        <p>
-          What time are you available tomorrow for a quick call?
-        </p>
+      <div className="text-gray-300 text-base leading-relaxed space-y-5 mb-8 whitespace-pre-line">
+        {displayText}
       </div>
       
-      <button className="w-full bg-gray-900 border-2 border-lime-400 text-lime-400 py-4 rounded-lg hover:bg-gray-800 transition mb-8 font-semibold text-base">
+      <button 
+        onClick={onUpgrade}
+        className="w-full bg-gray-900 border-2 border-lime-400 text-lime-400 py-4 rounded-lg hover:bg-gray-800 transition mb-8 font-semibold text-base"
+      >
         Want to upgrade your response? Add case studies
       </button>
       

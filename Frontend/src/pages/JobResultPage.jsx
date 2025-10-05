@@ -179,8 +179,8 @@ if (showJobResponse) {
       {/* Reason Feedback handle by dismatch button  */}
 
      { showReasonModel && (
-        <section className='max-w-[250px] mx-auto relative'>
-        <div className='bg-white border-2 border-gray-100 px-10 py-4 absolute bottom-[250px] lg:bottom-14 lg:right-10' >
+        <section className='max-w-[250px] mx-auto  bg-blur relative inset-0 z-50 bg-black bg-opacity-5'>
+        <div className='shadow-xl bg-white border-2 border-gray-100 px-10 py-4 absolute bottom-[250px] lg:bottom-14 lg:right-10' >
           <button
             onClick={closeReasonModel}
             className="absolute -top-2 -right-2 w-6 h-6 bg-gray-700 text-white rounded-full flex items-center justify-center text-sm hover:bg-gray-600 transition-colors"

@@ -3,7 +3,7 @@ import { ExternalLink } from 'lucide-react';
 
 const JobDetails = () => {
   return (
-    <div className="bg-gray-900 border-2 border-lime-400 rounded-2xl p-8 max-w-3xl">
+    <div className="bg-gray-900 border-2 border-lime-400 rounded-2xl p-8">
       <div className="inline-block bg-lime-400 text-gray-900 px-4 py-1.5 rounded-full text-sm font-bold mb-6">
         AI selected job
       </div>
