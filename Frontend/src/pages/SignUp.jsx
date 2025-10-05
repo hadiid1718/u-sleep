@@ -10,13 +10,12 @@ const SignUp = () => {
     const  [ error, setError] = useState(null)
 
     
-const {user,  setUser, setUserRole} = useContext(AppContext)
+const {user,  setUser} = useContext(AppContext)
 
 
      useEffect(()=> {
     const token = localStorage.getItem("accessToken")
     const savedUser = localStorage.getItem("user")
-    const saveUserRole = localStorage.getItem('user')
     if(token && authenticated){
       setAuthenticated(true)
       setUser(JSON.parse(savedUser));

@@ -12,16 +12,14 @@ const SignIn = (onBack) => {
   const navigate = useNavigate()
 
 
-  const { user, setUser,  userRole, setUserRole} = useContext(AppContext)
+  const { user, setUser,} = useContext(AppContext)
 
        useEffect(()=> {
     const token = localStorage.getItem("accessToken")
     const savedUser = localStorage.getItem("user")
-    const userRole = localStorage.getItem("user")
     if(token && authenticated){
       setAuthenticated(true)
       setUser(JSON.parse(savedUser));
-      setUserRole(JSON.parse(userRole)) 
 
 
     }
@@ -49,8 +47,7 @@ const SignIn = (onBack) => {
         localStorage.setItem("accessToken", data.data.tokens.accessToken);
         localStorage.setItem("refreshToken", data.data.tokens.refreshToken);
         localStorage.setItem("user", JSON.stringify(data.data.user));
-        setUser(userRole)
-        setUserRole(data.data.userRole)
+        setUser(data.data.user)
         setAuthenticated(true);
         navigate("/")
         } else {
