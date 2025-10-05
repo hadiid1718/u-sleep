@@ -13,7 +13,7 @@ const { Configuration, OpenAIApi } = require("openai");
 // Routes Importing
 const adminRouter = require("./routes/AdminRoutes");
 const userRouter = require("./routes/UserRoutes");
-
+const db = require("./config/database")
 const app = express();
 
 // Security middlewares
@@ -27,7 +27,11 @@ app.use(
   })
 );
 
-
+  db.execute("SELECT * FROM users").then(([rows, fields])=> {
+   console.log("Database data", rows)
+  }).catch(error =>{
+    console.log("Error", error)
+  })
 // Logging
 app.use(morgan("combined"));
 
