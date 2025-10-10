@@ -1,33 +1,35 @@
 import React from 'react';
+import {  Users, Shield, TrendingUp, Calendar, Star, CheckCircle } from 'lucide-react';
+
 const FeaturesSection = () => {
   const features = [
     {
-      icon: '⚙️',
+      icon: <Shield className='text-gray-100'/>,
       title: 'Free time collections and analysis',
       description: 'Automatically tracks and analyzes your available working hours to optimize job applications timing.'
     },
     {
-      icon: '🔄',
+      icon: <Users className='text-gray-100'/>,
       title: 'Background',
       description: 'Runs seamlessly in the background, continuously monitoring for new opportunities without interruption.'
     },
     {
-      icon: '📅',
+      icon: <Calendar className='text-gray-100'/>,
       title: 'Auto scheduler',
       description: 'Automatically schedules interviews and client calls based on your availability and preferences.'
     },
     {
-      icon: '✅',
+      icon:  <CheckCircle className='text-gray-100'/>,
       title: 'Quality control',
       description: 'Ensures all proposals meet high-quality standards and client requirements before submission.'
     },
     {
-      icon: '💰',
+      icon: <Star className='text-gray-100'/>,
       title: 'Winner quotes',
       description: 'Uses AI to generate competitive quotes and pricing strategies that win more projects consistently.'
     },
     {
-      icon: '📊',
+      icon: <TrendingUp className='text-gray-100'/>,
       title: 'Revenue tracking',
       description: 'Tracks your earnings and provides detailed insights to maximize revenue potential and growth.'
     }

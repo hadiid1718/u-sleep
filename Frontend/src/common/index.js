@@ -14,6 +14,7 @@ const summaryApi = {
         url: `${backendDomain}/api/user/google-login`,
         method: 'post'
     }
+      
 }
 
 export default summaryApi

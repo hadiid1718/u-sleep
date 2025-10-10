@@ -13,6 +13,7 @@ const { Configuration, OpenAIApi } = require("openai");
 // Routes Importing
 const adminRouter = require("./routes/AdminRoutes");
 const userRouter = require("./routes/UserRoutes");
+const demoRouter = require("./routes/DemoRoutes")
 const db = require("./config/database")
 const app = express();
 
@@ -57,6 +58,7 @@ app.get("/health", (req, res) => {
 // API ROUTES
 app.use("/api/admin", adminRouter); // FIX: typo in "admiin"
 app.use("/api/user", userRouter);
+app.use("/api/user/demo-scheduling", demoRouter)
 
 // Handling 404
 app.use((req, res) => {

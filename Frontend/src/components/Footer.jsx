@@ -1,21 +1,20 @@
 const Footer = () => {
     return (
-  <footer className="bg-black py-8 px-6 border-t border-gray-800">
+  <footer className="bg-gray-100 text-gray-100 py-8 px-6 border-t border-gray-800">
     <div className="max-w-6xl mx-auto">
       <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
         <div className="flex items-center space-x-2">
-          <div className="w-6 h-6 bg-lime-400 rounded-sm"></div>
-          <span className="text-white font-medium text-lg">U never sleep</span>
+          <span className="text-gray-700 font-medium text-lg">U never sleep</span>
         </div>
         
         <div className="flex items-center space-x-6 text-sm">
-          <a href="#" className="text-gray-400 hover:text-white">Privacy Policy</a>
-          <a href="#" className="text-gray-400 hover:text-white">Terms of Service</a>
-          <a href="#" className="text-gray-400 hover:text-white">Contact</a>
+          <a href="#" className="text-gray-500 hover:text-gray-600">Privacy Policy</a>
+          <a href="#" className="text-gray-500 hover:text-gray-600">Terms of Service</a>
+          <a href="#" className="text-gray-500 hover:text-gray-600">Contact</a>
           <div className="flex items-center space-x-4">
-            <div className="w-5 h-5 bg-gray-600 rounded"></div>
-            <div className="w-5 h-5 bg-gray-600 rounded"></div>
-            <div className="w-5 h-5 bg-gray-600 rounded"></div>
+            <div className=" cursor-pointer w-7 h-5 bg-gray-600 rounded flex items-center justify-center text-white hover:bg-lime-400 hover:transition-all hover:text-black">𝕏</div>
+            <div className="cursor-pointer w-7 h-5 bg-gray-600 rounded text-white flex items-center justify-center font-bold hover:bg-lime-400 hover:text-black hover:transition-all">in</div>
+            <div className="cursor-pointer w-7 h-5 bg-gray-600 rounded flex items-center justify-center text-white font-bold hover:bg-lime-400 hover:text-black hover:transition-all">f</div>
           </div>
         </div>
       </div>

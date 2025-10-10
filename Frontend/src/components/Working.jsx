@@ -1,28 +1,28 @@
 import React, { useState } from 'react';
-import { Search, Target, Zap, Bell, Users, Shield, TrendingUp, Calendar, Star, CheckCircle } from 'lucide-react';
+import { Search, Target, Zap, Bell } from 'lucide-react';
 const HowItWorks = () => {
   const steps = [
     {
       number: '01',
-      icon: <Search />,
+      icon: <Search  className='text-gray-100'/>,
       title: 'AI analyzes your keywords',
       description: 'Our advanced AI scans through thousands of Upwork job postings to find the perfect matches for your skills and expertise.'
     },
     {
       number: '02',
-      icon: '⚡',
+      icon: <Zap className='text-gray-100'/>,
       title: 'Relevant jobs filtering',
       description: 'Smart filtering removes irrelevant opportunities and focuses only on high-quality jobs that match your criteria perfectly.'
     },
     {
       number: '03',
-      icon: '💡',
+       icon: <Target className='text-gray-100'/>,
       title: 'Instant AI responses',
       description: 'AI crafts personalized, professional responses and submits proposals automatically within 5 minutes of job posting.'
     },
     {
       number: '04',
-      icon: '📱',
+      icon: <Bell className='text-gray-100'/>,
       title: 'Real-time notifications',
       description: 'Get instant alerts about new opportunities, proposal statuses, and client responses directly to your preferred channels.'
     }
