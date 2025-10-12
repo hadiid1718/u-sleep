@@ -13,8 +13,20 @@ const summaryApi = {
     googleLogin: {
         url: `${backendDomain}/api/user/google-login`,
         method: 'post'
-    }
+    },
+    availableDate:{
+        url: `${backendDomain}/api/user/demo-scheduling`,
+    },
+    availableTime:{
+        url: `${backendDomain}/api/user/demo-scheduling`,
+    },
+    demoSchedule:{
+        url: `${backendDomain}/api/user/demo-scheduling`,
+        method: 'post'
+    },
+
+
       
-}
+} 
 
 export default summaryApi

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import summaryApi from '../common';
 
 const ScheduleDemo = () => {
   const [dates, setDates] = useState([]);
@@ -16,7 +17,7 @@ const ScheduleDemo = () => {
   const [error, setError] = useState(null);
   const [currentMonth, setCurrentMonth] = useState(0);
 
-  const API_BASE_URL = 'http://localhost:8080/api/user/demo-scheduling';
+  // const API_BASE_URL = 'http://localhost:8080/api/user/demo-scheduling';
 
   // Fetch available dates on component mount
   useEffect(() => {
@@ -30,102 +31,104 @@ const ScheduleDemo = () => {
     }
   }, [selectedDate]);
 
-  const fetchAvailableDates = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/available-dates`);
-      const data = await response.json();
-      
-      if (data.success) {
-        setDates(data.data);
-        // Auto-select first available date
-        if (data.data.length > 0 && !selectedDate) {
-          setSelectedDate(data.data[0].fullDate);
-        }
+ const fetchAvailableDates = async () => {
+  try {
+    const response = await fetch(`${summaryApi.availableDate.url}/available-dates`);
+    const data = await response.json();
+
+    if (data.success) {
+      setDates(data.data);
+      // Auto-select first available date
+      if (data.data.length > 0 && !selectedDate) {
+        setSelectedDate(data.data[0].fullDate);
       }
-    } catch (err) {
-      setError('Failed to load available dates');
-      console.error('Error fetching dates:', err);
     }
-  };
+  } catch (err) {
+    setError('Failed to load available dates');
+    console.error('Error fetching dates:', err);
+  }
+};
 
-  const fetchAvailableTimes = async (date) => {
-    try {
-      setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/available-times/${date}`);
-      const data = await response.json();
-      
-      if (data.success) {
-        setTimeSlots(data.data);
-        // Auto-select first available time if current selection is not available
-        const currentTimeAvailable = data.data.find(
-          slot => slot.time === selectedTime && slot.available
-        );
-        if (!currentTimeAvailable) {
-          const firstAvailable = data.data.find(slot => slot.available);
-          setSelectedTime(firstAvailable ? firstAvailable.time : null);
-        }
-      }
-    } catch (err) {
-      setError('Failed to load available times');
-      console.error('Error fetching times:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleScheduleDemo = async () => {
- 
-    if (!email.trim() || !selectedDate || !selectedTime) {
-      setError('Please fill in all required fields');
-      return;
-    }
-    
-    if (!email.includes('@') || !email.includes('.')) {
-      setError('Please enter a valid email address');
-      return;
-    }
-
+const fetchAvailableTimes = async (date) => {
+  try {
     setLoading(true);
-    setError(null);
+    const response = await fetch(`${summaryApi.availableTime.url}/available-times/${date}`);
+    const data = await response.json();
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/schedule-demo`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          name,
-          company,
-          phone,
-          date: selectedDate,
-          time: selectedTime,
-        }),
-      });
+    if (data.success) {
+      setTimeSlots(data.data);
 
-      const data = await response.json();
+      // Auto-select first available time if current selection is not available
+      const currentTimeAvailable = data.data.find(
+        (slot) => slot.time === selectedTime && slot.available
+      );
 
-      if (data.success) {
-        setIsScheduled(true);
-        setShowConfirmation(true);
-        
-        // Refresh available times for this date
-        fetchAvailableTimes(selectedDate);
-        
-        setTimeout(() => {
-          setShowConfirmation(false);
-        }, 5000);
-      } else {
-        setError(data.message || 'Failed to schedule demo');
+      if (!currentTimeAvailable) {
+        const firstAvailable = data.data.find((slot) => slot.available);
+        setSelectedTime(firstAvailable ? firstAvailable.time : null);
       }
-    } catch (err) {
-      setError('Network error. Please try again.');
-      console.error('Error scheduling demo:', err);
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (err) {
+    setError('Failed to load available times');
+    console.error('Error fetching times:', err);
+  } finally {
+    setLoading(false);
+  }
+};
+
+const handleScheduleDemo = async () => {
+  if (!email.trim() || !selectedDate || !selectedTime) {
+    setError('Please fill in all required fields');
+    return;
+  }
+
+  if (!email.includes('@') || !email.includes('.')) {
+    setError('Please enter a valid email address');
+    return;
+  }
+
+  setLoading(true);
+  setError(null);
+
+  try {
+    const response = await fetch(`${summaryApi.demoSchedule.url}/schedule-demo`, {
+      method: summaryApi.demoSchedule.method,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email,
+        name,
+        company,
+        phone,
+        date: selectedDate,
+        time: selectedTime,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      setIsScheduled(true);
+      setShowConfirmation(true);
+
+      // Refresh available times for this date
+      fetchAvailableTimes(selectedDate);
+
+      setTimeout(() => {
+        setShowConfirmation(false);
+      }, 5000);
+    } else {
+      setError(data.message || 'Failed to schedule demo');
+    }
+  } catch (err) {
+    setError('Network error. Please try again.');
+    console.error('Error scheduling demo:', err);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleReset = () => {
     setIsScheduled(false);

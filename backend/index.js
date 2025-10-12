@@ -14,7 +14,8 @@ const { Configuration, OpenAIApi } = require("openai");
 const adminRouter = require("./routes/AdminRoutes");
 const userRouter = require("./routes/UserRoutes");
 const demoRouter = require("./routes/DemoRoutes")
-const db = require("./config/database")
+const db = require("./config/database");
+const jobRouter = require("./routes/JobRoutes");
 const app = express();
 
 // Security middlewares
@@ -59,6 +60,7 @@ app.get("/health", (req, res) => {
 app.use("/api/admin", adminRouter); // FIX: typo in "admiin"
 app.use("/api/user", userRouter);
 app.use("/api/user/demo-scheduling", demoRouter)
+app.use("/api/jobs", jobRouter);
 
 // Handling 404
 app.use((req, res) => {
