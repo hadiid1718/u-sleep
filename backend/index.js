@@ -16,6 +16,8 @@ const userRouter = require("./routes/UserRoutes");
 const demoRouter = require("./routes/DemoRoutes")
 const db = require("./config/database");
 const jobRouter = require("./routes/JobRoutes");
+const PaymentRoutes = require("./routes/PaymentRoutes");
+const webRoutes = require("./routes/WebhooksRoutes");
 const app = express();
 
 // Security middlewares
@@ -61,6 +63,8 @@ app.use("/api/admin", adminRouter); // FIX: typo in "admiin"
 app.use("/api/user", userRouter);
 app.use("/api/user/demo-scheduling", demoRouter)
 app.use("/api/jobs", jobRouter);
+app.use("/api/payment", PaymentRoutes)
+app.use("/api/webhooks", webRoutes)
 
 // Handling 404
 app.use((req, res) => {

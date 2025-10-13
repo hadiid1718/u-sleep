@@ -93,7 +93,7 @@ const HeroSection = () => {
       <NoUser />
     ) : jobs.length > 0 ? (
       // Show jobs if user is logged in and jobs exist
-      <JobDetails />
+      <JobSelectionPage/>
     ) : (
       // Show countdown/loading if waiting for jobs
       <CountdownTimer />
