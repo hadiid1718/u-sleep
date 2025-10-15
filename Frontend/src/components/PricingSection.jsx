@@ -10,6 +10,8 @@ const PricingSection = () => {
 
   // Configuration
   const API_URL = 'http://localhost:8080/api/payment'; // Change for production
+  const STRIPE_PUBLIC_KEY = 'pk_test_51PWImTD7s4U8RST425yk4TL9dvDzSxRLXqmEBOs0JuT5OWLUIePMb2tPKnszgZxhLMR4JzJA2kEltFQ7Ga2fRVEj00PucfJxOl';
+  
   const PLANS = {
     manual: {
       name: 'Manual job responding',
@@ -77,6 +79,7 @@ const PricingSection = () => {
 
     try {
       console.log('Creating checkout session for plan:', selectedPlan);
+      console.log('Calling API:', `${API_URL}/create-checkout-session`);
       
       // Call backend to create checkout session
       const response = await fetch(`${API_URL}/create-checkout-session`, {
@@ -91,25 +94,43 @@ const PricingSection = () => {
         }),
       });
 
-      const data = await response.json();
+      console.log('Response status:', response.status);
 
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Checkout session created:', data);
+
+      if (!data.success) {
         throw new Error(data.error || 'Failed to create checkout session');
       }
 
-      console.log('Checkout session created:', data.sessionId);
       setSuccess('Redirecting to checkout...');
 
       // Redirect to Stripe Checkout
       if (data.url) {
-        window.location.href = data.url;
+        setTimeout(() => {
+          window.location.href = data.url;
+        }, 500);
       } else {
         throw new Error('No checkout URL provided');
       }
 
     } catch (err) {
       console.error('Checkout error:', err);
-      setError(err.message || 'Failed to start checkout. Please try again.');
+      
+      let errorMessage = 'Failed to start checkout. Please try again.';
+      
+      if (err.message.includes('Failed to fetch')) {
+        errorMessage = 'Cannot connect to server. Make sure your backend is running on ' + API_URL;
+      } else {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
       setLoading(false);
     }
   };
@@ -355,6 +376,7 @@ const PricingSection = () => {
             <p>Email: {userInfo.email}</p>
             <p>Selected Plan: {selectedPlan}</p>
             <p>API URL: {API_URL}</p>
+            <p>Stripe Key: {STRIPE_PUBLIC_KEY.substring(0, 20)}...</p>
           </div>
         )}
       </div>
