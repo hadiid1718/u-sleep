@@ -1,12 +1,10 @@
-const express =require('express')
-const { searchJobs } = require('../Services/UpworkServices');
-const { analyzeJob } = require('../controllers/JobController');
+const express = require('express');
+const { searchJobs, analyzeJob, getJobById } = require('../controllers/JobController');
 
-const jobRouter = express.Router()
+const jobRouter = express.Router();
 
-
-jobRouter.post("/search", searchJobs);
-jobRouter.post("analyize", analyzeJob)
-
+jobRouter.post('/search', searchJobs);
+jobRouter.post('/analyze', analyzeJob);  
+jobRouter.get('/:id', getJobById);
 
 module.exports = jobRouter;

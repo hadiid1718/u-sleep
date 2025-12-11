@@ -2,15 +2,17 @@
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
-import { RouterProvider,createBrowserRouter } from 'react-router-dom'
+import { RouterProvider, createBrowserRouter } from 'react-router-dom'
 import { ContextProvider } from "./context/Context.jsx"
+import ToastProvider from './components/ToastProvider.jsx'
 import HomePage from './pages/HomePage.jsx'
 import SignIn from './pages/SignIn.jsx'
 import JobSelectionPage from './pages/JobResultPage.jsx'
 import SignUp from './pages/SignUp.jsx'
-import ScheduleDemo from './components/Demo.jsx'
+import ScheduleDemo from './components/home/Demo.jsx'
 import UserDashboard from './pages/Dashboard.jsx'
 import AdminDashboard from './pages/AdminDashboard.jsx'
+import RequireJobs from './components/RequireJobs.jsx'
 const router = createBrowserRouter([
   {
     path: "/",
@@ -42,21 +44,15 @@ const router = createBrowserRouter([
       },
       {
         path: "/job-result",
-        element: <JobSelectionPage/>
+        element: <RequireJobs><JobSelectionPage /></RequireJobs>
       }
     ]
   }
 ])
 createRoot(document.getElementById('root')).render(
-
   <ContextProvider>
-    <RouterProvider router={router} />
-
+    
+      <RouterProvider router={router} />
+    
   </ContextProvider>
-
-
-
-    
-    
-  
 )

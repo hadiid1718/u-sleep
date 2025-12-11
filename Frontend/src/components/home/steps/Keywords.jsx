@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { AppContext } from '../../context/Context';
+import { AppContext } from '../../../context/Context';
 
 const Keywords = () => {
   const { formData, setFormData, nextStep, steps } = useContext(AppContext);

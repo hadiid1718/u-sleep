@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Home, Heart, MessageSquare, Bell, Settings, Plus, Trash2, User, Building, Clock, Users, Mail, Check, X, Save, Edit3, Filter, Search, Menu, ChevronLeft, LogOut } from 'lucide-react';
-import { AppContext } from  "../context/Context"
+import { AppContext } from '../context/Context';
+import { showSuccessToast, showErrorToast, showLoadingToast, updateToast } from '../utils/toast';
 
 const UserDashboard = () => {
-  const { user, logOut } = useContext(AppContext)
+  const { user, logOut, dashboardJobs, dashboardLoading, fetchDashboardJobs, userPreferences, updateUserPreferences, notifications, fetchNotifications } = useContext(AppContext);
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [showCountdown, setShowCountdown] = useState(false);
   const [countdown, setCountdown] = useState(3);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [error, setError] = useState('');
   
   // Form states
   const [emailNotifications, setEmailNotifications] = useState(true);
@@ -36,13 +38,28 @@ const UserDashboard = () => {
     telegramChatId: ''
   });
 
-  const [jobs, setJobs] = useState([
-    { id: 1, title: 'External AI for Scoring, Profiling, and Daily Follow-Ups', budget: 'Budget not specified', time: 'Sep 12, 2025 11:15 PM', score: '100%', applied: false, matched: true },
-    { id: 2, title: 'Required - Mobile and web developer to work on an app', budget: '1600.0 USD', time: 'Sep 12, 2025 10:23 PM', score: '100%', applied: true, matched: true },
-    { id: 3, title: 'Epicor Prophet 21 ERP Developer (C#, API, SQL, Reporting)', budget: '3000.0 USD', time: 'Sep 12, 2025 9:57 PM', score: '100%', applied: false, matched: true },
-    { id: 4, title: 'Project: AI-Powered Lease & Contract Review – MVP Build', budget: 'Budget not specified', time: 'Sep 12, 2025 9:26 PM', score: '100%', applied: true, matched: false },
-    { id: 5, title: 'Full-Time AI Developer with Expertise in WebRTC, React, and TokBox', budget: '1500.0 USD', time: 'Sep 12, 2025 9:15 PM', score: '100%', applied: false, matched: true }
-  ]);
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
+  // Load dashboard data on mount
+  useEffect(() => {
+    fetchDashboardJobs();
+    fetchNotifications();
+  }, []);
+
+  // Initialize form data from user preferences
+  useEffect(() => {
+    if (userPreferences) {
+      setFormData({
+        ...formData,
+        ...userPreferences,
+      });
+      
+      // Update form states
+      setEmailNotifications(userPreferences.emailNotifications ?? true);
+      setFeedActive(userPreferences.feedActive ?? true);
+      setAllowNoBudget(userPreferences.allowNoBudget ?? true);
+    }
+  }, [userPreferences]);
   
   const [formStates, setFormStates] = useState({
     profileSaved: true,
@@ -131,30 +148,105 @@ const UserDashboard = () => {
     setFormStates(prev => ({ ...prev, proposalsSaved: false }));
   };
 
-  const handleSave = (section) => {
-    setFormStates(prev => ({ ...prev, [section]: true }));
+  const handleSave = async (section) => {
+    try {
+      const toastId = showLoadingToast('Saving changes...');
+      
+      // Update user preferences
+      await updateUserPreferences({
+        emailNotifications,
+        feedActive,
+        allowNoBudget,
+        ...formData
+      });
+      
+      setFormStates(prev => ({ ...prev, [section]: true }));
+      updateToast(toastId, {
+        render: 'Changes saved successfully!',
+        type: 'success',
+        isLoading: false,
+        autoClose: 5000,
+      });
+    } catch (error) {
+      console.error('Save error:', error);
+      showErrorToast(error.message || 'Failed to save changes');
+      // Show the error state
+      setFormStates(prev => ({ ...prev, [section]: false }));
+    }
+  };
+
+  // Handle job actions with backend integration
+  const handleSaveJob = async (jobId) => {
+    try {
+      const toastId = showLoadingToast('Saving job...');
+      const response = await fetch(`${API_BASE_URL}/jobs/${jobId}/save`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to save job');
+      fetchDashboardJobs();
+      updateToast(toastId, {
+        render: 'Job saved successfully!',
+        type: 'success',
+        isLoading: false,
+        autoClose: 5000,
+      });
+    } catch (error) {
+      console.error('Save job error:', error);
+      showErrorToast(error.message || 'Failed to save job');
+    }
+  };
+
+  const handleDeleteJob = async (jobId) => {
+    try {
+      const toastId = showLoadingToast('Deleting job...');
+      const response = await fetch(`${API_BASE_URL}/jobs/${jobId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to delete job');
+      fetchDashboardJobs();
+      updateToast(toastId, {
+        render: 'Job deleted successfully!',
+        type: 'success',
+        isLoading: false,
+        autoClose: 5000,
+      });
+    } catch (error) {
+      console.error('Delete job error:', error);
+      showErrorToast(error.message || 'Failed to delete job');
+    }
   };
 
   const handleJobAction = (jobId) => {
-    setJobs(jobs.map(job => 
-      job.id === jobId ? { ...job, applied: !job.applied } : job
-    ));
+    // Implement job action logic here
+    console.log('Job action for:', jobId);
   };
 
   const getFilteredJobs = () => {
-    let filtered = jobs;
+    if (!dashboardJobs) return [];
+    
+    let filtered = [...dashboardJobs];
     
     if (jobFilter === 'matched') {
-      filtered = jobs.filter(job => job.matched);
+      filtered = filtered.filter(job => job.status === 'matched');
     } else if (jobFilter === 'applied') {
-      filtered = jobs.filter(job => job.applied);
+      filtered = filtered.filter(job => job.status === 'applied');
     }
     
     if (searchTerm) {
       filtered = filtered.filter(job => 
-        job.title.toLowerCase().includes(searchTerm.toLowerCase())
+        job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        job.description.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
+
+    // Sort by date
+    filtered.sort((a, b) => new Date(b.postedDate) - new Date(a.postedDate));
     
     return filtered;
   };
@@ -240,136 +332,148 @@ const UserDashboard = () => {
     { id: 'settings', icon: Settings, label: 'Settings' }
   ];
 
-  const renderDashboard = () => (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0">
-        <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">Jobs Dashboard</h2>
-        <div className="flex flex-wrap gap-2">
-          <StatusButton 
-            isComplete={formStates.feedSaved} 
-            label="Feed Status" 
-            onClick={() => handleMenuClick('prompts')}
-            size="lg"
-          />
-          <StatusButton 
-            isComplete={formStates.proposalsSaved} 
-            label="Proposals" 
-            onClick={() => handleMenuClick('prompts')}
-            size="lg"
-          />
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <InteractiveCard className="p-4 md:p-6 bg-gradient-to-br from-yellow-500/10 to-yellow-600/5 border-yellow-500/20">
-          <h3 className="text-yellow-400 text-2xl md:text-3xl font-bold mb-1">132</h3>
-          <p className="text-gray-300 text-sm md:text-base">All Jobs</p>
-        </InteractiveCard>
-        <InteractiveCard className="p-4 md:p-6 bg-gradient-to-br from-green-500/10 to-green-600/5 border-green-500/20">
-          <h3 className="text-green-400 text-2xl md:text-3xl font-bold mb-1">89</h3>
-          <p className="text-gray-300 text-sm md:text-base">Matched Jobs</p>
-        </InteractiveCard>
-        <InteractiveCard className="p-4 md:p-6 bg-gradient-to-br from-red-500/10 to-red-600/5 border-red-500/20">
-          <h3 className="text-red-400 text-2xl md:text-3xl font-bold mb-1">0</h3>
-          <p className="text-gray-300 text-sm md:text-base">Responses Sent</p>
-        </InteractiveCard>
-        <InteractiveCard className="p-4 md:p-6 bg-gradient-to-br from-orange-500/10 to-orange-600/5 border-orange-500/20">
-          <h3 className="text-orange-400 text-2xl md:text-3xl font-bold mb-1">0</h3>
-          <p className="text-gray-300 text-sm md:text-base">U-coins Left</p>
-        </InteractiveCard>
-      </div>
-
-      <InteractiveCard className="p-4 md:p-6">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center space-y-4 md:space-y-0 mb-6">
-          <h3 className="text-white text-lg md:text-xl font-semibold">Recent Jobs</h3>
-          
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search jobs..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-gradient-to-r from-gray-700 to-gray-800 text-white pl-10 pr-4 py-2 rounded-lg border border-gray-600 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20 text-sm w-full sm:w-auto transition-all duration-200"
-              />
-            </div>
-            
-            <div className="flex space-x-2">
-              <button 
-                onClick={() => setJobFilter('all')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  jobFilter === 'all' 
-                    ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black shadow-lg' 
-                    : 'bg-gray-700 text-white hover:bg-gray-600'
-                }`}
-              >
-                All ({jobs.length})
-              </button>
-              <button 
-                onClick={() => setJobFilter('matched')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  jobFilter === 'matched' 
-                    ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black shadow-lg' 
-                    : 'bg-gray-700 text-white hover:bg-gray-600'
-                }`}
-              >
-                Matched ({jobs.filter(j => j.matched).length})
-              </button>
-              <button 
-                onClick={() => setJobFilter('applied')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  jobFilter === 'applied' 
-                    ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black shadow-lg' 
-                    : 'bg-gray-700 text-white hover:bg-gray-600'
-                }`}
-              >
-                Applied ({jobs.filter(job => job.applied).length})
-              </button>
-            </div>
+  const renderDashboard = () => {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0">
+          <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">Jobs Dashboard</h2>
+          <div className="flex flex-wrap gap-2">
+            <StatusButton 
+              isComplete={formStates.feedSaved} 
+              label="Feed Status" 
+              onClick={() => handleMenuClick('prompts')}
+              size="lg"
+            />
+            <StatusButton 
+              isComplete={formStates.proposalsSaved} 
+              label="Proposals" 
+              onClick={() => handleMenuClick('prompts')}
+              size="lg"
+            />
           </div>
         </div>
+      
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <InteractiveCard className="p-4 md:p-6 bg-gradient-to-br from-yellow-500/10 to-yellow-600/5 border-yellow-500/20">
+            <h3 className="text-yellow-400 text-2xl md:text-3xl font-bold mb-1">{dashboardJobs?.length || 0}</h3>
+            <p className="text-gray-300 text-sm md:text-base">All Jobs</p>
+          </InteractiveCard>
+          <InteractiveCard className="p-4 md:p-6 bg-gradient-to-br from-green-500/10 to-green-600/5 border-green-500/20">
+            <h3 className="text-green-400 text-2xl md:text-3xl font-bold mb-1">{dashboardJobs?.filter(job => job.status === 'matched')?.length || 0}</h3>
+            <p className="text-gray-300 text-sm md:text-base">Matched Jobs</p>
+          </InteractiveCard>
+          <InteractiveCard className="p-4 md:p-6 bg-gradient-to-br from-red-500/10 to-red-600/5 border-red-500/20">
+            <h3 className="text-red-400 text-2xl md:text-3xl font-bold mb-1">{dashboardJobs?.filter(job => job.status === 'applied')?.length || 0}</h3>
+            <p className="text-gray-300 text-sm md:text-base">Responses Sent</p>
+          </InteractiveCard>
+          <InteractiveCard className="p-4 md:p-6 bg-gradient-to-br from-orange-500/10 to-orange-600/5 border-orange-500/20">
+            <h3 className="text-orange-400 text-2xl md:text-3xl font-bold mb-1">{user?.coins || 0}</h3>
+            <p className="text-gray-300 text-sm md:text-base">U-coins Left</p>
+          </InteractiveCard>
+        </div>
 
-        <div className="space-y-3">
-          {getFilteredJobs().map((job) => (
-            <div key={job.id} className="bg-gradient-to-r from-gray-700 to-gray-800 p-4 rounded-xl border border-gray-600 hover:border-gray-500 hover:shadow-lg transition-all duration-200 group">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-3 lg:space-y-0">
-                <div className="flex-1 lg:pr-4">
-                  <h4 className="text-white font-medium text-base mb-1 group-hover:text-yellow-400 transition-colors cursor-pointer">{job.title}</h4>
-                  <p className="text-gray-400 text-sm">Your feed name</p>
-                </div>
-                
-                <div className="flex flex-col sm:flex-row sm:items-center lg:space-x-6 space-y-2 sm:space-y-0">
-                  <div className="text-yellow-400 font-semibold text-center lg:min-w-[120px]">{job.budget}</div>
-                  <div className="text-gray-400 text-sm text-center lg:min-w-[140px]">{job.time}</div>
-                  
-                  <div className="flex items-center justify-center lg:min-w-[100px]">
-                    <StatusButton 
-                      isComplete={job.applied} 
-                      label={job.applied ? "Applied" : "Apply"} 
-                      onClick={() => handleJobAction(job.id)}
-                    />
-                  </div>
-                  
-                  <div className="flex justify-center">
-                    <div className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-full w-12 h-12 flex items-center justify-center font-bold text-sm shadow-lg">
-                      {job.score}
+        <div>
+          <InteractiveCard className="p-4 md:p-6">
+            {dashboardLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-yellow-400 border-t-transparent mx-auto mb-4"></div>
+                <p className="text-gray-400">Loading jobs...</p>
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-col md:flex-row md:justify-between md:items-center space-y-4 md:space-y-0 mb-6">
+                  <h3 className="text-white text-lg md:text-xl font-semibold">Recent Jobs</h3>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input
+                        type="text"
+                        placeholder="Search jobs..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="bg-gradient-to-r from-gray-700 to-gray-800 text-white pl-10 pr-4 py-2 rounded-lg border border-gray-600 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20 text-sm w-full sm:w-auto transition-all duration-200"
+                      />
+                    </div>
+                    
+                    <div className="flex space-x-2">
+                      <button 
+                        onClick={() => setJobFilter('all')}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                          jobFilter === 'all' 
+                            ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black shadow-lg' 
+                            : 'bg-gray-700 text-white hover:bg-gray-600'
+                        }`}
+                      >
+                        All ({dashboardJobs?.length || 0})
+                      </button>
+                      <button 
+                        onClick={() => setJobFilter('matched')}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                          jobFilter === 'matched' 
+                            ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black shadow-lg' 
+                            : 'bg-gray-700 text-white hover:bg-gray-600'
+                        }`}
+                      >
+                        Matched ({dashboardJobs?.filter(job => job.status === 'matched')?.length || 0})
+                      </button>
+                      <button 
+                        onClick={() => setJobFilter('applied')}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                          jobFilter === 'applied' 
+                            ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black shadow-lg' 
+                            : 'bg-gray-700 text-white hover:bg-gray-600'
+                        }`}
+                      >
+                        Applied ({dashboardJobs?.filter(job => job.status === 'applied')?.length || 0})
+                      </button>
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          ))}
-        </div>
 
-        {getFilteredJobs().length === 0 && (
-          <div className="text-center py-8">
-            <p className="text-gray-400">No jobs found matching your criteria</p>
-          </div>
-        )}
-      </InteractiveCard>
-    </div>
-  );
+                {getFilteredJobs().length > 0 ? (
+                  <div className="space-y-3">
+                    {getFilteredJobs().map((job) => (
+                      <div key={job.id} className="bg-gradient-to-r from-gray-700 to-gray-800 p-4 rounded-xl border border-gray-600 hover:border-gray-500 hover:shadow-lg transition-all duration-200 group">
+                        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-3 lg:space-y-0">
+                          <div className="flex-1 lg:pr-4">
+                            <h4 className="text-white font-medium text-base mb-1 group-hover:text-yellow-400 transition-colors cursor-pointer">{job.title}</h4>
+                            <p className="text-gray-400 text-sm">{formData.feedName}</p>
+                          </div>
+                          
+                          <div className="flex flex-col sm:flex-row sm:items-center lg:space-x-6 space-y-2 sm:space-y-0">
+                            <div className="text-yellow-400 font-semibold text-center lg:min-w-[120px]">{job.budget}</div>
+                            <div className="text-gray-400 text-sm text-center lg:min-w-[140px]">{job.time}</div>
+                            
+                            <div className="flex items-center justify-center lg:min-w-[100px]">
+                              <StatusButton 
+                                isComplete={job.status === 'applied'} 
+                                label={job.status === 'applied' ? "Applied" : "Apply"} 
+                                onClick={() => handleJobAction(job.id)}
+                              />
+                            </div>
+                            
+                            <div className="flex justify-center">
+                              <div className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-full w-12 h-12 flex items-center justify-center font-bold text-sm shadow-lg">
+                                {job.score}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-gray-400">No jobs found matching your criteria</p>
+                  </div>
+                )}
+              </>
+            )}
+          </InteractiveCard>
+        </div>
+      </div>
+    );
+  };
 
   const renderCountdown = () => (
     <div className="flex items-center justify-center h-96">
@@ -917,7 +1021,6 @@ const UserDashboard = () => {
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-gray-900 to-black">
-      {/* Mobile Header */}
       {isMobile && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-black/95 backdrop-blur border-b border-gray-800 px-4 py-3">
           <div className="flex items-center justify-between">
@@ -932,7 +1035,6 @@ const UserDashboard = () => {
         </div>
       )}
 
-      {/* Sidebar Overlay for Mobile */}
       {isMobile && isSidebarOpen && (
         <div 
           className="fixed inset-0 bg-black/50 z-40"
@@ -940,7 +1042,6 @@ const UserDashboard = () => {
         />
       )}
 
-      {/* Sidebar */}
       <div className={`${
         isMobile 
           ? `fixed left-0 top-0 h-full z-50 transform transition-transform duration-300 ${
@@ -949,13 +1050,11 @@ const UserDashboard = () => {
           : 'relative'
       } w-64 lg:w-72 bg-gray-900 text-white flex flex-col border-r border-gray-800 shadow-2xl`}>
         
-        {/* Mobile Close Button */}
         {isMobile && (
           <div className="flex items-center justify-between p-4 border-b border-gray-800">
-            <div className= "flex justify-center items-center gap-2">
-            <LogOut className='cursor-pointer ' onClick={LogOut}/>
-            <h1 className="text-xl font-bold  bg-clip-text bg-lime-400 text-transparent ">Hadeed Malik</h1>
-
+            <div className="flex justify-center items-center gap-2">
+              <LogOut className='cursor-pointer' onClick={logOut}/>
+              <h1 className="text-xl font-bold bg-clip-text bg-lime-400 text-transparent">Hadeed Malik</h1>
             </div>
             <button
               onClick={() => setIsSidebarOpen(false)}
@@ -966,14 +1065,12 @@ const UserDashboard = () => {
           </div>
         )}
 
-        {/* Desktop Header */}
         {!isMobile && (
           <div className="p-4 lg:p-6 border-b border-gray-800">
             <div className='flex justify-center items-center gap-6'>
-            <LogOut className='cursor-pointer ' onClick={LogOut}/>
-            <h1 className="text-xl lg:text-2xl font-bol bg-lime-400 bg-clip-text text-transparent">Hadeed Malik</h1>
-
-              </div>
+              <LogOut className='cursor-pointer' onClick={logOut}/>
+              <h1 className="text-xl lg:text-2xl font-bold bg-lime-400 bg-clip-text text-transparent">Hadeed Malik</h1>
+            </div>
           </div>
         )}
 
@@ -1013,7 +1110,6 @@ const UserDashboard = () => {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className={`flex-1 overflow-auto ${isMobile ? 'pt-16' : ''}`}>
         <div className="p-4 md:p-6 lg:p-8 min-h-full">
           {renderContent()}
@@ -1021,5 +1117,6 @@ const UserDashboard = () => {
       </div>
     </div>
   );
-}
+};
+
 export default UserDashboard

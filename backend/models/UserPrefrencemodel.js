@@ -7,7 +7,7 @@ const userPreferencesSchema = new mongoose.Schema(
       type: [String],
       required: [true, "At least one keyword is required"],
       validate: {
-        validator: (arr) => arr.length > 0,
+        validator: (arr) => Array.isArray(arr) && arr.length > 0,
         message: "Keywords array cannot be empty",
       },
     },
@@ -42,7 +42,13 @@ const userPreferencesSchema = new mongoose.Schema(
     // User’s Upwork profile link
     profileUrl: {
       type: String,
-      required: [true, "Profile URL is required"],
+      required: false,
+      default: ""
+      // validate: {
+      //   validator: (url) =>
+      //     /^https:\/\/www\.upwork\.com\/freelancers\/~[a-zA-Z0-9]+$/.test(url),
+      //   message: "Please provide a valid Upwork profile URL (e.g. https://www.upwork.com/freelancers/~0123456789abcdef)",
+      // },
     },
 
     // Optional reference to a User model (if you have user auth)
@@ -54,10 +60,12 @@ const userPreferencesSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// --- Instance Methods (optional, like your class methods) ---
+//
+// ✅ --- METHODS SECTION ---
+//
 
-// Validate preferences (like your .validate())
-userPreferencesSchema.methods.isValidPreferences = function () {
+// Validate preferences before using them
+userPreferencesSchema.methods.validatePreferences = function () {
   const errors = [];
 
   if (!this.keywords || this.keywords.length === 0) {
@@ -72,18 +80,21 @@ userPreferencesSchema.methods.isValidPreferences = function () {
     errors.push("Rates cannot be negative");
   }
 
+  // NOTE: profileUrl is optional for searching; do not require it here.
+
   return {
     isValid: errors.length === 0,
     errors,
   };
 };
 
-// Convert to Upwork API search query (like your .toSearchQuery())
+// Convert preferences into Upwork API query parameters
 userPreferencesSchema.methods.toSearchQuery = function () {
   return {
     q: this.keywords.join(" OR "),
     sort: "recency",
-    paging: "0;50",
+    page_size: 50,
+    page_offset: 0,
   };
 };
 

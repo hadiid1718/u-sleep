@@ -66,9 +66,7 @@ const userSchema = new mongoose.Schema({
   }
 });
 
-// Index for better query performance
-userSchema.index({ email: 1 });
-userSchema.index({ googleId: 1 });
+// Indexes are automatically created for unique fields (email, googleId)
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {

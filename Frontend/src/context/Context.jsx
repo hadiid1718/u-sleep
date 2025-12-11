@@ -1,143 +1,276 @@
-import React, { createContext, useState } from 'react';
+import React, { createContext, useState } from "react";
 
 export const AppContext = createContext();
 
-// API Configuration
-const API_BASE_URL = 'http://localhost:8080/api';
+// API Base URLs
+const API_BASE_URL = "http://localhost:8080/api";
+const JOBS_API_URL = `${API_BASE_URL}/jobs`;
+const USER_API_URL = `${API_BASE_URL}/user`;
+const DASHBOARD_API_URL = `${API_BASE_URL}/dashboard`;
 
-// API Service
+// 🔹 API Service
 const jobAPI = {
+  // 🔍 Search Jobs
   searchJobs: async (formData) => {
     try {
-      console.log('📡 Calling API:', `${API_BASE_URL}/jobs/search`);
-      console.log('📦 Sending data:', formData);
+      console.log("📡 Calling API:", `${API_BASE_URL}/search`);
+      console.log("📦 Sending data:", formData);
 
-      const response = await fetch(`${API_BASE_URL}/jobs/search`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+      // 🧠 Ensure proper JSON structure before sending
+      const payload = {
+        keywords: formData.keywords || [],
+        hourlyRate: Number(formData.hourlyRate) || 0,
+        fixedRate: Number(formData.fixedRate) || 0,
+        badJobCriteria: formData.badJobCriteria || [],
+        accountType: formData.accountType || "freelancer",
+        profileUrl: formData.profileUrl || "",
+      };
+
+      const response = await fetch(`${API_BASE_URL}/search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }, // ✅ proper header
+        body: JSON.stringify(payload),
       });
-      
-      console.log('📨 Response status:', response.status);
+
+      console.log("📨 Response status:", response.status);
+
+      const data = await response.json();
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Server error: ${response.status}`);
+        throw new Error(data.error || `Server error: ${response.status}`);
       }
-      
-      const data = await response.json();
-      console.log('✅ Response data:', data);
-      return data;
+
+      console.log("✅ Response data:", data);
+
+      if (!data.success || !Array.isArray(data.jobs)) {
+        throw new Error("Invalid response format from server.");
+      }
+
+      return data.jobs;
     } catch (error) {
-      console.error('❌ Fetch error:', error);
-      if (error.message.includes('Failed to fetch')) {
-        throw new Error('Cannot connect to server. Make sure backend is running on http://localhost:5000');
+      console.error("❌ Fetch error:", error);
+      if (error.message.includes("Failed to fetch")) {
+        throw new Error(
+          "Cannot connect to backend. Please ensure it’s running on http://localhost:8080"
+        );
       }
       throw error;
     }
   },
 
+  // 🤖 Analyze Job
   analyzeJob: async (jobData, userPreferences) => {
-    const response = await fetch(`${API_BASE_URL}/jobs/analyze`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jobData, userPreferences })
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to analyze job');
+    try {
+      const response = await fetch(`${API_BASE_URL}/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobData, userPreferences }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to analyze job");
+      }
+
+      console.log("🧠 Analyze response:", data);
+      return data;
+    } catch (err) {
+      console.error("❌ Analyze Job Error:", err);
+      throw err;
     }
-    
-    return response.json();
-  }
+  },
 };
 
+//  Context Provider
 export const ContextProvider = ({ children }) => {
   const [steps, setSteps] = useState(1);
-  const [user, setUser] = useState(null);
-  
-  // Form Data State
-  const [formData, setFormData] = useState({
-    keywords: [],
-    hourlyRate: '',
-    fixedRate: '',
-    badJobCriteria: [],
-    accountType: '',
-    profileUrl: '',
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem('user');
+    return savedUser ? JSON.parse(savedUser) : null;
   });
-
-  // Jobs State
-  const [jobs, setJobs] = useState([]);
+  const [jobResults, setJobResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Navigation Functions
-  const nextStep = () => {
-    setSteps((prev) => Math.min(prev + 1, 6));
+  // Handle login for both users and admin
+  const handleLogin = async (credentials, isAdmin = false) => {
+    try {
+      const endpoint = isAdmin ? `${API_BASE_URL}/admin/login` : `${API_BASE_URL}/user/login`;
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credentials)
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message);
+
+      // Store user data and token
+      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('token', data.token);
+      setUser(data.user);
+      return data.user;
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
   };
 
-  const prevStep = () => {
-    setSteps((prev) => Math.max(prev - 1, 1));
+  // Handle logout
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    setUser(null);
+    window.location.href = '/';
   };
+  
+  //  Form Data
+  const [formData, setFormData] = useState({
+    keywords: [],
+    hourlyRate: "",
+    fixedRate: "",
+    badJobCriteria: [],
+    accountType: "",
+    profileUrl: "",
+  });
 
-  // Submit Function - Calls Backend API
+  //  Step Control
+  const nextStep = () => setSteps((prev) => Math.min(prev + 1, 6));
+  const prevStep = () => setSteps((prev) => Math.max(prev - 1, 1));
+
+  // Submit Function (calls backend)
   const handleSubmit = async (finalData) => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      console.log('🚀 Submitting form data:', finalData);
+      console.log("🚀 Submitting form data:", finalData);
+
+      //  Make sure `finalData` has valid JSON
+      const formattedData = {
+        keywords:
+          typeof finalData.keywords === "string"
+            ? finalData.keywords.split(",").map((k) => k.trim())
+            : finalData.keywords || [],
+        hourlyRate: Number(finalData.hourlyRate) || 0,
+        fixedRate: Number(finalData.fixedRate) || 0,
+        badJobCriteria: finalData.badJobCriteria || [],
+        accountType: finalData.accountType || "freelancer",
+        profileUrl: finalData.profileUrl || "",
+      };
+
+      const jobs = await jobAPI.searchJobs(formattedData);
+      console.log(`✅ Received ${jobs.length} jobs`);
       
-      const response = await jobAPI.searchJobs(finalData);
-      
-      console.log('✅ API Response:', response);
-      
-      if (response.success && response.jobs) {
-        console.log(`📦 Setting ${response.jobs.length} jobs in state`);
-        setJobs(response.jobs);
-        
-        console.log('⏭️ Moving to step 6');
-        setSteps(6);
-        
-        console.log('✅ Done! Jobs should now be visible');
-      } else {
-        throw new Error(response.error || 'Failed to fetch jobs');
+      if (!Array.isArray(jobs) || jobs.length === 0) {
+        throw new Error("No jobs found matching your criteria. Try adjusting your search parameters.");
       }
-    } catch (err) {
-      console.error('❌ Error fetching jobs:', err);
-      setError(err.message || 'Failed to connect to server. Please check if the backend is running on http://localhost:5000');
       
-      // Don't move to step 6 if there's an error
-      // Stay on step 5 so user can retry
+      // Store jobs in context
+      setJobResults(jobs);
+      setSteps(6);
+      
+      return jobs; // Return jobs for immediate use
+    } catch (err) {
+      console.error("❌ Error fetching jobs:", err);
+      setError(
+        err.message ||
+          "Failed to fetch jobs. Please check if backend is running properly."
+      );
+      setJobResults([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Reset Function
+  //  Reset All
   const resetForm = () => {
     setSteps(1);
-    setJobs([]);
+    setJobResults([]);
     setError(null);
     setFormData({
       keywords: [],
-      hourlyRate: '',
-      fixedRate: '',
+      hourlyRate: "",
+      fixedRate: "",
       badJobCriteria: [],
-      accountType: '',
-      profileUrl: '',
+      accountType: "",
+      profileUrl: "",
     });
   };
 
+  // Dashboard states
+  const [dashboardJobs, setDashboardJobs] = useState([]);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [userPreferences, setUserPreferences] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+
+  // Dashboard Functions
+  const fetchDashboardJobs = async () => {
+    try {
+      setDashboardLoading(true);
+      const response = await fetch(`${API_BASE_URL}/dashboard/jobs`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message);
+      setDashboardJobs(data.jobs);
+    } catch (error) {
+      console.error('Dashboard jobs fetch error:', error);
+      setError(error.message);
+    } finally {
+      setDashboardLoading(false);
+    }
+  };
+
+  const updateUserPreferences = async (preferences) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/preferences`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify(preferences),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message);
+      setUserPreferences(data.preferences);
+      return data.preferences;
+    } catch (error) {
+      console.error('Update preferences error:', error);
+      setError(error.message);
+      throw error;
+    }
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/notifications`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message);
+      setNotifications(data.notifications);
+    } catch (error) {
+      console.error('Notifications fetch error:', error);
+      setError(error.message);
+    }
+  };
+
+  // Prepare context value
   const value = {
     steps,
     setSteps,
     user,
-    setUser,
     formData,
     setFormData,
-    jobs,
-    setJobs,
+    jobResults,
+    setJobResults,
     loading,
     setLoading,
     error,
@@ -146,7 +279,21 @@ export const ContextProvider = ({ children }) => {
     prevStep,
     handleSubmit,
     resetForm,
-    jobAPI, // Export API for individual component use
+    jobAPI,
+    // Dashboard related
+    dashboardJobs,
+    dashboardLoading,
+    fetchDashboardJobs,
+    userPreferences,
+    updateUserPreferences,
+    notifications,
+    fetchNotifications,
+    // Auth related
+    handleLogin,
+    handleLogout,
+    logOut: handleLogout,
+    // Role helper
+    userRole: user?.role || null
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -1,7 +1,7 @@
 
 import { useContext } from "react";
 import { Link } from "react-router-dom";
-import { AppContext } from "../context/Context";
+import { AppContext } from "../../context/Context";
 
 const Header = () => {
   const { user , logOut, userRole} = useContext(AppContext)
@@ -9,7 +9,7 @@ const Header = () => {
   return (
     <header className="flex justify-between items-center px-6 py-4 bg-black">
       <div className="flex items-center space-x-2">
-        <span className="text-white font-medium text-lg"> <span className="text-lime-400">U</span> never sleep</span>
+        <span className="text-white font-medium text-lg"> <span className="text-lime-400">U</span>  sleep</span>
       </div>
       <nav className="hidden md:flex items-center space-x-6">
         {!user ? (

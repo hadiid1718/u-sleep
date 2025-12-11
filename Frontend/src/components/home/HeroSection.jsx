@@ -4,17 +4,24 @@ import Rates from './steps/Rates';
 import BadJobCriteria from './steps/BadJobCriteria';
 import RoleSelecting from './steps/RoleSelecting';
 import ProfileUrl from './steps/ProfileUrl';
-import { AppContext } from '../context/Context';
+import { AppContext } from '../../context/Context';
 import NoUser from './NoUser';
-import CountdownTimer from '../pages/CountDown';
+import CountdownTimer from '../../pages/CountDown';
 import { Loader2 } from 'lucide-react';
-import JobSelectionPage from '../pages/JobResultPage';
-import JobDetails from './JobDetail';
+import JobSelectionPage from '../../pages/JobResultPage';
+import JobDetails from '../JobDetail';
 
 const HeroSection = () => {
-  const { steps, setSteps, user, setUser } = useContext(AppContext);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const { 
+    steps, 
+    setSteps, 
+    user, 
+    loading,
+    setLoading, 
+    error,
+    setError,
+    jobResults 
+  } = useContext(AppContext);
 
   return (
     <section className="bg-gradient-to-br from-green-900 via-black to-black min-h-screen flex items-center px-6 relative">
@@ -83,23 +90,28 @@ const HeroSection = () => {
               {steps === 4 && <RoleSelecting />}
 
               {/* Step 5 - Profile URL */}
-              {steps === 5 && <ProfileUrl setLoading={setLoading} setError={setError} />}
+              {steps === 5 && <ProfileUrl />}
 
               {/* Step 6 - Results/User Check */}
-           {steps === 6 && (
-  <div>
-    {!user ? (
-      // Show login/signup if user not logged in
-      <NoUser />
-    ) : jobs.length > 0 ? (
-      // Show jobs if user is logged in and jobs exist
-      <JobSelectionPage/>
-    ) : (
-      // Show countdown/loading if waiting for jobs
-      <CountdownTimer />
-    )}
-  </div>
-)}
+              {steps === 6 && (
+                <div>
+                  {!user ? (
+                    // Show login/signup if user not logged in
+                    <NoUser />
+                  ) : loading ? (
+                    // Show countdown/loading if waiting for jobs
+                    <CountdownTimer />
+                  ) : error ? (
+                    // Show error message if there was a problem
+                    <div className="text-red-400 p-4">
+                      {error}
+                    </div>
+                  ) : (
+                    // Show jobs if user is logged in and no errors
+                    <JobSelectionPage />
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>

@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { AppContext } from '../../context/Context';
+import { AppContext } from '../../../context/Context';
 
 const BadJobCriteria = () => {
   const { formData, setFormData, prevStep, nextStep, steps } = useContext(AppContext);

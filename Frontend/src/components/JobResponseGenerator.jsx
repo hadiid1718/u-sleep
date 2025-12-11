@@ -6,7 +6,8 @@ import SuccessPopup from './SuccessPopup';
 import FeedbackModal from './FeedBackModel';
 import CaseStudyModal from './CaseStudyModel';
 
-const JobResponseGenerator = ({ onClose }) => {
+const JobResponseGenerator = ({ job, onClose }) => {
+  console.log('JobResponseGenerator received job:', job);
   const [currentScreen, setCurrentScreen] = useState('loading');
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
@@ -84,12 +85,13 @@ What time are you available tomorrow for a quick call to discuss your specific r
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 mx-auto max-w-7xl">
-          <JobDetails />
+          <JobDetails job={job} />
           <GeneratedResponse 
             onLike={handleLike} 
             onDislike={handleDislike}
             onUpgrade={handleUpgradeClick}
             responseText={responseText}
+            job={job}
           />
         </div>
       </div>

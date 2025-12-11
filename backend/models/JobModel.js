@@ -53,23 +53,45 @@ jobSchema.methods.generateJobUrl = function () {
 jobSchema.methods.meetsMinimumCriteria = function (criteria) {
   const { minHourlyRate, minFixedRate, badJobCriteria } = criteria;
 
+  console.log('Checking job:', {
+    title: this.title,
+    budgetType: this.budgetType,
+    budget: this.budget,
+    criteria: { minHourlyRate, minFixedRate, badJobCriteria }
+  });
+
   // Hourly rate filter
-  if (this.budgetType === "hourly" && minHourlyRate) {
-    if (this.budget.max < parseFloat(minHourlyRate)) return false;
-  }
-
-  // Fixed rate filter
-  if (this.budgetType === "fixed" && minFixedRate) {
-    if (this.budget.amount < parseFloat(minFixedRate)) return false;
-  }
-
-  // Bad criteria filter
-  if (badJobCriteria && badJobCriteria.length > 0) {
-    for (const criterion of badJobCriteria) {
-      if (this.matchesBadCriteria(criterion)) return false;
+  if (this.budgetType === "hourly" && minHourlyRate > 0) {
+    const max = this.budget?.max || 0;
+    console.log(`Checking hourly rate: max=${max} >= min=${minHourlyRate}`);
+    if (max < parseFloat(minHourlyRate)) {
+      console.log('Failed hourly rate check');
+      return false;
     }
   }
 
+  // Fixed rate filter
+  if (this.budgetType === "fixed" && minFixedRate > 0) {
+    const amount = this.budget?.amount || 0;
+    console.log(`Checking fixed rate: amount=${amount} >= min=${minFixedRate}`);
+    if (amount < parseFloat(minFixedRate)) {
+      console.log('Failed fixed rate check');
+      return false;
+    }
+  }
+
+  // Bad criteria filter
+  if (Array.isArray(badJobCriteria) && badJobCriteria.length > 0) {
+    console.log('Checking bad criteria:', badJobCriteria);
+    for (const criterion of badJobCriteria) {
+      if (this.matchesBadCriteria(criterion)) {
+        console.log('Failed bad criteria check:', criterion);
+        return false;
+      }
+    }
+  }
+
+  console.log('Job passed all criteria');
   return true;
 };
 

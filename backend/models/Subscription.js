@@ -51,8 +51,7 @@ const subscriptionSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index for faster queries
+// Index for faster queries - stripeCustomerId is unique, so don't need separate index
 subscriptionSchema.index({ userId: 1, status: 1 });
-subscriptionSchema.index({ stripeCustomerId: 1 });
 
 module.exports = mongoose.model('Subscription', subscriptionSchema);

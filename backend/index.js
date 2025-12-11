@@ -1,5 +1,4 @@
 const express = require("express");
-const bodyParser = require("body-parser");
 const cors = require("cors");
 const mongoose = require("mongoose");
 const helmet = require("helmet");
@@ -12,9 +11,9 @@ const { Configuration, OpenAIApi } = require("openai");
 
 // Routes Importing
 const adminRouter = require("./routes/AdminRoutes");
+const adminAuthRouter = require("./routes/AdminAuthRoutes");
 const userRouter = require("./routes/UserRoutes");
 const demoRouter = require("./routes/DemoRoutes")
-const db = require("./config/database");
 const jobRouter = require("./routes/JobRoutes");
 const PaymentRoutes = require("./routes/PaymentRoutes");
 const webRoutes = require("./routes/WebhooksRoutes");
@@ -30,24 +29,31 @@ app.use(
     methods: ["GET", "POST", "PUT", "DELETE"], 
   })
 );
-
-  db.execute("SELECT * FROM users").then(([rows, fields])=> {
-   console.log("Database data", rows)
-  }).catch(error =>{
-    console.log("Error", error)
-  })
-// Logging
-app.use(morgan("combined"));
-
-// Body Parsing Middlewares
-app.use(bodyParser.json({ limit: "30mb" }));
-app.use(express.json())
+app.use(express.json({ limit: "30mb" }));
 app.use(
   express.urlencoded({
     extended: true,
     limit: "30mb",
   })
 );
+
+
+
+ 
+// Logging
+app.use(morgan("combined"));
+
+
+
+
+// API ROUTES
+app.use("/api/admin", adminRouter);
+app.use("/api/admin/auth", adminAuthRouter);
+app.use("/api/user", userRouter);
+app.use("/api/user/demo-scheduling", demoRouter)
+app.use("/api/jobs", jobRouter);
+app.use("/api/payment", PaymentRoutes)
+app.use("/api/webhooks", webRoutes)
 
 // Health Check
 app.get("/health", (req, res) => {
@@ -58,13 +64,7 @@ app.get("/health", (req, res) => {
   });
 });
 
-// API ROUTES
-app.use("/api/admin", adminRouter); // FIX: typo in "admiin"
-app.use("/api/user", userRouter);
-app.use("/api/user/demo-scheduling", demoRouter)
-app.use("/api/jobs", jobRouter);
-app.use("/api/payment", PaymentRoutes)
-app.use("/api/webhooks", webRoutes)
+
 
 // Handling 404
 app.use((req, res) => {

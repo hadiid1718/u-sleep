@@ -12,7 +12,7 @@ const SignIn = (onBack) => {
   const navigate = useNavigate()
 
 
-  const { user, setUser,} = useContext(AppContext)
+  const { handleLogin, setUser } = useContext(AppContext)
 
        useEffect(()=> {
     const token = localStorage.getItem("accessToken")
@@ -26,37 +26,22 @@ const SignIn = (onBack) => {
   }, [])
 
   const handleSignIn = async() => {
-    
-
     try {
-       const dataResponse = await fetch(summaryApi.signIn.url, {
-        method: summaryApi.signIn.method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body : JSON.stringify({
-          email,
-          password
-        })
+      const isAdmin = email === 'admin' || email === 'admin@local';
+      const user = await handleLogin({ username: email, email, password }, isAdmin);
 
-       })
-        const data = await dataResponse.json()
-        console.log("User Data ", data)
-
-        if(data.success) {
-        localStorage.setItem("accessToken", data.data.tokens.accessToken);
-        localStorage.setItem("refreshToken", data.data.tokens.refreshToken);
-        localStorage.setItem("user", JSON.stringify(data.data.user));
-        setUser(data.data.user)
+      if (user) {
         setAuthenticated(true);
-        navigate("/")
-        } else {
-        setError(data.message);
-        console.log(data.message)
+        setUser(user);
+        // Navigate based on role
+        if (user.role === 'admin') {
+          return navigate('/admin/dashboard');
+        }
+        return navigate('/user/dashboard');
       }
-
-    } catch (error) {
-       setError("Network error")
+    } catch (err) {
+      console.error('Sign in error:', err);
+      setError(err.message || 'Network error');
     }
   }
 

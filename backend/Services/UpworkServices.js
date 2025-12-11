@@ -30,11 +30,12 @@ class UpworkService {
         page_offset: 0,
       };
 
-      console.log("🌐 Calling Upwork API with params:", params);
-      console.log(userPreferences)
-      // 🔹 For now, use mock data (no real API)
-      const jobs = this.getMockJobs({ keywords: safeKeywords });
-      return jobs;
+  console.log(" Calling Upwork API with params:", params);
+  console.log(userPreferences);
+  // 🔹 For now, use mock data (no real API)
+  const jobs = this.getMockJobs({ keywords: safeKeywords });
+  // Return an explicit promise to make behavior consistent with real API
+  return Promise.resolve(jobs);
 
       /* --- Uncomment when using real API ---
       const response = await axios.get(`${this.baseURL}/profiles/v2/search/jobs`, {
@@ -47,23 +48,24 @@ class UpworkService {
       return response.data.jobs || [];
       */
     } catch (error) {
-      console.error("❌ Upwork API Error:", error.message);
+      console.error(" Upwork API Error:", error.message);
       throw new Error("Failed to fetch jobs from Upwork");
     }
   }
 
-  // ✅ Get single job safely
+  //  Get single job safely
   async getJobById(jobId) {
     try {
       const allJobs = this.getMockJobs({ keywords: [""] });
-      return allJobs.find((job) => job.id === jobId) || null;
+      const found = allJobs.find((job) => job.id === jobId) || null;
+      return Promise.resolve(found);
     } catch (error) {
       console.error("❌ Upwork API Error:", error.message);
       return null;
     }
   }
 
-  // ✅ Generate mock jobs safely
+  //  Generate mock jobs safely
   getMockJobs(userPreferences = { keywords: [] }) {
     const safeKeywords = Array.isArray(userPreferences.keywords)
       ? userPreferences.keywords
@@ -78,7 +80,7 @@ class UpworkService {
         id: "job_001",
         ciphertext: "~01abc123def456",
         title: `${keywords || "Frontend"} Developer Needed for E-commerce Project`,
-        description: `We are looking for an experienced ${keywords} developer...`,
+        description: `We are looking for an experienced ${keywords || "Frontend"} developer with strong skills in React and Node.js. Must have experience building scalable e-commerce solutions. Long-term project with possibility of extension.`,
         job_type: "hourly",
         hourly_budget: { min: 30, max: 75 },
         skills: safeKeywords.length ? safeKeywords : ["React", "Node", "API"],
@@ -94,6 +96,10 @@ class UpworkService {
           total_spent: 25000,
           total_hires: 15,
           rating: 4.8,
+          hire_rate: 80,
+          payment_verified: true,
+          jobs_posted: 25,
+          open_jobs: 2
         },
       },
       {
@@ -115,7 +121,12 @@ class UpworkService {
           city: "London",
           total_spent: 50000,
           total_hires: 25,
+          total_reviews: 30,
           rating: 4.9,
+          payment_verified: true,
+          hire_rate: 85,
+          jobs_posted: 35,
+          open_jobs: 3
         },
       },
     ];

@@ -1,14 +1,13 @@
 import React from 'react'
-import HeroSection from '../components/HeroSection'
-import HowItWorks from '../components/Working'
-import PricingSection from '../components/PricingSection'
-import TestimonialSection from '../components/TestimonialSection'
-import FeaturesSection from '../components/FeatureSection'
-import ComparisonTable from '../components/CamparisonTable'
-import ScheduleDemo from '../components/Demo'
-import BuiltInPublic from '../components/BuiltInPublic'
-import Footer from '../components/Footer'
-import Header from '../components/Navbar'
+import HeroSection from "../components/home/HeroSection"
+import HowItWorks from "../components/home/Working"
+import PricingSection from "../components/home/PricingSection"
+import TestimonialSection from "../components/home/TestimonialSection"
+import ComparisonTable from "../components/home/CamparisonTable"
+import FeaturesSection from "../components/home/FeatureSection"
+import ScheduleDemo from "../components/home/Demo"
+import BuiltInPublic from "../components/home/BuiltInPublic"
+
 
 const HomePage = () => {
   return (

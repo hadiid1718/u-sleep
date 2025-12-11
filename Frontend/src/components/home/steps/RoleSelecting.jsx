@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { AppContext } from '../../context/Context';
+import { AppContext } from '../../../context/Context';
 
 const RoleSelecting = () => {
   const { formData, setFormData, nextStep, prevStep, steps } = useContext(AppContext);
