@@ -69,7 +69,7 @@ const registerUser = async (req, res) => {
 
 const loginUser = async (req, res) => {
   try {
-    console.log("Incoming body:", req.body); 
+    console.log("Incoming body:", req.body);
 
     const { email, password } = req.body || {};
 
@@ -91,7 +91,7 @@ const loginUser = async (req, res) => {
       });
     }
 
-    // Check password (must call instance method on user)
+    // Check password
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       return res.status(401).json({
@@ -110,6 +110,7 @@ const loginUser = async (req, res) => {
 
     // Save refresh token & update last login
     user.refreshToken = tokens.refreshToken;
+    await user.save();
     await user.updateLastLogin();
 
     // Remove password from response
@@ -132,6 +133,7 @@ const loginUser = async (req, res) => {
     });
   }
 };
+
 const loginwithGoogle = async (req, res) => {
   try {
     const { token } = req.body;
@@ -141,7 +143,8 @@ const loginwithGoogle = async (req, res) => {
         message: "Google Token is required",
       });
     }
-      const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+    
+    const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
     // Verify Google token
     const ticket = await googleClient.verifyIdToken({
@@ -163,6 +166,9 @@ const loginwithGoogle = async (req, res) => {
     let user = await User.findOne({
       $or: [{ email }, { googleId }],
     });
+
+    // FIX: Track if this is a new user BEFORE saving
+    const isNewUser = !user;
 
     if (user) {
       if (!user.googleId) user.googleId = googleId;
@@ -191,7 +197,7 @@ const loginwithGoogle = async (req, res) => {
     await user.save();
     await user.updateLastLogin();
 
-    res.status(user.isNew ? 201 : 200).json({
+    res.status(isNewUser ? 201 : 200).json({
       success: true,
       message: "Google Login Successful",
       data: {
@@ -215,10 +221,11 @@ const loginwithGoogle = async (req, res) => {
     });
   }
 };
+
 const logoutUser = async (req, res) => {
   try {
     const user = req.user;
-    //Clear toke refres
+    // Clear refresh token
     user.refreshToken = null;
     await user.save();
     res.status(200).json({
@@ -229,11 +236,12 @@ const logoutUser = async (req, res) => {
     console.error("Logout error", error);
     res.status(500).json({
       success: false,
-      message: "Internal server errir",
+      message: "Internal server error", // FIX: typo
     });
   }
 };
-//Get all users only admin
+
+// Get all users - admin only
 const getUser = async (req, res) => {
   try {
     const {
@@ -255,18 +263,16 @@ const getUser = async (req, res) => {
     if (isActive !== undefined) {
       query.isActive = isActive === "true";
     }
+
     // Calculate pagination
-    if(limit === 0 ){ 
-    }
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
-    Math.ceil(totalUser / limitNum)
     const skip = (pageNum - 1) * limitNum;
 
-    //Sort options
-
+    // Sort options
     const sortOptions = {};
     sortOptions[sortBy] = sortOrder === "desc" ? -1 : 1;
+
     // Execute query
     const [users, totalUsers] = await Promise.all([
       User.find(query)
@@ -308,53 +314,58 @@ const getUser = async (req, res) => {
 
 const getCurrentUser = async (req, res) => {
   try {
-    const user  = req.user;
+    const user = req.user;
 
     res.status(200).json({
       success: true,
-      message: "User Profile Retrived Successfully",
-      date: { user },
+      message: "User Profile Retrieved Successfully",
+      data: { user }, // FIX: was "date"
     });
   } catch (error) {
-    console.error(" Get current user error", error);
+    console.error("Get current user error", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",
     });
   }
 };
+
 const updateUserProfile = async (req, res) => {
   try {
     const { name, email, avatar } = req.body;
     const user = req.user;
+    
     if (name) user.name = name.trim();
     if (email) user.email = email.trim();
     if (avatar) user.avatar = avatar;
 
-    await user.save()
+    await user.save();
+    
     res.status(200).json({
       success: true,
-      message: "Profile Updated successfully"
-
-    })
+      message: "Profile Updated successfully",
+      data: { user }
+    });
 
   } catch (error) {
-    console.error("Profile update error", error)
-      if (err.name === "ValidationError") { // FIX: correct capitalization
-    const errors = Object.values(err.errors).map((e) => e.message);
-    return res.status(400).json({
+    console.error("Profile update error", error);
+    
+    // FIX: Use 'error' not 'err'
+    if (error.name === "ValidationError") {
+      const errors = Object.values(error.errors).map((e) => e.message);
+      return res.status(400).json({
+        success: false,
+        message: "Validation Error",
+        errors,
+      });
+    }
+    
+    res.status(500).json({
       success: false,
-      message: "Validation Error",
-      errors,
+      message: "Internal server error"
     });
   }
-  res.status(500).json({
-    success: false,
-    message: "Internal server error"
-  })
-  }
 };
-
 
 module.exports = {
   registerUser,
