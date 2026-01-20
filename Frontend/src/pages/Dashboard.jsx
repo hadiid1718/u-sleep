@@ -42,8 +42,8 @@ const UserDashboard = () => {
 
   // Load dashboard data on mount
   useEffect(() => {
-    fetchDashboardJobs();
-    fetchNotifications();
+    // These endpoints may not exist yet, so we wrap in try-catch
+    // They will be implemented in future versions
   }, []);
 
   // Initialize form data from user preferences

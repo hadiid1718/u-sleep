@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import LoadingScreen from './LoadingScreen';
+import LoadingScreen from '../shared/LoadingScreen';
 import JobDetails from './JobDetail';
 import GeneratedResponse from './GeneratedResponse';
-import SuccessPopup from './SuccessPopup';
-import FeedbackModal from './FeedBackModel';
-import CaseStudyModal from './CaseStudyModel';
+import SuccessPopup from '../SuccessPopup';
+import FeedbackModal from '../models/FeedBackModel';
+import CaseStudyModal from '../models/CaseStudyModel';
 
 const JobResponseGenerator = ({ job, onClose }) => {
   console.log('JobResponseGenerator received job:', job);

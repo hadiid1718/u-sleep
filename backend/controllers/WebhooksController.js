@@ -13,7 +13,7 @@ exports.handleStripeWebhook = async (req, res) => {
   try {
     // Verify webhook signature
     event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-    console.log('✅ Webhook verified:', event.type);
+    console.log(' Webhook verified:', event.type);
 
     // Create initial webhook log
     webhookLog = await WebhookLog.create({
@@ -30,7 +30,7 @@ exports.handleStripeWebhook = async (req, res) => {
     });
 
   } catch (err) {
-    console.error('❌ Webhook signature verification failed:', err.message);
+    console.error(' Webhook signature verification failed:', err.message);
     
     // Log failed verification
     try {
@@ -163,7 +163,7 @@ exports.handleStripeWebhook = async (req, res) => {
         break;
 
       default:
-        console.log(`⚠️ Unhandled event type: ${event.type}`);
+        console.log(` Unhandled event type: ${event.type}`);
     }
 
     // Update webhook log with success
@@ -172,7 +172,7 @@ exports.handleStripeWebhook = async (req, res) => {
     webhookLog.processingTime = processingTime;
     await webhookLog.save();
 
-    console.log(`✅ Webhook processed successfully in ${processingTime}ms`);
+    console.log(` Webhook processed successfully in ${processingTime}ms`);
 
     res.json({ 
       received: true, 
@@ -181,7 +181,7 @@ exports.handleStripeWebhook = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Webhook handler error:', error);
+    console.error(' Webhook handler error:', error);
 
     // Update webhook log with failure
     webhookLog.status = 'failed';

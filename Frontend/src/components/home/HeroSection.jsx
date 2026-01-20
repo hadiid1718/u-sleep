@@ -8,8 +8,7 @@ import { AppContext } from '../../context/Context';
 import NoUser from './NoUser';
 import CountdownTimer from '../../pages/CountDown';
 import { Loader2 } from 'lucide-react';
-import JobSelectionPage from '../../pages/JobResultPage';
-import JobDetails from '../JobDetail';
+import JobResultPage from "../../pages/JobResultPage";
 
 const HeroSection = () => {
   const { 
@@ -24,7 +23,7 @@ const HeroSection = () => {
   } = useContext(AppContext);
 
   return (
-    <section className="bg-gradient-to-br from-green-900 via-black to-black min-h-screen flex items-center px-6 relative">
+    <section className="bg-gradient-to-br bg-black min-h-screen flex items-center px-6 relative">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute top-20 left-20 w-2 h-2 bg-lime-400 rounded-full"></div>
@@ -108,7 +107,7 @@ const HeroSection = () => {
                     </div>
                   ) : (
                     // Show jobs if user is logged in and no errors
-                    <JobSelectionPage />
+                    <JobResultPage />
                   )}
                 </div>
               )}

@@ -40,7 +40,7 @@ const PricingSection = () => {
       // Replace this with your actual user data retrieval
       // For example, from Redux, Context API, or localStorage
       const storedUser = localStorage.getItem('user');
-      if (storedUser) {
+      if (storedUser && storedUser !== 'undefined' && storedUser !== 'null') {
         try {
           const user = JSON.parse(storedUser);
           setUserInfo({
@@ -49,6 +49,7 @@ const PricingSection = () => {
           });
         } catch (e) {
           console.error('Error parsing user data:', e);
+          localStorage.removeItem('user');
         }
       }
     };

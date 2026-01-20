@@ -69,7 +69,7 @@ const registerUser = async (req, res) => {
 
 const loginUser = async (req, res) => {
   try {
-    console.log("Incoming body:", req.body); // debug
+    console.log("Incoming body:", req.body); 
 
     const { email, password } = req.body || {};
 

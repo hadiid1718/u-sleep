@@ -1,5 +1,5 @@
 // ==========================================
-// 4. controllers/paymentController.js - UPDATED
+// 4. controllers/paymentController.js
 // ==========================================
 const stripe = require('stripe')(process.env.STRIPE_SECRETE_KEY); // Fixed typo: SECRETE_KEY -> SECRET_KEY
 const Subscription = require('../models/Subscription');
@@ -106,7 +106,7 @@ exports.createCheckoutSession = async (req, res) => {
     // Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
       ...sessionConfig,
-      locale: 'en', // ✅ ADDED: Forces English locale to fix the locale error
+      locale: 'en', //  ADDED: Forces English locale to fix the locale error
       success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.FRONTEND_URL}/pricing?canceled=true`,
       customer_email: email,

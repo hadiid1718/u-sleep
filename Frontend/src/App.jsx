@@ -1,14 +1,13 @@
 import React  from 'react'
 import './App.css'
-import HomePage from './pages/HomePage'
-import Header from './components/home/Navbar'
-import Footer from './components/home/Footer'
+import Header from './components/shared/Navbar'
+import Footer from './components/shared/Footer'
 import { Outlet } from 'react-router-dom'
 
 function App() {
   return (
     <>
-    <Header/>
+    <Header />
     <Outlet/>
     <Footer/>
     </>

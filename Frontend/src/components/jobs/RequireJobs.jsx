@@ -1,6 +1,6 @@
 import { useContext } from 'react';
 import { Navigate } from 'react-router-dom';
-import { AppContext } from '../context/Context';
+import { AppContext } from '../../context/Context';
 
 const RequireJobs = ({ children }) => {
   const { jobResults, loading } = useContext(AppContext);

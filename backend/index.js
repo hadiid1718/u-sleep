@@ -14,7 +14,6 @@ const adminRouter = require("./routes/AdminRoutes");
 const adminAuthRouter = require("./routes/AdminAuthRoutes");
 const userRouter = require("./routes/UserRoutes");
 const demoRouter = require("./routes/DemoRoutes")
-const jobRouter = require("./routes/JobRoutes");
 const PaymentRoutes = require("./routes/PaymentRoutes");
 const webRoutes = require("./routes/WebhooksRoutes");
 const app = express();
@@ -51,7 +50,6 @@ app.use("/api/admin", adminRouter);
 app.use("/api/admin/auth", adminAuthRouter);
 app.use("/api/user", userRouter);
 app.use("/api/user/demo-scheduling", demoRouter)
-app.use("/api/jobs", jobRouter);
 app.use("/api/payment", PaymentRoutes)
 app.use("/api/webhooks", webRoutes)
 

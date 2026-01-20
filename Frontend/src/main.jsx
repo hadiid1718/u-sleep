@@ -1,4 +1,3 @@
-
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
@@ -12,47 +11,59 @@ import SignUp from './pages/SignUp.jsx'
 import ScheduleDemo from './components/home/Demo.jsx'
 import UserDashboard from './pages/Dashboard.jsx'
 import AdminDashboard from './pages/AdminDashboard.jsx'
-import RequireJobs from './components/RequireJobs.jsx'
+import RequireJobs from './components/jobs/RequireJobs.jsx'
 const router = createBrowserRouter([
   {
     path: "/",
     element: <App />,
     children: [
       {
-      path: "/",
-      element: <HomePage />
+        path: "/",
+        element: <HomePage />
       },
       {
         path: "/user/sign-in",
-        element: <SignIn/>
-      }, 
+        element: <SignIn />
+      },
       {
         path: "/user/sign-up",
-        element: <SignUp/>
+        element: <SignUp />
       },
       {
         path: "/user/dashboard",
-        element: <UserDashboard/>
+        element: <UserDashboard />
       },
       {
-          path: "/admin/dashboard",
-          element: <AdminDashboard/>
+        path: "/admin/dashboard",
+        element: <AdminDashboard />
       },
       {
         path: "/demo-scheduling",
-        element: <ScheduleDemo/>
+        element: <ScheduleDemo />
       },
       {
         path: "/job-result",
         element: <RequireJobs><JobSelectionPage /></RequireJobs>
-      }
+      },
+      {
+        path: "/admin/sign-in",
+        element: <SignIn />,
+        loader: async () => {
+          const user = JSON.parse(localStorage.getItem("user"));
+          if (!user || user.role !== "admin") {
+            throw new Error("Unauthorized");
+          }
+          return user;
+        },
+        errorElement: <div>Unauthorized Access</div>,
+      },
     ]
   }
 ])
 createRoot(document.getElementById('root')).render(
   <ContextProvider>
-    
-      <RouterProvider router={router} />
-    
+
+    <RouterProvider router={router} />
+
   </ContextProvider>
 )

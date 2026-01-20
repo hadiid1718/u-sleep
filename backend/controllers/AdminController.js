@@ -8,7 +8,7 @@ const createDefaultAdmin = async () => {
     if (!adminExists) {
       await Admin.create({
         username: 'admin',
-        password: 'admin123', // This will be hashed by the pre-save hook
+        password: 'admin123', 
         role: 'admin'
       });
       console.log('Default admin created');
