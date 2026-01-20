@@ -4,7 +4,7 @@ import { AppContext } from '../context/Context';
 import { showSuccessToast, showErrorToast, showLoadingToast, updateToast } from '../utils/toast';
 
 const UserDashboard = () => {
-  const { user, logOut, dashboardJobs, dashboardLoading, fetchDashboardJobs, userPreferences, updateUserPreferences, notifications, fetchNotifications } = useContext(AppContext);
+  const { user, logOut, dashboardJobs, dashboardLoading, fetchDashboardJobs, userPreferences, updateUserPreferences,  } = useContext(AppContext);
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [showCountdown, setShowCountdown] = useState(false);
   const [countdown, setCountdown] = useState(3);
@@ -1054,7 +1054,7 @@ const UserDashboard = () => {
           <div className="flex items-center justify-between p-4 border-b border-gray-800">
             <div className="flex justify-center items-center gap-2">
               <LogOut className='cursor-pointer' onClick={logOut}/>
-              <h1 className="text-xl font-bold bg-clip-text bg-lime-400 text-transparent">Hadeed Malik</h1>
+              <h1 className="text-xl font-bold bg-clip-text bg-lime-400 text-transparent">{user.name || 'user'}</h1>
             </div>
             <button
               onClick={() => setIsSidebarOpen(false)}
@@ -1069,7 +1069,7 @@ const UserDashboard = () => {
           <div className="p-4 lg:p-6 border-b border-gray-800">
             <div className='flex justify-center items-center gap-6'>
               <LogOut className='cursor-pointer' onClick={logOut}/>
-              <h1 className="text-xl lg:text-2xl font-bold bg-lime-400 bg-clip-text text-transparent">Hadeed Malik</h1>
+              <h1 className="text-xl lg:text-2xl font-bold bg-lime-400 bg-clip-text text-transparent">{user.name || 'User'}</h1>
             </div>
           </div>
         )}
