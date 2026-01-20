@@ -24,7 +24,7 @@ What time are you available tomorrow for a quick call?`;
 
   return (
     <div className="bg-gray-900 border border-gray-700 rounded-2xl p-8">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col items-center justify-center gap-4 mb-8">
         <h3 className="text-white text-2xl font-bold">Generated Response</h3>
         <div className="flex gap-3">
           <button
