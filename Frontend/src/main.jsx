@@ -3,7 +3,6 @@ import './index.css'
 import App from './App.jsx'
 import { RouterProvider, createBrowserRouter } from 'react-router-dom'
 import { ContextProvider } from "./context/Context.jsx"
-import ToastProvider from './components/ToastProvider.jsx'
 import HomePage from './pages/HomePage.jsx'
 import SignIn from './pages/SignIn.jsx'
 import JobSelectionPage from './pages/JobResultPage.jsx'
@@ -12,6 +11,7 @@ import ScheduleDemo from './components/home/Demo.jsx'
 import UserDashboard from './pages/Dashboard.jsx'
 import AdminDashboard from './pages/AdminDashboard.jsx'
 import RequireJobs from './components/jobs/RequireJobs.jsx'
+import AdminSignIn from './pages/AdminSignIn.jsx'
 const router = createBrowserRouter([
   {
     path: "/",
@@ -47,15 +47,15 @@ const router = createBrowserRouter([
       },
       {
         path: "/admin/sign-in",
-        element: <SignIn />,
-        loader: async () => {
-          const user = JSON.parse(localStorage.getItem("user"));
-          if (!user || user.role !== "admin") {
-            throw new Error("Unauthorized");
-          }
-          return user;
-        },
-        errorElement: <div>Unauthorized Access</div>,
+        element: <AdminSignIn />,
+        // loader: async () => {
+        //   const user = JSON.parse(localStorage.getItem("user"));
+        //   if (!user || user.role !== "admin") {
+        //     throw new Error("Unauthorized");
+        //   }
+        //   return user;
+        // },
+        // errorElement: <div>Unauthorized Access</div>,
       },
     ]
   }

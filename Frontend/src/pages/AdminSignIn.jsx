@@ -3,7 +3,7 @@ import { AppContext } from '../context/Context';
 import { useNavigate } from "react-router-dom"
 
 const AdminSignIn = () => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -12,8 +12,8 @@ const AdminSignIn = () => {
   const { setUser } = useContext(AppContext)
 
   const handleAdminSignIn = async () => {
-    if (!email || !password) {
-      setError('Please enter email and password');
+    if (!username || !password) {
+      setError('Please enter username and password');
       return;
     }
 
@@ -21,13 +21,13 @@ const AdminSignIn = () => {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:8080/api/admin/login', {
+      const response = await fetch('http://localhost:8080/api/admin/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          email,
+          username,
           password
         })
       });
@@ -54,6 +54,12 @@ const AdminSignIn = () => {
     }
   };
 
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !loading) {
+      handleAdminSignIn();
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-6">
       <div className="bg-gray-800 rounded-lg p-8 w-full max-w-md">
@@ -73,18 +79,20 @@ const AdminSignIn = () => {
 
         {/* Form Fields */}
         <div>
-          {/* Email Field */}
+          {/* Username Field */}
           <div className="mb-6">
             <label className="block text-white text-sm font-medium mb-2">
-              Email
+              Username
             </label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@email.com"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Enter your username"
               className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400"
               disabled={loading}
+              autoComplete="username"
             />
           </div>
 
@@ -97,9 +105,11 @@ const AdminSignIn = () => {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              onKeyPress={handleKeyPress}
               placeholder="Enter your password"
               className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400"
               disabled={loading}
+              autoComplete="current-password"
             />
           </div>
 
@@ -107,21 +117,13 @@ const AdminSignIn = () => {
           <button
             onClick={handleAdminSignIn}
             disabled={loading}
-            className="w-full bg-green-400 hover:bg-green-500 disabled:bg-gray-600 text-gray-900 py-3 rounded-lg font-medium transition-colors"
+            className="w-full bg-green-400 hover:bg-green-500 disabled:bg-gray-600 text-gray-900 py-3 rounded-lg font-medium transition-colors disabled:cursor-not-allowed"
           >
             {loading ? 'Signing In...' : 'Sign In'}
           </button>
         </div>
 
-        {/* Footer */}
-        <div className="mt-6 text-center">
-          <p className="text-gray-400 text-sm">
-            Not an admin? 
-            <a href="/signin" className="text-green-400 hover:text-green-300 ml-1">
-              User Sign In
-            </a>
-          </p>
-        </div>
+        
       </div>
     </div>
   );

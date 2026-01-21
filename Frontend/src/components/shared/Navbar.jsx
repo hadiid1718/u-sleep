@@ -52,7 +52,7 @@ const Header = () => {
           ) : (
             <>
               <span className="text-white">
-                Welcome, {user.name || user.email}
+                Welcome, {user.name || user.username || user.email || "User"}!
               </span>
 
               <Link
@@ -157,19 +157,21 @@ const Header = () => {
             </button>
 
           {/* User Info Section */}
-          {user && (
-            <div className="px-6 py-4 bg-gray-700 border-b border-gray-600">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-lime-400 rounded-full flex items-center justify-center text-black font-bold">
-                  {(user.name || user.email).charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <p className="font-medium">{user.name || "User"}</p>
-                  <p className="text-sm text-gray-400">{user.email}</p>
-                </div>
-              </div>
-            </div>
-          )}
+       {user && (
+  <div className="px-6 py-4 bg-gray-700 border-b border-gray-600">
+    <div className="flex items-center space-x-3">
+      <div className="w-10 h-10 bg-lime-400 rounded-full flex items-center justify-center text-black font-bold">
+        {(user.name || user.username || user.email || 'U').charAt(0).toUpperCase()}
+      </div>
+      <div>
+        <p className="font-medium">{user.name || user.username || "User"}</p>
+        <p className="text-sm text-gray-400">
+          {user.email || (user.role === 'admin' ? 'Administrator' : '')}
+        </p>
+      </div>
+    </div>
+  </div>
+)}
 
           {/* Navigation Links */}
           <nav className="flex-1 px-4 py-6 space-y-2">
