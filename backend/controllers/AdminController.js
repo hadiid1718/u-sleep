@@ -4,13 +4,14 @@ const jwt = require('jsonwebtoken');
 // Create predefined admin if not exists
 const createDefaultAdmin = async () => {
   try {
-    const adminExists = await Admin.findOne({ username: 'Hadeed.admin' });
+    const adminExists = await Admin.findOne({ username: process.env.ADMIN_USERNAME });
     if (!adminExists) {
       await Admin.create({
-        username: process.env.ADMIN_USERNAME ,
-        password: process.env.ADMIN_PASS , 
+        username: process.env.ADMIN_USERNAME,
+        password: process.env.ADMIN_PASSWORD, 
         role: 'admin'
       });
+
       console.log(' Default admin created successfully');
       console.log('Username: Hadeed.admin');
     } else {
@@ -57,7 +58,7 @@ const adminLogin = async (req, res) => {
         role: admin.role,
         username: admin.username 
       },
-      process.env.JWT_SECRET_KEY,
+      process.env.JWT_SECRET,
       { expiresIn: '1d' }
     );
 
