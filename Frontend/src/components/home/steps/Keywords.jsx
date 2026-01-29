@@ -31,17 +31,17 @@ const Keywords = () => {
             </h3>
             <p className='text-gray-500'>Exact the same keywords, which you use in Upwork.</p>
           </div>
-          <div className='flex justify-center items-center md:flex-row lg:flex-row  gap-4'>
+          <div className='flex flex-col justify-center items-center md:flex-row lg:flex-row  gap-4'>
             <input
               type="text"
               placeholder="Enter your 1 keyword for job."
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleAdded()}
-              className="w-[400px] p-3 bg-gray-800 text-white rounded-lg border border-gray-600 focus:border-lime-400 focus:outline-none mb-2"
+              className="w-[300px] lg:w-[400px] md:w-[400px] p-3 bg-gray-800 text-white rounded-lg border border-gray-600 focus:border-lime-400 focus:outline-none mb-2"
             />
             <button 
-              className="p-3 lg:w-[200px] md:w-[100px] w-full bg-lime-400 text-black rounded-lg font-bold text-lg hover:bg-lime-300 transition-colors mb-4"
+              className="p-3  lg:w-[200px] md:w-[100px] bg-lime-400 text-black rounded-lg font-bold text-lg hover:bg-lime-300 transition-colors mb-4"
               onClick={handleAdded}
             >
               Add keywords
