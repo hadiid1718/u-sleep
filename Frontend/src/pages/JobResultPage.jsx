@@ -143,7 +143,7 @@ const JobResultPage = () => {
         Job {currentJobIndex + 1} of {totalJobs}
       </div>
 
-      <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-6">
+      <div className="max-w-xl mx-auto grid md:grid-cols-2 gap-6">
         {/* LEFT PANEL */}
         <div className="bg-gray-800 p-6 rounded-lg border-2 border-green-400">
           <h2 className="text-2xl font-bold text-white mb-4">

@@ -79,13 +79,13 @@ const ProfileUrl = () => {
               </div>
             )}
 
-            <div className="text-center mb-8">
-              <p className="text-gray-300">
+            <div className="flex flex-col lg:flex-row md:flex-row items-center justify-center mb-8">
+              <p className="text-gray-300 text-sm  ">
                 Example: https://www.upwork.com/freelancers/~01234567890
               </p>
             </div>
 
-            <div className="text-center mb-8">
+            <div className="text-center mb-8 text-sm">
               <button
                 onClick={() =>
                   window.open(
@@ -106,16 +106,16 @@ const ProfileUrl = () => {
       <div className="mt-6 flex justify-between">
         <button
           onClick={prevStep}
-          className="bg-lime-400 hover:bg-lime-300 text-black px-6 py-2 rounded-lg font-bold"
+          className="bg-lime-400 hover:bg-lime-300 text-black p-2  lg:px-6 lg:py-2 rounded-lg font-bold"
         >
           Previous Question
         </button>
 
         <button
           onClick={handleContinue}
-          className="bg-lime-400 hover:bg-lime-300 text-black px-6 py-2 rounded-lg font-bold"
+          className="bg-lime-400 hover:bg-lime-300 text-black p-2 lg:px-6 lg:py-2 rounded-lg font-bold"
         >
-          Continue 🚀
+          Continue 
         </button>
       </div>
     </>

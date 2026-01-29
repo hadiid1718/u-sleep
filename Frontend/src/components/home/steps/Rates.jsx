@@ -11,6 +11,13 @@ const Rates = () => {
     nextStep();
   };
 
+  const handlingRates = ()=> {
+    if(!hourlyRate && !fixedRate){
+      alert(`Please specify your ${hourlyRate} and ${fixedRate} rate.`);
+      return;
+    }
+  }
+
   return (
     <>
       <div>
@@ -32,6 +39,7 @@ const Rates = () => {
                   value={hourlyRate} 
                   onChange={(e) => setHourlyRate(e.target.value)} 
                   className='w-[100px] bg-gray-800 focus:border-lime-400 focus:outline-none'
+                  onClick={handlingRates}
                 />
                 /hr
               </div>
@@ -46,6 +54,7 @@ const Rates = () => {
                   value={fixedRate} 
                   onChange={(e) => setFixedRate(e.target.value)} 
                   className='w-[100px] bg-gray-800 p-2 focus:border-lime-400 focus:outline-none'
+                  onClick={handlingRates}
                 />
                 /project
               </div>
@@ -55,13 +64,13 @@ const Rates = () => {
       </div>
       <div className='mt-6 flex justify-between items-center'>
         <button 
-          className="text-black py-2 px-6 border rounded-lg font-bold bg-lime-400 hover:bg-lime-300 border-lime-400 cursor-pointer"
+          className="text-black p-2  lg:py-2 lg:px-6 border rounded-lg font-bold bg-lime-400 hover:bg-lime-300 border-lime-400 cursor-pointer"
           onClick={prevStep}
         >
           Previous Question
         </button>
         <button
-          className="text-black py-2 px-6 border rounded-lg font-bold bg-lime-400 hover:bg-lime-300 border-lime-400 cursor-pointer"
+          className="text-black p-2 lg:py-2 lg:px-6 border rounded-lg font-bold bg-lime-400 hover:bg-lime-300 border-lime-400 cursor-pointer"
           onClick={handleNext}
         >
           Next {steps + 1} questions

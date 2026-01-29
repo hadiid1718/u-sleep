@@ -78,7 +78,7 @@ What time are you available tomorrow for a quick call to discuss your specific r
 
   return (
     <div className=" p-8">
-      <div className="flex flex-col">
+      <div className="max-w-xl mx-auto">
         <div className="text-center mb-12">
           <h1 className="text-white text-5xl font-bold mb-3">Job Response Generated</h1>
           <p className="text-gray-400 text-lg">Here's your AI-generated response for this job</p>

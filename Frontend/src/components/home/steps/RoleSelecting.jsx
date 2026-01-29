@@ -78,13 +78,13 @@ const RoleSelecting = () => {
       </div>
       <div className='mt-6 flex justify-between items-center'>
         <button 
-          className="text-black py-2 px-6 border rounded-lg font-bold bg-lime-400 hover:bg-lime-300 border-lime-400 cursor-pointer"
+          className="text-black p-2 lg:py-2 lg:px-6 border rounded-lg font-bold bg-lime-400 hover:bg-lime-300 border-lime-400 cursor-pointer"
           onClick={prevStep}
         >
           Previous Question
         </button>
         <button
-          className="text-black py-2 px-6 border rounded-lg font-bold bg-lime-400 hover:bg-lime-300 border-lime-400 cursor-pointer"
+          className="text-black p-2 lg:py-2 lg:px-6 border rounded-lg font-bold bg-lime-400 hover:bg-lime-300 border-lime-400 cursor-pointer"
           onClick={handleNext}
         >
           Next {steps + 1} questions

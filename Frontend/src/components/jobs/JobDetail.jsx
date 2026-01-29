@@ -75,9 +75,9 @@ const JobDetails = () => {
       : 'Budget not specified';
 
   return (
-    <div className= "min-h-[40vh] bg-gray-900 border-2 border-lime-400 rounded-2xl p-6 mb-6">
+    <div className= "min-h-[40vh]  border-2 border-lime-400 rounded-2xl p-6 mb-6">
       {/* Header */}
-      <div className="flex justify-between gap-4 items-center mb-6">
+      <div className="flex flex-col justify-between gap-4 items-center mb-6">
         <span className="bg-lime-400 text-gray-900 px-4 py-1.5 rounded-full text-sm font-bold">
           AI selected job • Score: {score}/100
         </span>
