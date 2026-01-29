@@ -202,7 +202,7 @@ const PricingSection = () => {
         {!userInfo.userId && (
           <div className="max-w-2xl mx-auto mb-8 bg-amber-900/20 border border-amber-500 rounded-lg p-4">
             <p className="text-amber-300 text-sm">
-              📝 Please login to your account to proceed with checkout
+               Please login to your account to proceed with checkout
             </p>
           </div>
         )}
@@ -331,9 +331,9 @@ const PricingSection = () => {
               
               <div className="bg-gray-800 p-3 rounded text-gray-400 text-sm">
                 {selectedPlan === 'manual' ? (
-                  <p>✓ Recurring monthly charge</p>
+                  <p> Recurring monthly charge</p>
                 ) : (
-                  <p>✓ Pay per response - Buy credits as needed</p>
+                  <p> Pay per response - Buy credits as needed</p>
                 )}
               </div>
             </div>
@@ -364,22 +364,11 @@ const PricingSection = () => {
             </div>
             
             <p className="text-gray-400 text-sm text-center mt-4">
-              🔒 Secure payment powered by Stripe
+               Secure payment powered by Stripe
             </p>
           </div>
         )}
 
-        {/* Debug Info (Development Only) */}
-        {userInfo.userId && (
-          <div className="mt-12 max-w-2xl mx-auto bg-gray-800 p-4 rounded text-gray-400 text-xs">
-            <p className="font-bold text-gray-300 mb-2">Debug Info:</p>
-            <p>User ID: {userInfo.userId}</p>
-            <p>Email: {userInfo.email}</p>
-            <p>Selected Plan: {selectedPlan}</p>
-            <p>API URL: {API_URL}</p>
-            <p>Stripe Key: {STRIPE_PUBLIC_KEY.substring(0, 20)}...</p>
-          </div>
-        )}
       </div>
     </section>
   );

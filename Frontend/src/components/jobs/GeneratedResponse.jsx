@@ -57,14 +57,12 @@ What time are you available tomorrow for a quick call?`;
           onClick={onDislike}
           className="bg-gray-700 hover:bg-gray-600 text-white py-4 rounded-lg flex items-center justify-center gap-2 transition font-semibold text-base"
         >
-          <span className="text-xl">😞</span>
           I don't like it
         </button>
         <button
           onClick={onLike}
           className="bg-lime-400 hover:bg-lime-500 text-gray-900 py-4 rounded-lg flex items-center justify-center gap-2 transition font-bold text-base"
         >
-          <span className="text-xl">👍</span>
           I like it
         </button>
       </div>

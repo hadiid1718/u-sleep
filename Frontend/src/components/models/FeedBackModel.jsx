@@ -21,7 +21,6 @@ const FeedbackModal = ({ onClose, onSubmit }) => {
         
         <div className="text-center mb-8">
           <div className="w-20 h-20 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-6">
-            <span className="text-5xl">☹️</span>
           </div>
           <h3 className="text-white text-2xl font-bold">How could it be better?</h3>
         </div>
