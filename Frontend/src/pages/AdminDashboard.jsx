@@ -43,6 +43,7 @@ const AdminDashboard = () => {
       <MobileMenuButton 
         isOpen={isSidebarOpen} 
         onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
+        className=""
       />
       
       <Sidebar 

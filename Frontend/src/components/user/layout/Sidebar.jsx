@@ -13,7 +13,6 @@ export const Sidebar = ({
 }) => {
   const menuItems = [
     { id: 'dashboard', icon: Home, label: 'Dashboard' },
-    { id: 'tinder', icon: Heart, label: 'Tinder' },
     { id: 'prompts', icon: MessageSquare, label: 'Prompts' },
     { id: 'notifications', icon: Bell, label: 'Notifications' },
     { id: 'settings', icon: Settings, label: 'Settings' }

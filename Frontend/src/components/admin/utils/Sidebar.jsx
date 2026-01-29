@@ -1,4 +1,15 @@
-import React, { useState, useEffect } from 'react';
+  const menuItems = [
+    { id: 'analytics', label: 'Analytics & Monitoring', icon: BarChart3 },
+    { id: 'demos', label: 'Demo', icon: Calendar },
+    { id: 'users', label: 'Users', icon: Users },
+    { id: 'messages', label: 'Messages', icon: MessageSquare },
+    { id: 'system', label: 'System Health', icon: Activity },
+    { id: 'revenue', label: 'Revenue & BI', icon: DollarSign },
+    { id: 'compliance', label: 'Compliance & Safety', icon: Shield },
+    { id: 'settings', label: 'Settings', icon: Settings }
+  ];
+
+import React, { useState, useEffect, useContext } from 'react';
 import { 
   BarChart3, 
   Users, 
@@ -10,18 +21,12 @@ import {
   Calendar,
 
 } from 'lucide-react';
+import { AppContext } from '../../../context/Context';
 
 const Sidebar = ({ activeSection, setActiveSection, isOpen, onClose }) => {
-  const menuItems = [
-    { id: 'analytics', label: 'Analytics & Monitoring', icon: BarChart3 },
-    { id: 'demos', label: 'Demo', icon: Calendar },
-    { id: 'users', label: 'Users', icon: Users },
-    { id: 'messages', label: 'Messages', icon: MessageSquare },
-    { id: 'system', label: 'System Health', icon: Activity },
-    { id: 'revenue', label: 'Revenue & BI', icon: DollarSign },
-    { id: 'compliance', label: 'Compliance & Safety', icon: Shield },
-    { id: 'settings', label: 'Settings', icon: Settings }
-  ];
+
+
+  const { user} = useContext(AppContext)
 
   const handleMenuClick = (itemId) => {
     setActiveSection(itemId);
@@ -45,8 +50,8 @@ const Sidebar = ({ activeSection, setActiveSection, isOpen, onClose }) => {
       `}>
         <div className="flex flex-col h-full overflow-y-auto">
           <div className="p-4 pt-16 lg:pt-4">
-            <h1 className="text-white text-xl font-bold">UNeverSleep</h1>
-            <p className="text-gray-400 text-sm">Admin Dashboard</p>
+            <h1 className="text-white text-xl font-bold">U Sleep</h1>
+            <p className="text-gray-400 text-sm">{user.username|| 'Admin'}</p>
           </div>
           
           <nav className="flex-1 px-4 pb-4">
