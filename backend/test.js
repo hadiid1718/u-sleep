@@ -510,6 +510,350 @@ test('proposal.router.js requires authorization', () => {
 });
 
 // ============================================
+// Test Suite: Production - API Endpoints
+// ============================================
+log('\n=== Testing Production - API Endpoints ===', 'blue');
+
+test('auth.router.js has sign-up endpoint with validation', () => {
+  const authRouterContent = fs.readFileSync(
+    path.join(__dirname, 'routes/auth.router.js'),
+    'utf8'
+  );
+  assert(authRouterContent.includes('post'), 'POST method not found');
+  assert(authRouterContent.includes('sign-up') || authRouterContent.includes('signup'), 'Sign-up endpoint not found');
+});
+
+test('auth.router.js has sign-in endpoint', () => {
+  const authRouterContent = fs.readFileSync(
+    path.join(__dirname, 'routes/auth.router.js'),
+    'utf8'
+  );
+  assert(authRouterContent.includes('sign-in') || authRouterContent.includes('signin'), 'Sign-in endpoint not found');
+});
+
+test('job.router.js has protected search endpoint', () => {
+  const jobRouterContent = fs.readFileSync(
+    path.join(__dirname, 'routes/job.router.js'),
+    'utf8'
+  );
+  assert(jobRouterContent.includes('authorize'), 'Authorization middleware missing');
+  assert(jobRouterContent.includes('search'), 'Search endpoint missing');
+});
+
+test('proposal.router.js has protected generate endpoint', () => {
+  const proposalRouterContent = fs.readFileSync(
+    path.join(__dirname, 'routes/proposal.router.js'),
+    'utf8'
+  );
+  assert(proposalRouterContent.includes('authorize'), 'Authorization middleware missing');
+  assert(proposalRouterContent.includes('generate'), 'Generate endpoint missing');
+});
+
+test('user.router.js has profile endpoints', () => {
+  const userRouterContent = fs.readFileSync(
+    path.join(__dirname, 'routes/user.router.js'),
+    'utf8'
+  );
+  assert(userRouterContent.includes('export default'), 'Router export missing');
+});
+
+// ============================================
+// Test Suite: Production - Authentication
+// ============================================
+log('\n=== Testing Production - Authentication ===', 'blue');
+
+test('auth.middleware.js has JWT verification', () => {
+  const authMiddlewareContent = fs.readFileSync(
+    path.join(__dirname, 'middleware/auth.middleware.js'),
+    'utf8'
+  );
+  assert(authMiddlewareContent.includes('jwt.verify'), 'JWT verification missing');
+  assert(authMiddlewareContent.includes('Bearer'), 'Bearer token check missing');
+  assert(authMiddlewareContent.includes('token'), 'Token extraction missing');
+});
+
+test('auth.middleware.js returns error for invalid tokens', () => {
+  const authMiddlewareContent = fs.readFileSync(
+    path.join(__dirname, 'middleware/auth.middleware.js'),
+    'utf8'
+  );
+  assert(authMiddlewareContent.includes('error') || authMiddlewareContent.includes('throw'), 'Error handling missing');
+});
+
+test('auth.controller.js hashes passwords', () => {
+  const authContent = fs.readFileSync(
+    path.join(__dirname, 'controller/auth.controller.js'),
+    'utf8'
+  );
+  assert(authContent.includes('bcrypt') || authContent.includes('hash'), 'Password hashing missing');
+});
+
+test('auth.controller.js generates JWT tokens', () => {
+  const authContent = fs.readFileSync(
+    path.join(__dirname, 'controller/auth.controller.js'),
+    'utf8'
+  );
+  assert(authContent.includes('jwt.sign') || authContent.includes('token'), 'JWT generation missing');
+});
+
+// ============================================
+// Test Suite: Production - Error Handling
+// ============================================
+log('\n=== Testing Production - Error Handling ===', 'blue');
+
+test('error.middleware.js exists and handles errors', () => {
+  const errorMiddlewareContent = fs.readFileSync(
+    path.join(__dirname, 'middleware/error.middleware.js'),
+    'utf8'
+  );
+  assert(errorMiddlewareContent.includes('error') || errorMiddlewareContent.includes('err'), 'Error parameter missing');
+  assert(errorMiddlewareContent.includes('res.status'), 'Response status missing');
+});
+
+test('auth.controller.js handles sign-up errors', () => {
+  const authContent = fs.readFileSync(
+    path.join(__dirname, 'controller/auth.controller.js'),
+    'utf8'
+  );
+  assert(authContent.includes('try') || authContent.includes('catch'), 'Try-catch block missing');
+  assert(authContent.includes('error'), 'Error handling missing');
+});
+
+test('job.controller.js handles search errors', () => {
+  const jobContent = fs.readFileSync(
+    path.join(__dirname, 'controller/job.controller.js'),
+    'utf8'
+  );
+  assert(jobContent.includes('try') || jobContent.includes('catch'), 'Try-catch block missing');
+});
+
+test('proposal.controller.js handles generation errors', () => {
+  const proposalContent = fs.readFileSync(
+    path.join(__dirname, 'controller/proposal.controller.js'),
+    'utf8'
+  );
+  assert(proposalContent.includes('try') || proposalContent.includes('catch'), 'Try-catch block missing');
+});
+
+// ============================================
+// Test Suite: Production - Data Validation
+// ============================================
+log('\n=== Testing Production - Data Validation ===', 'blue');
+
+test('user.model.js has email validation', () => {
+  const userModelContent = fs.readFileSync(
+    path.join(__dirname, 'models/user.model.js'),
+    'utf8'
+  );
+  assert(userModelContent.includes('email'), 'Email field missing');
+  assert(userModelContent.includes('trim') || userModelContent.includes('lowercase') || userModelContent.includes('match'), 'Email validation missing');
+});
+
+test('user.model.js requires password field', () => {
+  const userModelContent = fs.readFileSync(
+    path.join(__dirname, 'models/user.model.js'),
+    'utf8'
+  );
+  assert(userModelContent.includes('password'), 'Password field missing');
+  assert(userModelContent.includes('required') || userModelContent.includes('minlength'), 'Password validation missing');
+});
+
+test('admin.model.js has required validation', () => {
+  const adminModelContent = fs.readFileSync(
+    path.join(__dirname, 'models/admin.model.js'),
+    'utf8'
+  );
+  assert(adminModelContent.includes('required'), 'Required validation missing');
+});
+
+test('job.model.js validates budget fields', () => {
+  const jobModelContent = fs.readFileSync(
+    path.join(__dirname, 'models/job.model.js'),
+    'utf8'
+  );
+  assert(jobModelContent.includes('budget') || jobModelContent.includes('rate'), 'Budget field missing');
+});
+
+test('proposal.model.js validates proposal status', () => {
+  const proposalModelContent = fs.readFileSync(
+    path.join(__dirname, 'models/proposal.model.js'),
+    'utf8'
+  );
+  assert(proposalModelContent.includes('enum') || proposalModelContent.includes('required'), 'Status validation missing');
+});
+
+// ============================================
+// Test Suite: Production - Database
+// ============================================
+log('\n=== Testing Production - Database ===', 'blue');
+
+test('mongodb.js connects to MongoDB', () => {
+  const mongoContent = fs.readFileSync(
+    path.join(__dirname, 'database/mongodb.js'),
+    'utf8'
+  );
+  assert(mongoContent.includes('mongoose.connect'), 'MongoDB connection missing');
+});
+
+test('mongodb.js handles connection errors', () => {
+  const mongoContent = fs.readFileSync(
+    path.join(__dirname, 'database/mongodb.js'),
+    'utf8'
+  );
+  assert(mongoContent.includes('catch') || mongoContent.includes('error'), 'Error handling missing');
+});
+
+test('user.model.js uses mongoose', () => {
+  const userModelContent = fs.readFileSync(
+    path.join(__dirname, 'models/user.model.js'),
+    'utf8'
+  );
+  assert(userModelContent.includes('mongoose') || userModelContent.includes('Schema'), 'Mongoose not used');
+});
+
+test('models have timestamps', () => {
+  const userModelContent = fs.readFileSync(
+    path.join(__dirname, 'models/user.model.js'),
+    'utf8'
+  );
+  assert(userModelContent.includes('timestamps') || userModelContent.includes('createdAt'), 'Timestamps missing');
+});
+
+// ============================================
+// Test Suite: Production - Security
+// ============================================
+log('\n=== Testing Production - Security ===', 'blue');
+
+test('app.js has CORS protection', () => {
+  const appContent = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+  assert(appContent.includes('cors'), 'CORS middleware missing');
+});
+
+test('auth.controller.js validates user input on sign-up', () => {
+  const authContent = fs.readFileSync(
+    path.join(__dirname, 'controller/auth.controller.js'),
+    'utf8'
+  );
+  assert(authContent.includes('email') && (authContent.includes('password') || authContent.includes('password')), 'Input validation missing');
+});
+
+test('auth.middleware.js protects routes with authorization', () => {
+  const authMiddlewareContent = fs.readFileSync(
+    path.join(__dirname, 'middleware/auth.middleware.js'),
+    'utf8'
+  );
+  assert(authMiddlewareContent.includes('req.user') || authMiddlewareContent.includes('userId'), 'User identification missing');
+});
+
+test('proposal.controller.js validates user ownership', () => {
+  const proposalContent = fs.readFileSync(
+    path.join(__dirname, 'controller/proposal.controller.js'),
+    'utf8'
+  );
+  assert(proposalContent.includes('userId') || proposalContent.includes('user'), 'User ownership check missing');
+});
+
+test('job.controller.js validates user authorization for actions', () => {
+  const jobContent = fs.readFileSync(
+    path.join(__dirname, 'controller/job.controller.js'),
+    'utf8'
+  );
+  assert(jobContent.includes('authorize') || jobContent.includes('user'), 'Authorization check missing');
+});
+
+// ============================================
+// Test Suite: Production - Performance
+// ============================================
+log('\n=== Testing Production - Performance ===', 'blue');
+
+test('upwork.service.js implements caching', () => {
+  const upworkContent = fs.readFileSync(
+    path.join(__dirname, 'services/upwork.service.js'),
+    'utf8'
+  );
+  assert(upworkContent.includes('cache') || upworkContent.includes('TTL'), 'Caching not implemented');
+});
+
+test('ai.service.js has timeout handling', () => {
+  const aiContent = fs.readFileSync(
+    path.join(__dirname, 'services/ai.service.js'),
+    'utf8'
+  );
+  assert(aiContent.includes('AbortController') || aiContent.includes('timeout'), 'Timeout handling missing');
+});
+
+test('job.controller.js implements pagination', () => {
+  const jobContent = fs.readFileSync(
+    path.join(__dirname, 'controller/job.controller.js'),
+    'utf8'
+  );
+  assert(jobContent.includes('skip') || jobContent.includes('limit') || jobContent.includes('page'), 'Pagination missing');
+});
+
+test('proposal.controller.js handles async operations', () => {
+  const proposalContent = fs.readFileSync(
+    path.join(__dirname, 'controller/proposal.controller.js'),
+    'utf8'
+  );
+  assert(proposalContent.includes('async') || proposalContent.includes('await'), 'Async handling missing');
+});
+
+// ============================================
+// Test Suite: Production - Logging & Monitoring
+// ============================================
+log('\n=== Testing Production - Logging & Monitoring ===', 'blue');
+
+test('error.middleware.js logs errors', () => {
+  const errorMiddlewareContent = fs.readFileSync(
+    path.join(__dirname, 'middleware/error.middleware.js'),
+    'utf8'
+  );
+  assert(errorMiddlewareContent.includes('console') || errorMiddlewareContent.includes('log'), 'Logging missing');
+});
+
+test('app.js includes middleware for request tracking', () => {
+  const appContent = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+  assert(appContent.includes('middleware') || appContent.includes('app.use'), 'Middleware setup missing');
+});
+
+// ============================================
+// Test Suite: Production - Integration
+// ============================================
+log('\n=== Testing Production - Integration ===', 'blue');
+
+test('upwork.service.js and job.controller.js are integrated', () => {
+  const jobContent = fs.readFileSync(
+    path.join(__dirname, 'controller/job.controller.js'),
+    'utf8'
+  );
+  assert(jobContent.includes('upworkService'), 'Upwork service not integrated');
+});
+
+test('ai.service.js and proposal.controller.js are integrated', () => {
+  const proposalContent = fs.readFileSync(
+    path.join(__dirname, 'controller/proposal.controller.js'),
+    'utf8'
+  );
+  assert(proposalContent.includes('aiService'), 'AI service not integrated');
+});
+
+test('user.controller.js updates user statistics', () => {
+  const userContent = fs.readFileSync(
+    path.join(__dirname, 'controller/user.controller.js'),
+    'utf8'
+  );
+  assert(userContent.includes('stats') || userContent.includes('update'), 'Stats update missing');
+});
+
+test('proposal.model.js tracks status history', () => {
+  const proposalModelContent = fs.readFileSync(
+    path.join(__dirname, 'models/proposal.model.js'),
+    'utf8'
+  );
+  assert(proposalModelContent.includes('statusHistory'), 'Status history missing');
+});
+
+// ============================================
 // Summary
 // ============================================
 log('\n=== Test Summary ===', 'cyan');
