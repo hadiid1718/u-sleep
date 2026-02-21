@@ -58,18 +58,29 @@ const requiredModels = [
   'models/user.model.js',
   'models/admin.model.js',
   'models/demo.model.js',
+  'models/job.model.js',
+  'models/proposal.model.js',
 ];
 
 const requiredControllers = [
   'controller/auth.controller.js',
   'controller/user.controller.js',
   'controller/demo.controller.js',
+  'controller/job.controller.js',
+  'controller/proposal.controller.js',
 ];
 
 const requiredRoutes = [
   'routes/auth.router.js',
   'routes/user.router.js',
   'routes/demo.router.js',
+  'routes/job.router.js',
+  'routes/proposal.router.js',
+];
+
+const requiredServices = [
+  'services/upwork.service.js',
+  'services/ai.service.js',
 ];
 
 requiredFiles.forEach(file => {
@@ -97,6 +108,13 @@ requiredRoutes.forEach(file => {
   test(`${file} exists`, () => {
     const filePath = path.join(__dirname, file);
     assert(fs.existsSync(filePath), `Route ${file} not found`);
+  });
+});
+
+requiredServices.forEach(file => {
+  test(`${file} exists`, () => {
+    const filePath = path.join(__dirname, file);
+    assert(fs.existsSync(filePath), `Service ${file} not found`);
   });
 });
 
@@ -238,6 +256,112 @@ test('demo.router.js exports router', () => {
   assert(demoRouterContent.includes('/schedule'), 'Schedule route not found');
 });
 
+test('job.controller.js contains required functions', () => {
+  const jobContent = fs.readFileSync(
+    path.join(__dirname, 'controller/job.controller.js'),
+    'utf8'
+  );
+  assert(jobContent.includes('export const searchJobs'), 'searchJobs function not found');
+  assert(jobContent.includes('export const searchJobsWithAIAnalysis'), 'searchJobsWithAIAnalysis not found');
+  assert(jobContent.includes('export const getFilteredJobs'), 'getFilteredJobs function not found');
+  assert(jobContent.includes('export const getJobDetail'), 'getJobDetail function not found');
+  assert(jobContent.includes('export const markJobAsMatched'), 'markJobAsMatched function not found');
+  assert(jobContent.includes('export const markJobAsRejected'), 'markJobAsRejected function not found');
+});
+
+test('proposal.controller.js contains required functions', () => {
+  const proposalContent = fs.readFileSync(
+    path.join(__dirname, 'controller/proposal.controller.js'),
+    'utf8'
+  );
+  assert(proposalContent.includes('export const generateProposal'), 'generateProposal function not found');
+  assert(proposalContent.includes('export const getProposal'), 'getProposal function not found');
+  assert(proposalContent.includes('export const getUserProposals'), 'getUserProposals not found');
+  assert(proposalContent.includes('export const sendProposal'), 'sendProposal function not found');
+  assert(proposalContent.includes('export const updateProposalStatus'), 'updateProposalStatus not found');
+  assert(proposalContent.includes('export const upgradeProposal'), 'upgradeProposal function not found');
+});
+
+test('job.model.js has required fields', () => {
+  const jobModelContent = fs.readFileSync(
+    path.join(__dirname, 'models/job.model.js'),
+    'utf8'
+  );
+  assert(jobModelContent.includes('upworkJobId'), 'upworkJobId field not found');
+  assert(jobModelContent.includes('title'), 'title field not found');
+  assert(jobModelContent.includes('description'), 'description field not found');
+  assert(jobModelContent.includes('budgetType'), 'budgetType field not found');
+  assert(jobModelContent.includes('clientInfo'), 'clientInfo field not found');
+  assert(jobModelContent.includes('aiAnalysis'), 'aiAnalysis field not found');
+});
+
+test('proposal.model.js has required fields', () => {
+  const proposalModelContent = fs.readFileSync(
+    path.join(__dirname, 'models/proposal.model.js'),
+    'utf8'
+  );
+  assert(proposalModelContent.includes('userId'), 'userId field not found');
+  assert(proposalModelContent.includes('jobId'), 'jobId field not found');
+  assert(proposalModelContent.includes('content'), 'content field not found');
+  assert(proposalModelContent.includes('status'), 'status field not found');
+  assert(proposalModelContent.includes('statusHistory'), 'statusHistory field not found');
+  assert(proposalModelContent.includes('caseStudy'), 'caseStudy field not found');
+});
+
+test('upwork.service.js contains required methods', () => {
+  const upworkContent = fs.readFileSync(
+    path.join(__dirname, 'services/upwork.service.js'),
+    'utf8'
+  );
+  assert(upworkContent.includes('searchJobs'), 'searchJobs method not found');
+  assert(upworkContent.includes('applyBadJobFilters'), 'applyBadJobFilters method not found');
+  assert(upworkContent.includes('applyRateMatching'), 'applyRateMatching method not found');
+  assert(upworkContent.includes('getCachedJobs'), 'getCachedJobs method not found');
+});
+
+test('ai.service.js contains required methods', () => {
+  const aiContent = fs.readFileSync(
+    path.join(__dirname, 'services/ai.service.js'),
+    'utf8'
+  );
+  assert(aiContent.includes('generateProposal'), 'generateProposal method not found');
+  assert(aiContent.includes('generateWithOpenAI'), 'generateWithOpenAI method not found');
+  assert(aiContent.includes('generateWithGemini'), 'generateWithGemini method not found');
+  assert(aiContent.includes('upgradeProposalWithCaseStudy'), 'upgradeProposalWithCaseStudy not found');
+});
+
+test('job.router.js exports router', () => {
+  const jobRouterContent = fs.readFileSync(
+    path.join(__dirname, 'routes/job.router.js'),
+    'utf8'
+  );
+  assert(jobRouterContent.includes('export default'), 'Router export not found');
+  assert(jobRouterContent.includes('search'), 'search route not found');
+  assert(jobRouterContent.includes('authorize'), 'Authorization middleware not found');
+});
+
+test('proposal.router.js exports router', () => {
+  const proposalRouterContent = fs.readFileSync(
+    path.join(__dirname, 'routes/proposal.router.js'),
+    'utf8'
+  );
+  assert(proposalRouterContent.includes('export default'), 'Router export not found');
+  assert(proposalRouterContent.includes('generate'), 'generate route not found');
+  assert(proposalRouterContent.includes('authorize'), 'Authorization middleware not found');
+});
+
+test('user.model.js has job preferences fields', () => {
+  const userModelContent = fs.readFileSync(
+    path.join(__dirname, 'models/user.model.js'),
+    'utf8'
+  );
+  assert(userModelContent.includes('jobPreferences'), 'jobPreferences object not found');
+  assert(userModelContent.includes('keywords'), 'keywords array not found');
+  assert(userModelContent.includes('rateType'), 'rateType field not found');
+  assert(userModelContent.includes('badJobCriteria'), 'badJobCriteria field not found');
+  assert(userModelContent.includes('stats'), 'stats field not found');
+});
+
 // ============================================
 // Test Suite: Configuration
 // ============================================
@@ -273,6 +397,116 @@ test('package.json has test script', () => {
 
 test('package.json is of type module', () => {
   assert(packageJson.type === 'module', 'package.json type is not module');
+});
+
+// ============================================
+// Test Suite: Service Logic
+// ============================================
+log('\n=== Testing Service Logic ===', 'blue');
+
+test('upwork.service.js has caching logic', () => {
+  const upworkContent = fs.readFileSync(
+    path.join(__dirname, 'services/upwork.service.js'),
+    'utf8'
+  );
+  assert(upworkContent.includes('cacheTTL'), 'Cache TTL not configured');
+  assert(upworkContent.includes('cacheExpiry'), 'Cache expiry logic not found');
+  assert(upworkContent.includes('bulkWrite'), 'Bulk write for caching not found');
+});
+
+test('ai.service.js supports both OpenAI and Gemini', () => {
+  const aiContent = fs.readFileSync(
+    path.join(__dirname, 'services/ai.service.js'),
+    'utf8'
+  );
+  assert(aiContent.includes('openai.com'), 'OpenAI endpoint not found');
+  assert(aiContent.includes('generativelanguage.googleapis.com'), 'Gemini endpoint not found');
+  assert(aiContent.includes('AbortController'), 'Timeout handling not found');
+});
+
+test('ai.service.js has case study integration', () => {
+  const aiContent = fs.readFileSync(
+    path.join(__dirname, 'services/ai.service.js'),
+    'utf8'
+  );
+  assert(aiContent.includes('upgradeProposalWithCaseStudy'), 'Case study upgrade not found');
+  assert(aiContent.includes('caseStudy'), 'Case study parameter not found');
+});
+
+test('job.controller.js implements AI scoring', () => {
+  const jobContent = fs.readFileSync(
+    path.join(__dirname, 'controller/job.controller.js'),
+    'utf8'
+  );
+  assert(jobContent.includes('calculateMatchScore'), 'Match score calculation not found');
+  assert(jobContent.includes('extractGreenFlags'), 'Green flags extraction not found');
+  assert(jobContent.includes('extractRedFlags'), 'Red flags extraction not found');
+});
+
+test('proposal.model.js has status enum', () => {
+  const proposalContent = fs.readFileSync(
+    path.join(__dirname, 'models/proposal.model.js'),
+    'utf8'
+  );
+  assert(proposalContent.includes("'draft'"), 'draft status not found');
+  assert(proposalContent.includes("'sent'"), 'sent status not found');
+  assert(proposalContent.includes("'accepted'"), 'accepted status not found');
+  assert(proposalContent.includes("'rejected'"), 'rejected status not found');
+});
+
+test('env.js includes AI and Upwork credentials', () => {
+  const envContent = fs.readFileSync(path.join(__dirname, 'config/env.js'), 'utf8');
+  assert(envContent.includes('OPENAI_API_KEY'), 'OPENAI_API_KEY not exported');
+  assert(envContent.includes('GOOGLE_GEMINI_API_KEY'), 'GOOGLE_GEMINI_API_KEY not exported');
+  assert(envContent.includes('UPWORK_ACCESS_TOKEN'), 'UPWORK_ACCESS_TOKEN not exported');
+});
+
+// ============================================
+// Test Suite: Integration Points
+// ============================================
+log('\n=== Testing Integration Points ===', 'blue');
+
+test('job.controller.js calls upwork service', () => {
+  const jobContent = fs.readFileSync(
+    path.join(__dirname, 'controller/job.controller.js'),
+    'utf8'
+  );
+  assert(jobContent.includes('upworkService'), 'Upwork service not imported');
+  assert(jobContent.includes('searchJobs'), 'Upwork searchJobs call not found');
+});
+
+test('proposal.controller.js calls AI service', () => {
+  const proposalContent = fs.readFileSync(
+    path.join(__dirname, 'controller/proposal.controller.js'),
+    'utf8'
+  );
+  assert(proposalContent.includes('aiService'), 'AI service not imported');
+  assert(proposalContent.includes('generateProposal'), 'AI generateProposal call not found');
+});
+
+test('proposal.controller.js performs async generation', () => {
+  const proposalContent = fs.readFileSync(
+    path.join(__dirname, 'controller/proposal.controller.js'),
+    'utf8'
+  );
+  assert(proposalContent.includes('async'), 'Async function not found');
+  assert(proposalContent.includes('generateProposalAsync'), 'Async generation function not found');
+});
+
+test('job.router.js requires authorization', () => {
+  const jobRouterContent = fs.readFileSync(
+    path.join(__dirname, 'routes/job.router.js'),
+    'utf8'
+  );
+  assert(jobRouterContent.includes('authorize'), 'Authorization not required for routes');
+});
+
+test('proposal.router.js requires authorization', () => {
+  const proposalRouterContent = fs.readFileSync(
+    path.join(__dirname, 'routes/proposal.router.js'),
+    'utf8'
+  );
+  assert(proposalRouterContent.includes('authorize'), 'Authorization not required for routes');
 });
 
 // ============================================
