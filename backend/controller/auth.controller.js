@@ -22,16 +22,16 @@ export const createDefaultAdmin = async () => {
     const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, salt);
 
     // Create default admin
-    const defaultAdmin = await Admin.create({
+    const defautAdmin= await Admin.create({
       username: ADMIN_USERNAME,
       password: hashedPassword,
       role: 'super_admin',
       isActive: true
     });
 
-    console.log(`Default admin created successfully: ${ADMIN_USERNAME}`);
+   
   } catch (error) {
-    console.error("Error creating default admin:", error.message);
+    console.error( error.message);
   }
 };
 

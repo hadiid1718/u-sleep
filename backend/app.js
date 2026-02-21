@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { PORT } from './config/env.js';
+import { FRONTEND_URL, PORT } from './config/env.js';
 
 import userRouter from "./routes/user.router.js";
 import authRouter from "./routes/auth.router.js";
@@ -9,12 +9,13 @@ import connectToDatabase from './database/mongodb.js';
 import cookieParser from 'cookie-parser';
 import errorMiddleware from './middleware/error.middleware.js';
 import { createDefaultAdmin } from './controller/auth.controller.js';
+import arcjetMiddleware from './middleware/arcject.middleware.js';
 
 const app = express();
 
 // CORS configuration
 const corsOptions = {
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
+  origin:FRONTEND_URL,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -25,6 +26,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }))
 
 app.use(cookieParser());
+app.use(arcjetMiddleware)
 
 app.use("/api/v1/auth", authRouter)
 app.use("/api/v1/users", userRouter)
@@ -33,7 +35,7 @@ app.use("/api/v1/demo", demoRouter)
 app.use(errorMiddleware)
 
 app.get("/", (req, res)=> {
-   res.send("Welcom to subscription tracker API!")
+   res.send("Welcom to U sleep || Upwoek automation  API's!")
 
 })
 
