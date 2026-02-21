@@ -26,6 +26,8 @@ A full-stack web application that helps users find and manage job opportunities 
 - JWT-based authentication
 - CORS-enabled API
 - MongoDB database
+- AI-powered proposal generation (OpenAI & Google Gemini)
+- Upwork job integration with caching
 - Responsive design with Tailwind CSS
 - Error handling and validation
 
@@ -54,7 +56,8 @@ job_finder_ai/
 │   ├── app.js                    # Express app setup
 │   ├── package.json
 │   ├── config/
-│   │   └── env.js                # Environment variables
+|   |   └── arcjet.js               # Environment variables
+│   │   └── env.js                  
 │   ├── controller/
 │   │   ├── auth.controller.js    # Auth logic (User & Admin)
 │   │   ├── user.controller.js    # User management
@@ -64,14 +67,20 @@ job_finder_ai/
 │   ├── middleware/
 │   │   ├── auth.middleware.js    # JWT verification
 │   │   └── error.middleware.js   # Error handling
+|   |   └── arcjet.middleware.js  # Security handling
 │   ├── models/
 │   │   ├── user.model.js         # User schema
 │   │   ├── admin.model.js        # Admin schema
 │   │   └── demo.model.js         # Demo schema
-│   └── routes/
-│       ├── auth.router.js        # Auth routes
-│       ├── user.router.js        # User routes
-│       └── demo.router.js        # Demo routes
+│   ├── routes/
+│   │   ├── auth.router.js        # Auth routes
+│   │   ├── user.router.js        # User routes
+│   │   ├── job.router.js         # Job routes
+│   │   ├── proposal.router.js    # Proposal routes
+│   │   └── demo.router.js        # Demo routes
+│   └── services/
+│       ├── ai.service.js         # AI proposal generation (OpenAI & Gemini)
+│       └── upwork.service.js     # Upwork API integration & job caching
 └── Frontend/
     ├── vite.config.js
     ├── package.json
