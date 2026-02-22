@@ -1,29 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  BarChart3, 
-  Users, 
-  MessageSquare, 
-  Settings, 
-  Activity, 
-  DollarSign,
-  Shield,
-  TrendingUp,
   Clock,
   CheckCircle,
   XCircle,
-  AlertTriangle,
-  Eye,
-  Target,
-  Zap,
-  Menu,
-  X,
-  Plus,
   Calendar,
-  Phone,
-  Mail,
-  Building2,
-  FileText,
-  Filter
+ 
 } from 'lucide-react';
 import { LoadingState } from '../utils/LoadingState';
 import { EmptyState } from '../utils/EmptyState';
@@ -43,7 +24,7 @@ const DemoManagementSection = () => {
     date: '',
     email: ''
   });
-const API_BASE_URL = 'http://localhost:8080/api/user/demo-scheduling';
+const API_BASE_URL = 'http://localhost:5000/api/v1/demo-scheduling';
 
 
   useEffect(() => {
@@ -155,7 +136,7 @@ const API_BASE_URL = 'http://localhost:8080/api/user/demo-scheduling';
       
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
         {demoMetrics.map((metric, index) => (
-          <MetricCard API_BASE_URLkey={index} {...metric} />
+          <MetricCard API_BASE_URL key={index} {...metric} />
         ))}
       </div>
 

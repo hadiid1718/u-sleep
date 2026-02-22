@@ -9,9 +9,13 @@ import { JWT_SECRET, JWT_EXPIRES_IN, ADMIN_USERNAME, ADMIN_PASSWORD } from "../c
 
 export const createDefaultAdmin = async () => {
   try {
+    if (!ADMIN_USERNAME || !ADMIN_PASSWORD) {
+      throw new Error("ADMIN_USERNAME or ADMIN_PASSWORD missing in environment variables");
+    }
+
     // Check if default admin already exists
     const existingAdmin = await Admin.findOne({ username: ADMIN_USERNAME });
-    
+
     if (existingAdmin) {
       console.log(`Default admin already exists: ${ADMIN_USERNAME}`);
       return;
@@ -22,16 +26,16 @@ export const createDefaultAdmin = async () => {
     const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, salt);
 
     // Create default admin
-    const defautAdmin= await Admin.create({
+    const defaultAdmin = await Admin.create({
       username: ADMIN_USERNAME,
       password: hashedPassword,
-      role: 'super_admin',
-      isActive: true
+      role: "super_admin",
+      isActive: true,
     });
 
-   
+    console.log(" Default admin created:", defaultAdmin.username);
   } catch (error) {
-    console.error( error.message);
+    console.error(" createDefaultAdmin error:", error.message);
   }
 };
 
@@ -47,8 +51,8 @@ export const adminLogin = async (req, res, next) => {
       throw error;
     }
 
-    // Find admin by username
-    const admin = await Admin.findOne({ username }).select('+password');
+    // Find admin AND explicitly include password
+    const admin = await Admin.findOne({ username }).select("+password");
 
     if (!admin) {
       const error = new Error("Invalid username or password");
@@ -60,6 +64,13 @@ export const adminLogin = async (req, res, next) => {
     if (!admin.isActive) {
       const error = new Error("Admin account is inactive");
       error.statusCode = 403;
+      throw error;
+    }
+
+    // 🔥 SAFETY CHECK (prevents your error)
+    if (!admin.password) {
+      const error = new Error("Admin password not found. Contact system administrator.");
+      error.statusCode = 500;
       throw error;
     }
 
@@ -88,9 +99,9 @@ export const adminLogin = async (req, res, next) => {
           _id: admin._id,
           username: admin.username,
           role: admin.role,
-          email: admin.email
-        }
-      }
+          email: admin.email,
+        },
+      },
     });
   } catch (error) {
     next(error);

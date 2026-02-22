@@ -15,7 +15,7 @@ class AIProposalService {
         this.openaiApiKey = OPENAI_API_KEY;
         this.openaiModel = OPENAI_MODEL || 'gpt-4-turbo';
         this.geminiApiKey = GOOGLE_GEMINI_API_KEY;
-        this.geminiModel = GOOGLE_GEMINI_MODEL || 'gemini-2.0-flash';
+        this.geminiModel = GOOGLE_GEMINI_MODEL || 'gemini-1.5-flash';
         this.timeout = parseInt(PROPOSAL_GENERATION_TIMEOUT) || 30000;
     }
 
@@ -47,7 +47,7 @@ class AIProposalService {
             return proposal;
         } catch (error) {
             console.error(`Error generating proposal with ${aiService}:`, error);
-            throw new Error(`Proposal generation failed: ${error.message}`);
+            throw new Error(`Proposal generation failed: ${error.message}`, { cause: error });
         }
     }
 
@@ -107,7 +107,7 @@ Your proposals are:
         } catch (error) {
             clearTimeout(timeoutId);
             if (error.name === 'AbortError') {
-                throw new Error('Proposal generation timed out');
+                throw new Error('Proposal generation timed out', { cause: error });
             }
             throw error;
         }
@@ -178,7 +178,7 @@ Your proposals are:
         } catch (error) {
             clearTimeout(timeoutId);
             if (error.name === 'AbortError') {
-                throw new Error('Proposal generation timed out');
+                throw new Error('Proposal generation timed out', { cause: error });
             }
             throw error;
         }
@@ -260,7 +260,7 @@ ${caseStudy}
             return upgradedProposal;
         } catch (error) {
             console.error('Error upgrading proposal:', error);
-            throw new Error(`Proposal upgrade failed: ${error.message}`);
+            throw new Error(`Proposal upgrade failed: ${error.message}`, { cause: error });
         }
     }
 
