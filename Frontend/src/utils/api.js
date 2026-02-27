@@ -358,3 +358,56 @@ export const clearToken = () => {
 export const getToken = () => {
   return localStorage.getItem('token');
 };
+
+// =====================================================
+// PRODUCT API ENDPOINTS
+// =====================================================
+
+/**
+ * Get all active products (public)
+ */
+export const getProducts = () => apiRequest('/products');
+
+/**
+ * Get all products including inactive (admin)
+ */
+export const getAllProducts = () => apiRequest('/products/all');
+
+/**
+ * Get a product by ID
+ */
+export const getProductById = (id) => apiRequest(`/products/${id}`);
+
+/**
+ * Create a new product (admin)
+ */
+export const createProduct = (productData) =>
+  apiRequest('/products', {
+    method: 'POST',
+    body: JSON.stringify(productData),
+  });
+
+/**
+ * Update a product (admin)
+ */
+export const updateProduct = (id, productData) =>
+  apiRequest(`/products/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(productData),
+  });
+
+/**
+ * Delete a product (admin)
+ */
+export const deleteProduct = (id) =>
+  apiRequest(`/products/${id}`, {
+    method: 'DELETE',
+  });
+
+/**
+ * Seed default products (admin)
+ */
+export const seedProducts = () =>
+  apiRequest('/products/seed', {
+    method: 'POST',
+  });

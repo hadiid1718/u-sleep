@@ -24,7 +24,7 @@ const DemoStatusForm = ({ demo, onClose, onSubmit }) => {
           <option value="scheduled">Scheduled</option>
           <option value="completed">Completed</option>
           <option value="cancelled">Cancelled</option>
-          <option value="noshow">No Show</option>
+          <option value="no-show">No Show</option>
         </select>
       </div>
 

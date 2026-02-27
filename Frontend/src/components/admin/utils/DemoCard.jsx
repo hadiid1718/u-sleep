@@ -14,7 +14,7 @@ const DemoCard = ({ demo, onUpdateStatus, onCancel }) => {
       scheduled: 'bg-blue-600 text-white',
       completed: 'bg-green-600 text-white',
       cancelled: 'bg-red-600 text-white',
-      noshow: 'bg-gray-600 text-white'
+      'no-show': 'bg-gray-600 text-white'
     };
     return badges[status] || 'bg-gray-600 text-white';
   };
@@ -52,11 +52,11 @@ const DemoCard = ({ demo, onUpdateStatus, onCancel }) => {
       <div className="flex items-center gap-4 text-sm text-gray-300 mb-4 pt-4 border-t border-gray-700">
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-lime-400" />
-          <span className="font-medium">{demo.date}</span>
+          <span className="font-medium">{demo.demoDate ? new Date(demo.demoDate).toLocaleDateString() : 'N/A'}</span>
         </div>
         <div className="flex items-center gap-2">
           <Clock className="w-4 h-4 text-lime-400" />
-          <span className="font-medium">{demo.time}</span>
+          <span className="font-medium">{demo.timeSlot || 'N/A'}</span>
         </div>
       </div>
 

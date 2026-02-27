@@ -1,38 +1,54 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+
 const PricingSection = () => {
-  const [selectedPlan, setSelectedPlan] = useState('auto');
+  const [selectedPlan, setSelectedPlan] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [userInfo, setUserInfo] = useState({ userId: null, email: null });
+  const [products, setProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(true);
 
   // Configuration
   const API_URL = 'http://localhost:8080/api/payment'; // Change for production
   const STRIPE_PUBLIC_KEY = 'pk_test_51PWImTD7s4U8RST425yk4TL9dvDzSxRLXqmEBOs0JuT5OWLUIePMb2tPKnszgZxhLMR4JzJA2kEltFQ7Ga2fRVEj00PucfJxOl';
-  
-  const PLANS = {
-    manual: {
-      name: 'Manual job responding',
-      price: '$50/month',
-      features: [
-        'Job hunting and job filtering',
-        'AI responds for all prospects',
-        'Connect with prospects'
-      ]
-    },
-    auto: {
-      name: 'Auto responder',
-      price: '$0.5/response',
-      features: [
-        'Everything from manual',
-        'Auto upload to Upwork daily',
-        'Advanced filtering options'
-      ],
-      isPopular: true
-    }
-  };
+
+  // Fetch products from backend
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setProductsLoading(true);
+        const response = await fetch(`${API_BASE_URL}/products`);
+        const result = await response.json();
+        if (result.success && result.data.length > 0) {
+          setProducts(result.data);
+          // Auto-select the popular plan, or the first one
+          const popular = result.data.find((p) => p.isPopular);
+          setSelectedPlan(popular ? popular.key : result.data[0].key);
+        }
+      } catch (err) {
+        console.error('Failed to fetch products:', err);
+        setError('Failed to load pricing plans');
+      } finally {
+        setProductsLoading(false);
+      }
+    };
+    fetchProducts();
+  }, []);
+
+  // Build PLANS object from products for backward compatibility
+  const PLANS = {};
+  products.forEach((p) => {
+    PLANS[p.key] = {
+      name: p.name,
+      price: p.price,
+      features: p.features,
+      isPopular: p.isPopular,
+    };
+  });
 
   // Get user info from localStorage/context (update as needed)
   useEffect(() => {
@@ -176,8 +192,16 @@ const PricingSection = () => {
     <section className="bg-black py-20 px-6">
       <div className="max-w-5xl mx-auto">
         <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-16">
-          We have <span className="text-lime-400">2 products</span>
+          We have <span className="text-lime-400">{products.length} product{products.length !== 1 ? 's' : ''}</span>
         </h2>
+
+        {/* Products Loading */}
+        {productsLoading && (
+          <div className="flex justify-center items-center py-12">
+            <Loader2 className="w-8 h-8 text-lime-400 animate-spin" />
+            <span className="text-gray-300 ml-3">Loading plans...</span>
+          </div>
+        )}
 
         {/* Error Alert */}
         {error && (
@@ -207,134 +231,89 @@ const PricingSection = () => {
           </div>
         )}
         
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-          {/* Manual Plan */}
-          <div 
-            className={`bg-gray-900 p-8 rounded-xl border cursor-pointer transition-all duration-300 ${
-              selectedPlan === 'manual' 
-                ? 'border-lime-400 shadow-lg shadow-lime-400/20' 
-                : 'border-gray-800 hover:border-gray-700'
-            }`}
-            onClick={() => handlePlanSelect('manual')}
-          >
-            <div className="flex justify-between items-start mb-4">
-              <div className="text-center flex-1">
-                <h3 className="text-white text-xl font-medium mb-2">1. {PLANS.manual.name}</h3>
-                <div className="text-lime-400 text-3xl font-bold">{PLANS.manual.price}</div>
-              </div>
-              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                selectedPlan === 'manual' 
-                  ? 'border-lime-400 bg-lime-400' 
-                  : 'border-gray-600'
-              }`}>
-                {selectedPlan === 'manual' && (
-                  <div className="w-3 h-3 bg-black rounded-full"></div>
-                )}
-              </div>
-            </div>
-            
-            <ul className="space-y-4 mb-8">
-              {PLANS.manual.features.map((feature, idx) => (
-                <li key={idx} className="text-gray-300 flex items-start">
-                  <CheckCircle className="w-5 h-5 text-lime-400 mr-3 mt-0.5 flex-shrink-0" />
-                  {feature}
-                </li>
-              ))}
-            </ul>
-            
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                handlePlanSelect('manual');
-              }}
-              className={`w-full py-3 rounded-lg font-medium transition-colors ${
-                selectedPlan === 'manual'
-                  ? 'bg-lime-400 text-black hover:bg-lime-300'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+        <div className={`grid gap-8 max-w-4xl mx-auto ${products.length === 1 ? 'md:grid-cols-1 max-w-md' : products.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
+          {products.map((product, index) => (
+            <div
+              key={product._id || product.key}
+              className={`bg-gray-900 p-8 rounded-xl border cursor-pointer transition-all duration-300 relative ${
+                selectedPlan === product.key
+                  ? 'border-lime-400 shadow-lg shadow-lime-400/20'
+                  : product.isPopular
+                  ? 'border-lime-400 hover:border-lime-300'
+                  : 'border-gray-800 hover:border-gray-700'
               }`}
+              onClick={() => handlePlanSelect(product.key)}
             >
-              {selectedPlan === 'manual' ? 'Selected Plan' : 'Select Plan'}
-            </button>
-          </div>
+              {product.isPopular && (
+                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                  <span className="bg-lime-400 text-black px-4 py-1 rounded-full text-sm font-medium">
+                    Most Popular
+                  </span>
+                </div>
+              )}
 
-          {/* Auto Plan */}
-          <div 
-            className={`bg-gray-900 p-8 rounded-xl border cursor-pointer transition-all duration-300 relative ${
-              selectedPlan === 'auto' 
-                ? 'border-lime-400 shadow-lg shadow-lime-400/20' 
-                : 'border-lime-400 hover:border-lime-300'
-            }`}
-            onClick={() => handlePlanSelect('auto')}
-          >
-            {PLANS.auto.isPopular && (
-              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                <span className="bg-lime-400 text-black px-4 py-1 rounded-full text-sm font-medium">
-                  Most Popular
-                </span>
+              <div className="flex justify-between items-start mb-4">
+                <div className="text-center flex-1">
+                  <h3 className="text-white text-xl font-medium mb-2">
+                    {index + 1}. {product.name}
+                  </h3>
+                  <div className="text-lime-400 text-3xl font-bold">{product.price}</div>
+                </div>
+                <div
+                  className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                    selectedPlan === product.key
+                      ? 'border-lime-400 bg-lime-400'
+                      : 'border-gray-600'
+                  }`}
+                >
+                  {selectedPlan === product.key && (
+                    <div className="w-3 h-3 bg-black rounded-full"></div>
+                  )}
+                </div>
               </div>
-            )}
-            
-            <div className="flex justify-between items-start mb-4">
-              <div className="text-center flex-1">
-                <h3 className="text-white text-xl font-medium mb-2">2. {PLANS.auto.name}</h3>
-                <div className="text-lime-400 text-3xl font-bold">{PLANS.auto.price}</div>
-              </div>
-              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                selectedPlan === 'auto' 
-                  ? 'border-lime-400 bg-lime-400' 
-                  : 'border-gray-600'
-              }`}>
-                {selectedPlan === 'auto' && (
-                  <div className="w-3 h-3 bg-black rounded-full"></div>
-                )}
-              </div>
+
+              <ul className="space-y-4 mb-8">
+                {product.features.map((feature, idx) => (
+                  <li key={idx} className="text-gray-300 flex items-start">
+                    <CheckCircle className="w-5 h-5 text-lime-400 mr-3 mt-0.5 flex-shrink-0" />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePlanSelect(product.key);
+                }}
+                className={`w-full py-3 rounded-lg font-medium transition-colors ${
+                  selectedPlan === product.key
+                    ? 'bg-lime-400 text-black hover:bg-lime-300'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                {selectedPlan === product.key ? 'Selected Plan' : 'Select Plan'}
+              </button>
             </div>
-            
-            <ul className="space-y-4 mb-8">
-              {PLANS.auto.features.map((feature, idx) => (
-                <li key={idx} className="text-gray-300 flex items-start">
-                  <CheckCircle className="w-5 h-5 text-lime-400 mr-3 mt-0.5 flex-shrink-0" />
-                  {feature}
-                </li>
-              ))}
-            </ul>
-            
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                handlePlanSelect('auto');
-              }}
-              className={`w-full py-3 rounded-lg font-medium transition-colors ${
-                selectedPlan === 'auto'
-                  ? 'bg-lime-400 text-black hover:bg-lime-300'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              {selectedPlan === 'auto' ? 'Selected Plan' : 'Select Plan'}
-            </button>
-          </div>
+          ))}
         </div>
 
         {/* Selected Plan Summary & Checkout */}
-        {selectedPlan && (
+        {selectedPlan && PLANS[selectedPlan] && (
           <div className="mt-12 max-w-2xl mx-auto">
             <div className="bg-gray-900 p-6 rounded-xl border border-lime-400 mb-6">
               <h3 className="text-white text-lg font-medium mb-4">Selected Plan Summary</h3>
               <div className="flex justify-between items-center mb-4">
                 <span className="text-gray-300">
-                  {selectedPlan === 'manual' ? PLANS.manual.name : PLANS.auto.name}
+                  {PLANS[selectedPlan].name}
                 </span>
                 <span className="text-lime-400 font-bold">
-                  {selectedPlan === 'manual' ? PLANS.manual.price : PLANS.auto.price}
+                  {PLANS[selectedPlan].price}
                 </span>
               </div>
               
               <div className="bg-gray-800 p-3 rounded text-gray-400 text-sm">
-                {selectedPlan === 'manual' ? (
-                  <p> Recurring monthly charge</p>
-                ) : (
-                  <p> Pay per response - Buy credits as needed</p>
-                )}
+                <p>{PLANS[selectedPlan].price.includes('/month') ? 'Recurring monthly charge' : 'Pay per response - Buy credits as needed'}</p>
               </div>
             </div>
 

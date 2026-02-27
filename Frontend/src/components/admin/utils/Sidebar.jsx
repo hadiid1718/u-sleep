@@ -6,6 +6,7 @@
     { id: 'system', label: 'System Health', icon: Activity },
     { id: 'revenue', label: 'Revenue & BI', icon: DollarSign },
     { id: 'compliance', label: 'Compliance & Safety', icon: Shield },
+    { id: 'products', label: 'Products', icon: Package },
     { id: 'settings', label: 'Settings', icon: Settings }
   ];
 
@@ -19,7 +20,7 @@ import {
   DollarSign,
   Shield,
   Calendar,
-
+  Package,
 } from 'lucide-react';
 import { AppContext } from '../../../context/Context';
 
