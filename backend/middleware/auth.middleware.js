@@ -28,6 +28,8 @@ const authorize = async(req, res, next) => {
             }
 
             next();
+        } else {
+            return res.status(401).json({ message: 'Unauthorized - No token provided' });
         }
     } catch (error) {
         res.status(401).json({ error: error.message });

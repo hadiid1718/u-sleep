@@ -80,10 +80,10 @@ export const generateProposal = async (req, res, next) => {
 /**
  * Generate proposal in background (non-blocking)
  */
-async function generateProposalAsync(proposalId, job, user, aiService) {
+async function generateProposalAsync(proposalId, job, user, preferredAIService) {
     try {
         const generatedContent = await aiService.generateProposal({
-            aiService,
+            aiService: preferredAIService,
             job: job.toObject(),
             user: user.toObject(),
         });
@@ -92,7 +92,7 @@ async function generateProposalAsync(proposalId, job, user, aiService) {
         await Proposal.findByIdAndUpdate(proposalId, {
             $set: {
                 content: generatedContent,
-                aiModel: aiService === 'gemini' ? 'gemini-2.0-flash' : 'gpt-4-turbo',
+                aiModel: preferredAIService === 'gemini' ? 'gemini-2.0-flash' : 'gpt-4-turbo',
                 generatedAt: new Date(),
                 contentType: 'original',
             }

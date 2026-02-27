@@ -4,7 +4,7 @@
         error.message =err.message;
         console.error(err)
         // Object not found
-        if(err.name === 'CaseError'){
+        if(err.name === 'CastError'){
             const message = "Resource Not Found";
             error = new Error(message);
             error.statusCode= 404;

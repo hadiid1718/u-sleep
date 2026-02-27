@@ -238,7 +238,7 @@ export const signIn = async(req,res,next)=> {
 
 export const signOut = async(req,res,next)=> {
  try{
-  res.clearcookies("token")
+  res.clearCookie("token")
 
 res.status(200).json({
   success: true,
