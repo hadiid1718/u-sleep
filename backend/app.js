@@ -46,7 +46,7 @@ app.get("/", (req, res)=> {
 
 
 app.listen(PORT, async()=>{
-    console.log(`Subscription Tracker API is running on: http://localhost:${PORT}`);    
+    console.log(`U Sleep Automation Tool API is running on: http://localhost:${PORT}`);    
 
     //Database connection function calling
     await connectToDatabase()
