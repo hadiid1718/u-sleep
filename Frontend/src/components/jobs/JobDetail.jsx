@@ -1,78 +1,60 @@
 import React from 'react';
 import { ExternalLink, Star, CheckCircle, XCircle } from 'lucide-react';
 
-const JobDetails = () => {
-  // HARD-CODED JOB DATA
-  const job = {
-    title: 'Senior React Developer Needed for SaaS Platform',
-    description:
-      'We are looking for an experienced React developer to help us build a scalable SaaS application. You should be comfortable with modern React, hooks, performance optimization, and API integration.',
-    url: 'https://www.upwork.com/job/example',
-    postedDate: '2025-01-15',
+const JobDetails = ({ job: propJob }) => {
+  // Use prop job data if available, otherwise use fallback
+  const job = propJob || {
+    title: 'No Job Selected',
+    description: 'No job data available.',
+    url: '#',
+    postedDate: new Date().toISOString(),
     budgetType: 'fixed',
-    budget: {
-      amount: 3000,
-    },
-    aiAnalysis:
-      'This job strongly matches your profile based on React expertise, SaaS experience, and budget expectations.',
-    recommendation: 'Highly Recommended',
-    score: 92,
-    greenFlags: [
-      'Clear requirements',
-      'Verified payment method',
-      'High budget',
-      'Experienced client',
-    ],
-    redFlags: ['Tight deadline'],
-    clientInfo: {
-      jobsPosted: 48,
-      paymentVerified: true,
-      totalReviews: 36,
-      rating: 4.9,
-      totalSpent: 120000,
-      totalHires: 22,
-      hireRate: 85,
-      country: 'United States',
-    },
-    duration: '3–6 months',
-    workload: '30+ hrs/week',
-    proposals: '15–20',
+    budget: { amount: 0 },
+    aiAnalysis: { reasoning: '', matchScore: 0, recommendation: '', greenFlags: [], redFlags: [] },
+    clientInfo: {},
   };
 
-  // Safe destructuring
-  const {
-    title,
-    description,
-    url,
-    postedDate,
-    budgetType,
-    budget,
-    aiAnalysis,
-    recommendation,
-    score,
-    greenFlags,
-    redFlags,
-    clientInfo,
-    duration,
-    workload,
-    proposals,
-  } = job;
+  // Safe destructuring with defaults
+  const title = job.title || 'Untitled Job';
+  const description = job.description || job.shortDescription || 'No description available';
+  const url = job.upworkUrl || job.url || '#';
+  const postedDate = job.postedDate || job.createdAt;
+  const budgetType = job.budgetType || 'fixed';
+  const budget = job.budget || {};
+  const hourlyRate = job.hourlyRate || {};
+  const duration = job.duration || 'Not specified';
+  const workload = job.workloadHoursPerWeek || 'Not specified';
+  const proposalsCount = job.proposalsCount || 'N/A';
+  const skills = job.skills || [];
 
-  const {
-    jobsPosted,
-    paymentVerified,
-    totalReviews,
-    rating,
-    totalSpent,
-    totalHires,
-    hireRate,
-    country,
-  } = clientInfo;
+  // AI Analysis - handle both string and object formats
+  const aiAnalysis = typeof job.aiAnalysis === 'object'
+    ? job.aiAnalysis
+    : { reasoning: job.aiAnalysis || '', matchScore: 0, recommendation: '', greenFlags: [], redFlags: [] };
+
+  const recommendation = aiAnalysis.recommendation || 'Pending';
+  const score = aiAnalysis.matchScore || 0;
+  const greenFlags = aiAnalysis.greenFlags || [];
+  const redFlags = aiAnalysis.redFlags || [];
+  const reasoning = aiAnalysis.reasoning || '';
+
+  // Client info with defaults
+  const clientInfo = job.clientInfo || {};
+  const jobsPosted = clientInfo.jobsPosted || 0;
+  const paymentVerified = clientInfo.paymentVerified || false;
+  const totalReviews = clientInfo.totalReviews || 0;
+  const rating = clientInfo.rating || 0;
+  const totalSpent = clientInfo.totalSpent || 0;
+  const totalHires = clientInfo.totalHires || 0;
+  const hireRate = clientInfo.hireRate || 0;
+  const country = clientInfo.country || 'Unknown';
 
   const budgetDisplay =
-    budgetType === 'fixed'
-      ? `Fixed: $${budget.amount.toLocaleString()} USD`
-      : 'Budget not specified';
+    budgetType === 'fixed' && budget.amount
+      ? `Fixed: $${budget.amount.toLocaleString()} ${budget.currency || 'USD'}`
+      : budgetType === 'hourly' && hourlyRate.min
+        ? `Hourly: $${hourlyRate.min}–$${hourlyRate.max} ${hourlyRate.currency || 'USD'}`
+        : 'Budget not specified';
 
   return (
     <div className= "min-h-[40vh]  border-2 border-lime-400 rounded-2xl p-6 mb-6">
@@ -98,8 +80,22 @@ const JobDetails = () => {
       {/* AI Analysis */}
       <div className="bg-gray-800 border border-lime-400/30 rounded-lg p-4 mb-6">
         <h3 className="text-lime-400 font-bold mb-2">AI Analysis</h3>
-        <p className="text-gray-300 text-sm">{aiAnalysis}</p>
+        <p className="text-gray-300 text-sm">{reasoning}</p>
       </div>
+
+      {/* Skills */}
+      {skills.length > 0 && (
+        <div className="mb-6">
+          <h4 className="text-blue-400 font-semibold mb-2">Required Skills</h4>
+          <div className="flex flex-wrap gap-2">
+            {skills.map((skill, i) => (
+              <span key={i} className="bg-blue-900/30 text-blue-300 px-3 py-1 rounded-full text-sm">
+                {skill}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Green Flags */}
       <div className="mb-4">
@@ -154,7 +150,7 @@ const JobDetails = () => {
           <Star size={16} className="text-yellow-400 fill-yellow-400" />
           <span className="text-white">{rating}</span>
         </p>
-        <p>Total spent: <span className="text-white">${totalSpent.toLocaleString()}</span></p>
+        <p>Total spent: <span className="text-white">${(totalSpent || 0).toLocaleString()}</span></p>
         <p>Hire rate: <span className="text-white">{hireRate}%</span></p>
         <p>Country: <span className="text-white">{country}</span></p>
       </div>
@@ -164,7 +160,7 @@ const JobDetails = () => {
       <div className="grid grid-cols-2 gap-4 text-gray-400 mb-8">
         <p>Duration: <span className="text-white">{duration}</span></p>
         <p>Workload: <span className="text-white">{workload}</span></p>
-        <p>Proposals: <span className="text-white">{proposals}</span></p>
+        <p>Proposals: <span className="text-white">{proposalsCount}</span></p>
         <p>
           Posted:{' '}
           <span className="text-white">

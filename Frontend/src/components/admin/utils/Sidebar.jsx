@@ -2,6 +2,8 @@
     { id: 'analytics', label: 'Analytics & Monitoring', icon: BarChart3 },
     { id: 'demos', label: 'Demo', icon: Calendar },
     { id: 'users', label: 'Users', icon: Users },
+    { id: 'jobs', label: 'Jobs', icon: Briefcase },
+    { id: 'proposals', label: 'Proposals', icon: FileText },
     { id: 'messages', label: 'Messages', icon: MessageSquare },
     { id: 'system', label: 'System Health', icon: Activity },
     { id: 'revenue', label: 'Revenue & BI', icon: DollarSign },
@@ -21,6 +23,8 @@ import {
   Shield,
   Calendar,
   Package,
+  Briefcase,
+  FileText,
 } from 'lucide-react';
 import { AppContext } from '../../../context/Context';
 

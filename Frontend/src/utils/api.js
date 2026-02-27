@@ -416,3 +416,270 @@ export const seedProducts = () =>
   apiRequest('/products/seed', {
     method: 'POST',
   });
+
+// =====================================================
+// JOB API ENDPOINTS
+// =====================================================
+
+export const jobAPI = {
+  /**
+   * Search jobs from Upwork API (non-blocking)
+   * POST /api/v1/jobs/search
+   */
+  searchJobs: async (keywords, filters = {}) => {
+    if (!keywords || (Array.isArray(keywords) && keywords.length === 0)) {
+      return {
+        success: false,
+        error: { message: 'At least one keyword is required', statusCode: 400 },
+      };
+    }
+    return apiRequest('/jobs/search', {
+      method: 'POST',
+      body: JSON.stringify({ keywords, filters }),
+    });
+  },
+
+  /**
+   * Search jobs with AI analysis and scoring
+   * POST /api/v1/jobs/search-with-ai
+   */
+  searchJobsWithAI: async (keywords, filters = {}) => {
+    if (!keywords || (Array.isArray(keywords) && keywords.length === 0)) {
+      return {
+        success: false,
+        error: { message: 'At least one keyword is required', statusCode: 400 },
+      };
+    }
+    return apiRequest('/jobs/search-with-ai', {
+      method: 'POST',
+      body: JSON.stringify({ keywords, filters }),
+    });
+  },
+
+  /**
+   * Get filtered and cached jobs for user
+   * GET /api/v1/jobs/filtered?page=&limit=&status=
+   */
+  getFilteredJobs: async ({ page = 1, limit = 20, status = 'pending' } = {}) => {
+    const params = new URLSearchParams();
+    params.append('page', page);
+    params.append('limit', limit);
+    if (status) params.append('status', status);
+    return apiRequest(`/jobs/filtered?${params.toString()}`, {
+      method: 'GET',
+    });
+  },
+
+  /**
+   * Get single job details
+   * GET /api/v1/jobs/:jobId
+   */
+  getJobDetail: async (jobId) => {
+    if (!jobId) {
+      return {
+        success: false,
+        error: { message: 'Job ID is required', statusCode: 400 },
+      };
+    }
+    return apiRequest(`/jobs/${jobId}`, {
+      method: 'GET',
+    });
+  },
+
+  /**
+   * Mark job as matched
+   * PUT /api/v1/jobs/:jobId/match
+   */
+  markJobAsMatched: async (jobId) => {
+    if (!jobId) {
+      return {
+        success: false,
+        error: { message: 'Job ID is required', statusCode: 400 },
+      };
+    }
+    return apiRequest(`/jobs/${jobId}/match`, {
+      method: 'PUT',
+    });
+  },
+
+  /**
+   * Mark job as rejected with feedback
+   * PUT /api/v1/jobs/:jobId/reject
+   */
+  markJobAsRejected: async (jobId, reason = '') => {
+    if (!jobId) {
+      return {
+        success: false,
+        error: { message: 'Job ID is required', statusCode: 400 },
+      };
+    }
+    return apiRequest(`/jobs/${jobId}/reject`, {
+      method: 'PUT',
+      body: JSON.stringify({ reason }),
+    });
+  },
+};
+
+// =====================================================
+// PROPOSAL API ENDPOINTS
+// =====================================================
+
+export const proposalAPI = {
+  /**
+   * Generate proposal for a job (non-blocking)
+   * POST /api/v1/proposals/job/:jobId/generate
+   */
+  generateProposal: async (jobId, aiService = 'openai') => {
+    if (!jobId) {
+      return {
+        success: false,
+        error: { message: 'Job ID is required', statusCode: 400 },
+      };
+    }
+    return apiRequest(`/proposals/job/${jobId}/generate`, {
+      method: 'POST',
+      body: JSON.stringify({ aiService }),
+    });
+  },
+
+  /**
+   * Get single proposal details
+   * GET /api/v1/proposals/:proposalId
+   */
+  getProposal: async (proposalId) => {
+    if (!proposalId) {
+      return {
+        success: false,
+        error: { message: 'Proposal ID is required', statusCode: 400 },
+      };
+    }
+    return apiRequest(`/proposals/${proposalId}`, {
+      method: 'GET',
+    });
+  },
+
+  /**
+   * Get all proposals for user with pagination
+   * GET /api/v1/proposals?page=&limit=&status=&sortBy=
+   */
+  getUserProposals: async ({ page = 1, limit = 10, status = '', sortBy = '-createdAt' } = {}) => {
+    const params = new URLSearchParams();
+    params.append('page', page);
+    params.append('limit', limit);
+    if (status) params.append('status', status);
+    params.append('sortBy', sortBy);
+    return apiRequest(`/proposals?${params.toString()}`, {
+      method: 'GET',
+    });
+  },
+
+  /**
+   * Get proposal statistics
+   * GET /api/v1/proposals/stats/summary
+   */
+  getProposalStats: async () => {
+    return apiRequest('/proposals/stats/summary', {
+      method: 'GET',
+    });
+  },
+
+  /**
+   * Send proposal to Upwork
+   * POST /api/v1/proposals/:proposalId/send
+   */
+  sendProposal: async (proposalId, { bidAmount, estimatedDuration, deliveryDate } = {}) => {
+    if (!proposalId) {
+      return {
+        success: false,
+        error: { message: 'Proposal ID is required', statusCode: 400 },
+      };
+    }
+    return apiRequest(`/proposals/${proposalId}/send`, {
+      method: 'POST',
+      body: JSON.stringify({ bidAmount, estimatedDuration, deliveryDate }),
+    });
+  },
+
+  /**
+   * Update proposal status
+   * PATCH /api/v1/proposals/:proposalId/status
+   */
+  updateProposalStatus: async (proposalId, status, notes = '') => {
+    if (!proposalId || !status) {
+      return {
+        success: false,
+        error: { message: 'Proposal ID and status are required', statusCode: 400 },
+      };
+    }
+    return apiRequest(`/proposals/${proposalId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, notes }),
+    });
+  },
+
+  /**
+   * Upgrade proposal with case study
+   * POST /api/v1/proposals/:proposalId/upgrade
+   */
+  upgradeProposal: async (proposalId, caseStudy) => {
+    if (!proposalId || !caseStudy) {
+      return {
+        success: false,
+        error: { message: 'Proposal ID and case study are required', statusCode: 400 },
+      };
+    }
+    return apiRequest(`/proposals/${proposalId}/upgrade`, {
+      method: 'POST',
+      body: JSON.stringify({ caseStudy }),
+    });
+  },
+
+  /**
+   * Copy proposal content
+   * POST /api/v1/proposals/:proposalId/copy
+   */
+  copyProposal: async (proposalId) => {
+    if (!proposalId) {
+      return {
+        success: false,
+        error: { message: 'Proposal ID is required', statusCode: 400 },
+      };
+    }
+    return apiRequest(`/proposals/${proposalId}/copy`, {
+      method: 'POST',
+    });
+  },
+
+  /**
+   * Rate proposal quality
+   * POST /api/v1/proposals/:proposalId/rate
+   */
+  rateProposal: async (proposalId, rating, feedback = '') => {
+    if (!proposalId || !rating) {
+      return {
+        success: false,
+        error: { message: 'Proposal ID and rating are required', statusCode: 400 },
+      };
+    }
+    return apiRequest(`/proposals/${proposalId}/rate`, {
+      method: 'POST',
+      body: JSON.stringify({ rating, feedback }),
+    });
+  },
+
+  /**
+   * Delete proposal
+   * DELETE /api/v1/proposals/:proposalId
+   */
+  deleteProposal: async (proposalId) => {
+    if (!proposalId) {
+      return {
+        success: false,
+        error: { message: 'Proposal ID is required', statusCode: 400 },
+      };
+    }
+    return apiRequest(`/proposals/${proposalId}`, {
+      method: 'DELETE',
+    });
+  },
+};

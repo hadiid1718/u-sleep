@@ -1,12 +1,44 @@
-import { Clock, Eye, MessageSquare, Target } from "lucide-react";
+import { Clock, Eye, MessageSquare, Target, Briefcase, FileText } from "lucide-react";
 import MetricCard from "../utils/MatricCard";
+import { useEffect, useState } from "react";
+import { proposalAPI, jobAPI } from "../../../utils/api";
 
 const AnalyticsSection = () => {
+  const [stats, setStats] = useState(null);
+  const [jobCount, setJobCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      setLoading(true);
+      try {
+        const [proposalResult, jobResult] = await Promise.all([
+          proposalAPI.getProposalStats(),
+          jobAPI.getFilteredJobs({ limit: 1 }),
+        ]);
+        if (proposalResult.success) {
+          setStats(proposalResult.data?.data || null);
+        }
+        if (jobResult.success) {
+          setJobCount(jobResult.data?.data?.pagination?.total || 0);
+        }
+      } catch (err) {
+        console.error('Analytics fetch error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAnalytics();
+  }, []);
+
+  const proposalStats = stats?.stats || {};
+  const acceptanceRate = stats?.acceptanceRate || '0%';
+
   const metrics = [
-    { title: 'Total Responses Sent', value: '15,847', change: '+12%', icon: MessageSquare },
-    { title: 'Average Open Rate', value: '52.3%', change: '+3.2%', icon: Eye },
-    { title: 'Conversion Rate', value: '23.1%', change: '+5.7%', icon: Target },
-    { title: 'Avg Response Time', value: '3.2 min', change: '-0.8 min', icon: Clock }
+    { title: 'Total Proposals', value: String(proposalStats.total || 0), change: `${proposalStats.sent || 0} sent`, icon: FileText },
+    { title: 'Acceptance Rate', value: acceptanceRate, change: `${proposalStats.accepted || 0} accepted`, icon: Target },
+    { title: 'Jobs Tracked', value: String(jobCount), change: `${proposalStats.draft || 0} drafts`, icon: Briefcase },
+    { title: 'Proposals Rejected', value: String(proposalStats.rejected || 0), change: `${proposalStats.withdrawn || 0} withdrawn`, icon: Clock }
   ];
 
   return (

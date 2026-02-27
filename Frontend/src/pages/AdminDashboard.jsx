@@ -7,6 +7,8 @@ import DemoManagementSection from "../components/admin/Management/DemoManagement
 import RevenueSection from "../components/admin/Management/RevenueSection"
 import SettingsSection from "../components/admin/Management/SettingsSection"
 import ProductManagementSection from "../components/admin/Management/ProductManagementSection"
+import JobManagementSection from "../components/admin/Management/JobManagementSection"
+import ProposalManagementSection from "../components/admin/Management/ProposalManagementSection"
 import { useState } from "react";
 
 import { MobileMenuButton } from "../components/admin/utils/MobileMenuButton"
@@ -36,6 +38,10 @@ const AdminDashboard = () => {
         return <SettingsSection />;
       case 'products':
         return <ProductManagementSection />;
+      case 'jobs':
+        return <JobManagementSection />;
+      case 'proposals':
+        return <ProposalManagementSection />;
       default:
         return <AnalyticsSection />;
     }

@@ -1,13 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import LoadingScreen from '../shared/LoadingScreen';
 import JobDetails from './JobDetail';
 import GeneratedResponse from './GeneratedResponse';
 import SuccessPopup from '../SuccessPopup';
 import FeedbackModal from '../models/FeedBackModel';
 import CaseStudyModal from '../models/CaseStudyModel';
+import { AppContext } from '../../context/Context';
+import { proposalAPI } from '../../utils/api';
 
 const JobResponseGenerator = ({ job, onClose }) => {
-  console.log('JobResponseGenerator received job:', job);
+  const { generateProposal, pollProposal, currentProposal } = useContext(AppContext);
+
   const [currentScreen, setCurrentScreen] = useState('loading');
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
@@ -15,61 +18,85 @@ const JobResponseGenerator = ({ job, onClose }) => {
   const [responseText, setResponseText] = useState('');
   const [isRegenerating, setIsRegenerating] = useState(false);
 
+  // Generate proposal on mount using the real API
   useEffect(() => {
-    if (currentScreen === 'loading') {
-      const timer = setTimeout(() => {
+    const startGeneration = async () => {
+      const jobId = job?._id || job?.id;
+      if (!jobId) {
+        // No real job ID — fall back to timer
+        const timer = setTimeout(() => setCurrentScreen('response'), 3000);
+        return () => clearTimeout(timer);
+      }
+
+      try {
+        const result = await generateProposal(jobId);
+        if (result.success) {
+          const proposalId = result.data?.data?.proposalId;
+          if (proposalId) {
+            const pollResult = await pollProposal(proposalId);
+            if (pollResult.success) {
+              setResponseText(pollResult.data?.data?.content || '');
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Proposal generation error:', err);
+      } finally {
         setCurrentScreen('response');
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [currentScreen]);
+      }
+    };
+
+    startGeneration();
+  }, [job]);
 
   const handleDislike = () => {
     setShowFeedbackModal(true);
   };
 
-  const handleLike = () => {
+  const handleLike = async () => {
+    const proposalId = currentProposal?.proposalId || currentProposal?._id;
+    if (proposalId) {
+      await proposalAPI.rateProposal(proposalId, 5, 'User liked the proposal');
+    }
     setShowSuccessPopup(true);
   };
 
-  const handleSubmitFeedback = (feedback) => {
-    console.log('Feedback submitted:', feedback);
+  const handleSubmitFeedback = async (feedback) => {
+    const proposalId = currentProposal?.proposalId || currentProposal?._id;
+    if (proposalId) {
+      await proposalAPI.rateProposal(proposalId, 2, feedback);
+    }
     setShowFeedbackModal(false);
-    // Add your API call here to submit feedback
   };
 
   const handleUpgradeClick = () => {
     setShowCaseStudyModal(true);
   };
 
-  const handleCaseStudySubmit = (caseStudy) => {
-    console.log('Case study submitted:', caseStudy);
+  const handleCaseStudySubmit = async (caseStudy) => {
     setShowCaseStudyModal(false);
     setIsRegenerating(true);
-    
-    // Simulate API call to regenerate response with case study
-    setTimeout(() => {
-      // Generate upgraded response (in real app, this would come from your AI API)
-      const upgradedResponse = generateUpgradedResponse(caseStudy);
-      setResponseText(upgradedResponse);
-      setIsRegenerating(false);
-    }, 3000);
-  };
 
-  const generateUpgradedResponse = (caseStudy) => {
-    // This is a simulation. In your real app, you would call your AI API here
-    // and pass the case study to generate a better response
-    return `Hi, what specific features or functionalities do you envision for your real-time video communication platform? Have you identified any particular challenges or requirements for integrating AI captions?
+    const proposalId = currentProposal?.proposalId || currentProposal?._id;
+    if (proposalId) {
+      try {
+        const result = await proposalAPI.upgradeProposal(proposalId, caseStudy);
+        if (result.success) {
+          const pollResult = await pollProposal(proposalId, 15, 3000);
+          if (pollResult.success) {
+            setResponseText(pollResult.data?.data?.content || '');
+          }
+        }
+      } catch (err) {
+        console.error('Proposal upgrade error:', err);
+      }
+    } else {
+      // Fallback when no real proposalId
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      setResponseText(`Enhanced proposal with case study:\n\n${caseStudy.substring(0, 200)}...\n\nWe look forward to discussing your project.`);
+    }
 
-Similar project: ${caseStudy.substring(0, 200)}... We successfully delivered this solution, demonstrating our expertise in this domain.
-
-Based on our experience with similar projects, we can provide:
-- Scalable architecture for multi-user video sessions
-- Advanced AI-powered features including real-time captioning
-- Robust security and token management
-- Mobile-optimized performance
-
-What time are you available tomorrow for a quick call to discuss your specific requirements?`;
+    setIsRegenerating(false);
   };
 
   if (currentScreen === 'loading' || isRegenerating) {

@@ -1,8 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { Copy, Send } from 'lucide-react';
+import { AppContext } from '../../context/Context';
+import { proposalAPI } from '../../utils/api';
 
-const GeneratedResponse = ({ onLike, onDislike, onUpgrade, responseText }) => {
+const GeneratedResponse = ({ onLike, onDislike, onUpgrade, responseText, job }) => {
   const [copied, setCopied] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const { currentProposal } = useContext(AppContext);
 
   const defaultResponse = `Hi, what specific features or functionalities do you envision for your real-time video communication platform? Have you identified any particular challenges or requirements for integrating AI captions?
 
@@ -10,15 +15,40 @@ Similar project: We developed a real-time video communication solution with grou
 
 What time are you available tomorrow for a quick call?`;
 
-  const displayText = responseText || defaultResponse;
+  const displayText = responseText || currentProposal?.content || defaultResponse;
+  const proposalId = currentProposal?.proposalId || currentProposal?._id;
 
   const handleCopy = async () => {
     try {
+      // If we have a proposalId, also call the copy API
+      if (proposalId) {
+        proposalAPI.copyProposal(proposalId);
+      }
       await navigator.clipboard.writeText(displayText);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy text:', err);
+    }
+  };
+
+  const handleSend = async () => {
+    if (!proposalId) {
+      alert('No proposal to send. Generate a proposal first.');
+      return;
+    }
+    setSending(true);
+    try {
+      const result = await proposalAPI.sendProposal(proposalId);
+      if (result.success) {
+        setSent(true);
+      } else {
+        alert(result.error?.message || 'Failed to send proposal');
+      }
+    } catch (err) {
+      alert(err.message || 'Failed to send proposal');
+    } finally {
+      setSending(false);
     }
   };
 
@@ -34,9 +64,19 @@ What time are you available tomorrow for a quick call?`;
             <Copy size={18} />
             {copied ? 'Copied!' : 'Copy'}
           </button>
-          <button className="flex items-center gap-2 bg-lime-400 text-gray-900 px-5 py-2.5 rounded-lg hover:bg-lime-500 transition font-bold">
+          <button 
+            onClick={handleSend}
+            disabled={sending || sent}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg transition font-bold ${
+              sent 
+                ? 'bg-green-600 text-white cursor-default' 
+                : sending 
+                  ? 'bg-gray-600 text-gray-300 cursor-wait' 
+                  : 'bg-lime-400 text-gray-900 hover:bg-lime-500'
+            }`}
+          >
             <Send size={18} />
-            Send
+            {sent ? 'Sent!' : sending ? 'Sending...' : 'Send'}
           </button>
         </div>
       </div>

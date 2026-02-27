@@ -1,51 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import JobResponseGenerator from "../components/jobs/JobResponseGenerator";
 import ReasonModal from "../components/models/ReasonModal";
 import { ExternalLink, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
-/* =======================
-   STATIC MOCK DATA
-======================= */
-
-const STATIC_JOBS = [
-  {
-    title: "React Frontend Developer Needed",
-    description:
-      "We are looking for a skilled React developer to build responsive UI components.",
-    budgetType: "hourly",
-    budget: { min: 15, max: 30 },
-    url: "https://www.upwork.com/",
-    aiAnalysis:
-      "Strong match based on React experience and frontend specialization.",
-    redFlags: ["Low initial budget"],
-    clientInfo: {
-      jobsPosted: 25,
-      paymentVerified: true,
-      country: "United States",
-    },
-  },
-  {
-    title: "MERN Stack Developer",
-    description:
-      "Need a full-stack MERN developer for an ongoing SaaS project.",
-    budgetType: "fixed",
-    budget: { amount: 800 },
-    url: "https://www.upwork.com/",
-    aiAnalysis:
-      "Good fit if you are comfortable with MongoDB and Node.js.",
-    redFlags: [],
-    clientInfo: {
-      jobsPosted: 10,
-      paymentVerified: false,
-      country: "Canada",
-    },
-  },
-];
-
-const STATIC_FORM_DATA = {
-  keywords: ["React", "Frontend", "MERN"],
-};
+import { AppContext } from "../context/Context";
 
 /* =======================
    COMPONENT
@@ -53,6 +11,7 @@ const STATIC_FORM_DATA = {
 
 const JobResultPage = () => {
   const navigate = useNavigate();
+  const { jobResults, formData, matchJob, rejectJob } = useContext(AppContext);
 
   const [currentJobIndex, setCurrentJobIndex] = useState(0);
   const [showReasonModel, setShowReasonModel] = useState(false);
@@ -61,8 +20,9 @@ const JobResultPage = () => {
   const [dismissedJobs, setDismissedJobs] = useState([]);
   const [matchedJobs, setMatchedJobs] = useState([]);
 
-  const totalJobs = STATIC_JOBS.length;
-  const currentJob = STATIC_JOBS[currentJobIndex];
+  const jobs = jobResults || [];
+  const totalJobs = jobs.length;
+  const currentJob = jobs[currentJobIndex];
 
   const handleDismatch = () => setShowReasonModel(true);
 
@@ -71,10 +31,15 @@ const JobResultPage = () => {
     setReason("");
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!reason.trim()) {
       alert("Please provide at least one reason.");
       return;
+    }
+
+    const jobId = currentJob?._id || currentJob?.id;
+    if (jobId) {
+      await rejectJob(jobId, reason);
     }
 
     setDismissedJobs((prev) => [
@@ -86,7 +51,12 @@ const JobResultPage = () => {
     closeReasonModel();
   };
 
-  const handleMatch = () => {
+  const handleMatch = async () => {
+    const jobId = currentJob?._id || currentJob?.id;
+    if (jobId) {
+      await matchJob(jobId);
+    }
+
     setMatchedJobs((prev) => [...prev, currentJob]);
     setShowJobResponse(true);
   };
@@ -116,22 +86,53 @@ const JobResultPage = () => {
   }
 
   /* =======================
+     EMPTY / LOADING STATE
+  ======================= */
+
+  if (!currentJob) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-white mb-3">No Jobs Available</h2>
+          <p className="text-gray-400 mb-6">Search for jobs first to see results here.</p>
+          <button
+            onClick={() => navigate('/user/dashboard')}
+            className="bg-lime-400 text-gray-900 px-6 py-3 rounded-lg font-semibold hover:bg-lime-300 transition"
+          >
+            Go to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  /* =======================
      BUDGET FORMATTER
   ======================= */
 
   const budgetDisplay = (() => {
-    if (!currentJob?.budget) return "Budget not specified";
+    if (!currentJob) return "Budget not specified";
 
-    if (currentJob.budgetType === "hourly") {
+    if (currentJob.budgetType === "hourly" && currentJob.hourlyRate) {
+      return `$${currentJob.hourlyRate.min}–$${currentJob.hourlyRate.max}/hr`;
+    }
+
+    if (currentJob.budgetType === "hourly" && currentJob.budget?.min) {
       return `$${currentJob.budget.min}–$${currentJob.budget.max}/hr`;
     }
 
-    if (currentJob.budgetType === "fixed") {
+    if (currentJob.budgetType === "fixed" && currentJob.budget?.amount) {
       return `$${currentJob.budget.amount} Fixed`;
     }
 
     return "Budget not specified";
   })();
+
+  const redFlags = currentJob?.aiAnalysis?.redFlags || currentJob?.redFlags || [];
+  const aiAnalysisText = currentJob?.aiAnalysis?.reasoning || currentJob?.aiAnalysis || '';
+  const matchScore = currentJob?.aiAnalysis?.matchScore || null;
+  const recommendation = currentJob?.aiAnalysis?.recommendation || null;
+  const greenFlags = currentJob?.aiAnalysis?.greenFlags || [];
 
   /* =======================
      UI
@@ -154,10 +155,22 @@ const JobResultPage = () => {
             {budgetDisplay}
           </div>
 
-          {currentJob.redFlags.length > 0 && (
+          {matchScore && (
+            <div className="bg-gray-700 text-lime-400 px-3 py-2 rounded-lg mb-4 font-semibold">
+              Match Score: {matchScore}/100 {recommendation && `• ${recommendation}`}
+            </div>
+          )}
+
+          {redFlags.length > 0 && (
             <div className="bg-orange-600 text-white px-3 py-2 rounded-lg mb-4 flex gap-2">
               <AlertTriangle size={18} />
-              {currentJob.redFlags.length} Red Flags
+              {redFlags.length} Red Flag{redFlags.length > 1 ? 's' : ''}: {redFlags.join(', ')}
+            </div>
+          )}
+
+          {greenFlags.length > 0 && (
+            <div className="bg-green-800 text-green-200 px-3 py-2 rounded-lg mb-4 text-sm">
+              {greenFlags.join(' • ')}
             </div>
           )}
 
@@ -166,7 +179,7 @@ const JobResultPage = () => {
           </p>
 
           <a
-            href={currentJob.url}
+            href={currentJob.upworkUrl || currentJob.url || '#'}
             target="_blank"
             rel="noopener noreferrer"
             className="text-green-400 underline flex items-center gap-2 mb-6"
@@ -197,15 +210,25 @@ const JobResultPage = () => {
           </h3>
 
           <p className="text-gray-300">
-            {currentJob.aiAnalysis}
+            {typeof aiAnalysisText === 'string' ? aiAnalysisText : JSON.stringify(aiAnalysisText)}
           </p>
+
+          {currentJob?.clientInfo && (
+            <div className="mt-4 text-sm space-y-1">
+              <h4 className="text-lime-400 font-semibold mb-2">Client Info</h4>
+              {currentJob.clientInfo.rating && <p className="text-gray-300">Rating: {currentJob.clientInfo.rating}</p>}
+              {currentJob.clientInfo.totalSpent && <p className="text-gray-300">Total Spent: ${currentJob.clientInfo.totalSpent?.toLocaleString()}</p>}
+              {currentJob.clientInfo.country && <p className="text-gray-300">Country: {currentJob.clientInfo.country}</p>}
+              <p className="text-gray-300">Payment: {currentJob.clientInfo.paymentVerified ? '✅ Verified' : '❌ Not Verified'}</p>
+            </div>
+          )}
 
           <div className="mt-6 text-sm">
             <h4 className="text-lime-400 font-semibold mb-2">
               Your Criteria
             </h4>
             <p className="text-gray-300">
-              Keywords: {STATIC_FORM_DATA.keywords.join(", ")}
+              Keywords: {(formData?.keywords || []).join(", ") || 'N/A'}
             </p>
           </div>
         </div>

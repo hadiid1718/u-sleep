@@ -10,12 +10,15 @@ import  SettingsView  from '../components/user/settings/SettingsView';
 const Dashboard = () => {
   const { 
     user, 
-    logOut, 
+    handleLogout, 
     dashboardJobs, 
     dashboardLoading, 
     fetchDashboardJobs,
-    userPreferences, 
-    updateUserPreferences 
+    matchJob,
+    rejectJob,
+    fetchUserProposals,
+    fetchProposalStats,
+    proposalStats,
   } = useContext(AppContext);
 
   const [activeMenu, setActiveMenu] = useState('dashboard');
@@ -50,6 +53,24 @@ const Dashboard = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Fetch dashboard jobs and proposal stats on mount
+  useEffect(() => {
+    if (user) {
+      fetchDashboardJobs();
+      fetchProposalStats();
+    }
+  }, [user]);
+
+  const handleJobAction = async (jobId, action = 'match') => {
+    if (action === 'reject') {
+      await rejectJob(jobId);
+    } else {
+      await matchJob(jobId);
+    }
+    // Refresh the job list
+    fetchDashboardJobs();
+  };
+
   const handleMenuClick = (menuId) => {
     setActiveMenu(menuId);
     if (isMobile) {
@@ -67,7 +88,7 @@ const Dashboard = () => {
             formStates={formStates}
             user={user}
             onMenuClick={handleMenuClick}
-            handleJobAction={(id) => console.log('Job action', id)}
+            handleJobAction={handleJobAction}
             formData={formData}
           />
         );
@@ -120,7 +141,7 @@ const Dashboard = () => {
         user={user}
         activeMenu={activeMenu}
         onMenuClick={handleMenuClick}
-        onLogout={logOut}
+        onLogout={handleLogout}
         isMobile={isMobile}
         isSidebarOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
