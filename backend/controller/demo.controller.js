@@ -183,16 +183,43 @@ export const scheduleDemo = async (req, res, next) => {
     }
 };
 
-// Get all demos (admin)
+// Get all demos (admin) with pagination, filtering
 export const getAllDemos = async (req, res, next) => {
     try {
-        const demos = await Demo.find({})
-            .sort({ demoDate: 1 })
-            .lean();
+        const page = Math.max(parseInt(req.query.page) || 1, 1);
+        const limit = Math.min(Math.max(parseInt(req.query.limit) || 10, 1), 100);
+        const skip = (page - 1) * limit;
+
+        // Build filter object
+        const filter = {};
+        if (req.query.status) filter.status = req.query.status;
+        if (req.query.email) filter.email = { $regex: req.query.email, $options: 'i' };
+        if (req.query.date) {
+            const startOfDay = new Date(req.query.date);
+            startOfDay.setHours(0, 0, 0, 0);
+            const endOfDay = new Date(req.query.date);
+            endOfDay.setHours(23, 59, 59, 999);
+            filter.demoDate = { $gte: startOfDay, $lte: endOfDay };
+        }
+
+        const [demos, totalCount] = await Promise.all([
+            Demo.find(filter)
+                .sort({ demoDate: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            Demo.countDocuments(filter)
+        ]);
+
+        const totalPages = Math.ceil(totalCount / limit);
 
         res.status(200).json({
             success: true,
             count: demos.length,
+            totalCount,
+            page,
+            totalPages,
+            limit,
             data: demos
         });
     } catch (error) {

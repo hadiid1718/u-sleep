@@ -153,9 +153,16 @@ export const demoAPI = {
     });
   },
 
-  // Get all demos (admin only)
-  getAllDemos: async () => {
-    return apiRequest('/demo/all', {
+  // Get all demos (admin only) with pagination and filters
+  getAllDemos: async ({ page = 1, limit = 9, status = '', date = '', email = '' } = {}) => {
+    const params = new URLSearchParams();
+    params.append('page', page);
+    params.append('limit', limit);
+    if (status) params.append('status', status);
+    if (date) params.append('date', date);
+    if (email) params.append('email', email);
+
+    return apiRequest(`/demo/all?${params.toString()}`, {
       method: 'GET',
     });
   },
@@ -207,6 +214,102 @@ export const demoAPI = {
     }
     return apiRequest(`/demo/${demoId}`, {
       method: 'DELETE',
+    });
+  },
+};
+
+// =====================================================
+// USER API ENDPOINTS (Admin)
+// =====================================================
+
+export const userAPI = {
+  // Get all users
+  getAllUsers: async () => {
+    return apiRequest('/users', {
+      method: 'GET',
+    });
+  },
+
+  // Get user by ID
+  getUserById: async (userId) => {
+    if (!userId) {
+      return {
+        success: false,
+        error: {
+          message: 'User ID is required',
+          statusCode: 400,
+        },
+      };
+    }
+    return apiRequest(`/users/${userId}`, {
+      method: 'GET',
+    });
+  },
+
+  // Update user
+  updateUser: async (userId, userData) => {
+    if (!userId) {
+      return {
+        success: false,
+        error: {
+          message: 'User ID is required',
+          statusCode: 400,
+        },
+      };
+    }
+    return apiRequest(`/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(userData),
+    });
+  },
+
+  // Delete user
+  deleteUser: async (userId) => {
+    if (!userId) {
+      return {
+        success: false,
+        error: {
+          message: 'User ID is required',
+          statusCode: 400,
+        },
+      };
+    }
+    return apiRequest(`/users/${userId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Flag a user account (terms violation)
+  flagUser: async (userId, flagReason = '') => {
+    if (!userId) {
+      return {
+        success: false,
+        error: {
+          message: 'User ID is required',
+          statusCode: 400,
+        },
+      };
+    }
+    return apiRequest(`/users/${userId}/flag`, {
+      method: 'PUT',
+      body: JSON.stringify({ isFlagged: true, flagReason }),
+    });
+  },
+
+  // Unflag a user account
+  unflagUser: async (userId) => {
+    if (!userId) {
+      return {
+        success: false,
+        error: {
+          message: 'User ID is required',
+          statusCode: 400,
+        },
+      };
+    }
+    return apiRequest(`/users/${userId}/flag`, {
+      method: 'PUT',
+      body: JSON.stringify({ isFlagged: false }),
     });
   },
 };

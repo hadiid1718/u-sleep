@@ -64,6 +64,21 @@ const userSchema = new mongoose.Schema({
         },
     },
 
+    // Account status
+    isFlagged: {
+        type: Boolean,
+        default: false,
+    },
+    flagReason: {
+        type: String,
+        default: '',
+        trim: true,
+    },
+    flaggedAt: {
+        type: Date,
+        default: null,
+    },
+
     // Statistics
     stats: {
         jobsViewed: { type: Number, default: 0 },

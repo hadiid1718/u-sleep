@@ -1,16 +1,19 @@
 import React from 'react';
 
+// Filter out internal keys (starting with _) so they don't render as columns
+const getVisibleEntries = (row) => Object.entries(row).filter(([key]) => !key.startsWith('_'));
+
 const DataTable = ({ headers, data, actions = [] }) => {
   return (
-    <div className="bg-gray-800 rounded-lg overflow-hidden">
+    <div className="rounded-lg overflow-hidden">
       {/* Mobile View */}
-      <div className="lg:hidden">
+      <div className="lg:hidden space-y-3">
         {data.map((row, rowIndex) => (
-          <div key={rowIndex} className="p-4 border-b border-gray-700 last:border-b-0">
-            {Object.entries(row).map(([key, value], cellIndex) => (
-              <div key={cellIndex} className="flex justify-between py-1">
-                <span className="text-gray-400 text-sm capitalize">{headers[cellIndex]}:</span>
-                <span className="text-white text-sm font-medium">{value}</span>
+          <div key={rowIndex} className="p-4 bg-gray-750 rounded-lg border border-gray-700">
+            {getVisibleEntries(row).map(([key, value], cellIndex) => (
+              <div key={key} className="flex justify-between py-1.5">
+                <span className="text-gray-400 text-sm">{headers[cellIndex] || key}:</span>
+                <span className="text-white text-sm font-medium text-right max-w-[60%] truncate">{value}</span>
               </div>
             ))}
             {actions.length > 0 && (
@@ -19,9 +22,9 @@ const DataTable = ({ headers, data, actions = [] }) => {
                   <button
                     key={actionIndex}
                     onClick={() => action.onClick(row)}
-                    className={`px-3 py-1 rounded text-xs font-medium flex-1 ${action.className}`}
+                    className={`px-3 py-1.5 rounded text-xs font-medium flex-1 transition-colors ${action.dynamicClassName ? action.dynamicClassName(row) : action.className}`}
                   >
-                    {action.label}
+                    {action.dynamicLabel ? action.dynamicLabel(row) : action.label}
                   </button>
                 ))}
               </div>
@@ -32,7 +35,7 @@ const DataTable = ({ headers, data, actions = [] }) => {
 
       {/* Desktop View */}
       <div className="hidden lg:block overflow-x-auto">
-        <table className="w-full">
+        <table className="w-full table-auto">
           <thead className="bg-gray-700">
             <tr>
               {headers.map((header, index) => (
@@ -44,7 +47,7 @@ const DataTable = ({ headers, data, actions = [] }) => {
                 </th>
               ))}
               {actions.length > 0 && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
                   Actions
                 </th>
               )}
@@ -52,22 +55,22 @@ const DataTable = ({ headers, data, actions = [] }) => {
           </thead>
           <tbody className="divide-y divide-gray-700">
             {data.map((row, rowIndex) => (
-              <tr key={rowIndex} className="hover:bg-gray-700 transition-colors">
-                {Object.values(row).map((cell, cellIndex) => (
-                  <td key={cellIndex} className="px-6 py-4 whitespace-nowrap text-sm text-white">
+              <tr key={rowIndex} className="hover:bg-gray-700/50 transition-colors">
+                {getVisibleEntries(row).map(([key, cell]) => (
+                  <td key={key} className="px-6 py-4 whitespace-nowrap text-sm text-white">
                     {cell}
                   </td>
                 ))}
                 {actions.length > 0 && (
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <div className="flex space-x-2">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                    <div className="flex justify-end space-x-2">
                       {actions.map((action, actionIndex) => (
                         <button
                           key={actionIndex}
                           onClick={() => action.onClick(row)}
-                          className={`px-3 py-1 rounded text-xs font-medium ${action.className}`}
+                          className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${action.dynamicClassName ? action.dynamicClassName(row) : action.className}`}
                         >
-                          {action.label}
+                          {action.dynamicLabel ? action.dynamicLabel(row) : action.label}
                         </button>
                       ))}
                     </div>

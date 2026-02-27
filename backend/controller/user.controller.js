@@ -70,3 +70,42 @@ export const deleteUser = async(req,res,next)=> {
       next(err)
    }
 }
+
+// Flag or unflag a user account
+export const flagUser = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { isFlagged, flagReason } = req.body;
+
+        if (typeof isFlagged !== 'boolean') {
+            const error = new Error('isFlagged (boolean) is required');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        const updateData = {
+            isFlagged,
+            flagReason: isFlagged ? (flagReason || 'Terms & conditions violation') : '',
+            flaggedAt: isFlagged ? new Date() : null,
+        };
+
+        const user = await User.findByIdAndUpdate(id, updateData, {
+            new: true,
+            runValidators: true,
+        }).select('-password');
+
+        if (!user) {
+            const error = new Error('No user found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        res.status(200).json({
+            success: true,
+            message: isFlagged ? 'User account flagged successfully' : 'User account unflagged successfully',
+            data: user,
+        });
+    } catch (error) {
+        next(error);
+    }
+};

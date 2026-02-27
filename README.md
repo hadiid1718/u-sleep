@@ -1,80 +1,87 @@
 # Job Finder AI
 
-A full-stack web application that helps users find and manage job opportunities with AI-powered features. The platform includes user authentication, job filtering, demo scheduling, and an admin dashboard.
+A full-stack web application that helps users find and manage job opportunities with AI-powered features. The platform includes user authentication, job matching, AI-powered proposal generation, demo scheduling, and a comprehensive admin dashboard.
 
 ## Features
 
 ### User Features
-- User registration and authentication
-- Job listing and filtering
-- Job detail view
-- Demo scheduling system
-- User dashboard
-- Profile management
+- User registration and authentication (JWT)
+- Job listing, filtering, and matching based on preferences
+- AI-powered proposal/response generation
+- Demo scheduling system with date & time slot selection
+- User dashboard with stats (jobs viewed, matched, proposals sent)
+- Profile management with job preferences (keywords, rate type, role)
 - Real-time notifications
 
 ### Admin Features
-- Admin authentication
-- Admin dashboard
-- User management
-- Demo management
-- Analytics and metrics
-- Compliance tracking
-- System health monitoring
+- Admin authentication with role-based access
+- Admin dashboard with metrics
+- **User management** — view, search, delete, and flag/unflag accounts
+- **Demo management** — view, filter, paginate, update status, cancel
+- Analytics, compliance tracking, and system health monitoring
 
 ### Core Functionality
-- JWT-based authentication
-- CORS-enabled API
-- MongoDB database
+- JWT-based authentication with Bearer token
+- Rate limiting & security via Arcjet
+- MongoDB database with Mongoose ODM
 - AI-powered proposal generation (OpenAI & Google Gemini)
-- Upwork job integration with caching
-- Responsive design with Tailwind CSS
-- Error handling and validation
+- Upwork job integration with configurable caching
+- Server-side pagination & filtering
+- Responsive design with Tailwind CSS v4
+- Centralized API service layer (frontend)
+- Comprehensive error handling and validation
 
 ## Tech Stack
 
 ### Backend
-- **Framework**: Express.js (Node.js)
+- **Runtime**: Node.js (ES Modules)
+- **Framework**: Express.js
 - **Database**: MongoDB with Mongoose
-- **Authentication**: JWT (JSON Web Tokens)
-- **Password Hashing**: bcryptjs
-- **Server**: Nodemon (for development)
+- **Authentication**: JWT (jsonwebtoken) + bcryptjs
+- **Security**: Arcjet (rate limiting, bot protection)
+- **AI Services**: OpenAI API, Google Gemini API
+- **Dev Tools**: Nodemon, ESLint
 
 ### Frontend
-- **Framework**: React 18
-- **Build Tool**: Vite
-- **Routing**: React Router DOM
-- **UI Icons**: Lucide React
-- **Styling**: Tailwind CSS
-- **HTTP Client**: Fetch API
+- **Framework**: React 19 with Vite
+- **Routing**: React Router DOM v7
+- **Styling**: Tailwind CSS v4
+- **Icons**: Lucide React, React Icons
+- **Notifications**: React Toastify
+- **HTTP**: Fetch API with centralized service layer
 
 ## Project Structure
 
 ```
 job_finder_ai/
+├── README.md
 ├── backend/
-│   ├── app.js                    # Express app setup
+│   ├── app.js                    # Express app setup & middleware
 │   ├── package.json
 │   ├── config/
-|   |   └── arcjet.js               # Environment variables
-│   │   └── env.js                  
+│   │   ├── arcjet.js             # Arcjet security config
+│   │   └── env.js                # Environment variable exports
 │   ├── controller/
 │   │   ├── auth.controller.js    # Auth logic (User & Admin)
-│   │   ├── user.controller.js    # User management
-│   │   └── demo.controller.js    # Demo scheduling
+│   │   ├── user.controller.js    # User CRUD + flag/unflag
+│   │   ├── demo.controller.js    # Demo scheduling (paginated)
+│   │   ├── job.controller.js     # Job listing & matching
+│   │   └── proposal.controller.js # Proposal management
 │   ├── database/
 │   │   └── mongodb.js            # MongoDB connection
 │   ├── middleware/
 │   │   ├── auth.middleware.js    # JWT verification
-│   │   └── error.middleware.js   # Error handling
-|   |   └── arcjet.middleware.js  # Security handling
+│   │   ├── error.middleware.js   # Global error handler
+│   │   └── arcject.middleware.js # Arcjet security middleware
 │   ├── models/
-│   │   ├── user.model.js         # User schema
+│   │   ├── user.model.js         # User schema (prefs, stats, flagging)
 │   │   ├── admin.model.js        # Admin schema
-│   │   └── demo.model.js         # Demo schema
+│   │   ├── demo.model.js         # Demo schema
+│   │   ├── job.model.js          # Job schema
+│   │   └── proposal.model.js     # Proposal schema
 │   ├── routes/
 │   │   ├── auth.router.js        # Auth routes
-│   │   ├── user.router.js        # User routes
+│   │   ├── user.router.js        # User routes (CRUD + flag)
 │   │   ├── job.router.js         # Job routes
 │   │   ├── proposal.router.js    # Proposal routes
 │   │   └── demo.router.js        # Demo routes
@@ -85,9 +92,11 @@ job_finder_ai/
     ├── vite.config.js
     ├── package.json
     ├── index.html
+    ├── Dockerfile                # Docker setup
+    ├── compose.yaml
     ├── src/
     │   ├── main.jsx              # App entry point
-    │   ├── App.jsx               # Main App component
+    │   ├── App.jsx               # Main App with routing
     │   ├── pages/
     │   │   ├── HomePage.jsx
     │   │   ├── SignIn.jsx
@@ -95,206 +104,254 @@ job_finder_ai/
     │   │   ├── AdminSignIn.jsx
     │   │   ├── Dashboard.jsx
     │   │   ├── AdminDashboard.jsx
-    │   │   └── JobResultPage.jsx
+    │   │   ├── JobResultPage.jsx
+    │   │   └── CountDown.jsx
     │   ├── components/
-    │   │   ├── home/
+    │   │   ├── home/             # Landing page sections
     │   │   ├── admin/
-    │   │   ├── jobs/
-    │   │   ├── user/
-    │   │   ├── shared/
-    │   │   └── models/
+    │   │   │   ├── Management/   # Admin management panels
+    │   │   │   │   ├── UserManagementSection.jsx
+    │   │   │   │   ├── DemoManagementSection.jsx
+    │   │   │   │   ├── AnalyticsSection.jsx
+    │   │   │   │   ├── ComplianceSection.jsx
+    │   │   │   │   ├── RevenueSection.jsx
+    │   │   │   │   ├── SettingsSection.jsx
+    │   │   │   │   ├── SystemHealthSection.jsx
+    │   │   │   │   └── MessageManagementSection.jsx
+    │   │   │   └── utils/        # Reusable admin components
+    │   │   │       ├── DataTable.jsx
+    │   │   │       ├── DemoCard.jsx
+    │   │   │       ├── DemoFilter.jsx
+    │   │   │       ├── DemoStatusform.jsx
+    │   │   │       ├── EmptyState.jsx
+    │   │   │       ├── LoadingState.jsx
+    │   │   │       ├── MatricCard.jsx
+    │   │   │       ├── Model.jsx
+    │   │   │       └── UserForm.jsx
+    │   │   ├── jobs/             # Job listing & response components
+    │   │   ├── user/             # User dashboard, settings, prompts
+    │   │   ├── shared/           # Navbar, Footer, LoadingScreen
+    │   │   └── models/           # Modal components
     │   ├── context/
     │   │   └── Context.jsx       # Global state management
     │   └── utils/
-    │       ├── api.js            # API utilities & fetch calls
-    │       └── toast.js          # Toast notifications
+    │       ├── api.js            # Centralized API service (auth, demo, user)
+    │       └── toast.js          # Toast notification helpers
     └── public/
 ```
 
 ## Installation
 
 ### Prerequisites
-- Node.js (v14 or higher)
-- npm or yarn
-- MongoDB (local or cloud instance)
+- Node.js (v18 or higher)
+- npm
+- MongoDB (local or MongoDB Atlas)
 
 ### Backend Setup
 
-1. Navigate to backend folder:
 ```bash
 cd backend
-```
-
-2. Install dependencies:
-```bash
 npm install
 ```
 
-3. Create `.env.development.local` file:
+Create `.env.development.local`:
 ```env
 PORT=5000
 NODE_ENV=development
+FRONTEND_URL=http://localhost:5173
 DB_URI=mongodb://localhost:27017/job_finder_ai
 JWT_SECRET=your_jwt_secret_key_here
 JWT_EXPIRES_IN=7d
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=admin123
+
+# Security
+ARCJET_KEY=your_arcjet_key
+ARCJET_ENV=development
+
+# Upwork API
+UPWORK_API_KEY=
+UPWORK_API_SECRET=
+UPWORK_CLIENT_ID=
+UPWORK_CLIENT_SECRET=
+UPWORK_ACCESS_TOKEN=
+UPWORK_REFRESH_TOKEN=
+
+# OpenAI
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4
+OPENAI_ORG_ID=
+
+# Google Gemini
+GOOGLE_GEMINI_API_KEY=
+GOOGLE_GEMINI_MODEL=gemini-pro
+
+# Feature Flags
+USE_BACKGROUND_JOBS=false
+JOB_CACHE_TTL=3600
+JOB_CACHE_ENABLED=true
+PROPOSAL_GENERATION_TIMEOUT=30000
 ```
 
-4. Start the backend server:
+Start the server:
 ```bash
-npm start
+npm start        # uses --watch flag
+# or
+npm run dev      # uses nodemon
 ```
 
-The backend will run on `http://localhost:5000`
+Backend runs on `http://localhost:5000`
 
 ### Frontend Setup
 
-1. Navigate to Frontend folder:
 ```bash
 cd Frontend
-```
-
-2. Install dependencies:
-```bash
 npm install
 ```
 
-3. Create `.env.local` file (optional):
+Create `.env.local` (optional):
 ```env
 VITE_API_URL=http://localhost:5000/api/v1
 ```
 
-4. Start the development server:
+Start the dev server:
 ```bash
 npm run dev
 ```
 
-The frontend will run on `http://localhost:5173`
+Frontend runs on `http://localhost:5173`
 
 ## API Endpoints
 
-### Authentication Routes (`/api/v1/auth`)
+### Authentication (`/api/v1/auth`)
 
-#### User Authentication
-- `POST /sign-up` - Register new user
-  - Body: `{ name, email, password }`
-  
-- `POST /sign-in` - Sign in user
-  - Body: `{ email, password }`
-  
-- `POST /sign-out` - Sign out user
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| POST | `/sign-up` | Register new user | No |
+| POST | `/sign-in` | Sign in user | No |
+| POST | `/sign-out` | Sign out user | No |
+| POST | `/admin/login` | Admin login | No |
+| GET | `/admin/profile` | Get admin profile | Yes |
 
-#### Admin Authentication
-- `POST /admin/login` - Admin login
-  - Body: `{ username, password }`
-  
-- `GET /admin/profile` - Get admin profile (requires auth)
+### Demo Scheduling (`/api/v1/demo`)
 
-### Demo Routes (`/api/v1/demo`)
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/available-dates` | Get next 30 weekdays | No |
+| GET | `/available-times/:date` | Get time slots for a date | No |
+| POST | `/schedule` | Schedule a demo | No |
+| GET | `/all?page=1&limit=9&status=&date=&email=` | Get all demos (paginated) | Admin |
+| GET | `/:id` | Get demo by ID | Admin |
+| PUT | `/:id/status` | Update demo status | Admin |
+| DELETE | `/:id` | Cancel demo | Admin |
 
-- `GET /available-dates` - Get available demo dates
-  
-- `GET /available-times/:date` - Get available time slots for a date
-  
-- `POST /schedule` - Schedule a demo
-  - Body: `{ email, name, company, phone, demoDate, timeSlot }`
-  
-- `GET /all` - Get all demos (admin)
-  
-- `GET /:id` - Get demo by ID (admin)
-  
-- `PUT /:id/status` - Update demo status (admin)
-  - Body: `{ status, notes }`
-  
-- `DELETE /:id` - Cancel demo (admin)
+### User Management (`/api/v1/users`)
 
-### User Routes (`/api/v1/users`)
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/` | Get all users | No |
+| GET | `/:id` | Get user by ID | Yes |
+| PUT | `/:id` | Update user | Yes |
+| PUT | `/:id/flag` | Flag/unflag user account | Yes |
+| DELETE | `/:id` | Delete user | Yes |
 
-- Available user management endpoints
+**Flag/Unflag request body:**
+```json
+{ "isFlagged": true, "flagReason": "Terms & conditions violation" }
+```
+
+### Job Routes (`/api/v1/jobs`)
+- Job listing, matching, and detail endpoints
+
+### Proposal Routes (`/api/v1/proposals`)
+- AI-powered proposal generation and management
 
 ## Default Admin Credentials
 
-The system creates a default admin on startup using environment variables:
-- **Username**: `ADMIN_USERNAME` (from .env)
-- **Password**: `ADMIN_PASSWORD` (from .env)
+Created on startup from environment variables:
+- **Username**: value of `ADMIN_USERNAME` (default: `admin`)
+- **Password**: value of `ADMIN_PASSWORD` (default: `admin123`)
 
-Default values: admin / admin123
+## Authentication Flow
 
-## Authentication
+1. User/Admin submits credentials
+2. Backend validates and generates JWT token
+3. Token stored in `localStorage` as `token`
+4. Token sent as `Bearer {token}` in `Authorization` header
+5. `auth.middleware.js` verifies token and attaches user to `req`
 
-The application uses JWT (JSON Web Tokens) for authentication:
+**Token payload:**
+- Users: `{ userId, ... }`
+- Admins: `{ adminId, role, ... }`
 
-1. **Token Storage**: Tokens are stored in localStorage as `token`
-2. **Token Format**: `Bearer {token}` in Authorization header
-3. **Token Payload**: 
-   - For users: `{ userId, ... }`
-   - For admins: `{ adminId, role, ... }`
+## Frontend API Services (`src/utils/api.js`)
 
-## API Utilities (Frontend)
+All API calls go through a centralized `apiRequest` wrapper that handles auth headers, error responses, and token management.
 
-The frontend includes a comprehensive API utility file (`src/utils/api.js`) with:
-
-### Auth API
 ```javascript
+// Auth
 authAPI.signUp(name, email, password)
 authAPI.signIn(email, password)
 authAPI.signOut()
 authAPI.adminLogin(username, password)
 authAPI.getAdminProfile()
-```
 
-### Demo API
-```javascript
+// Demos
 demoAPI.getAvailableDates()
 demoAPI.getAvailableTimes(date)
 demoAPI.scheduleDemo(demoData)
-demoAPI.getAllDemos()
+demoAPI.getAllDemos({ page, limit, status, date, email })
 demoAPI.getDemoById(demoId)
 demoAPI.updateDemoStatus(demoId, status, notes)
 demoAPI.cancelDemo(demoId)
+
+// Users (Admin)
+userAPI.getAllUsers()
+userAPI.getUserById(userId)
+userAPI.updateUser(userId, userData)
+userAPI.deleteUser(userId)
+userAPI.flagUser(userId, flagReason)
+userAPI.unflagUser(userId)
+
+// Utilities
+getErrorMessage(error)
+handleApiError(response)
+setToken(token) / clearToken() / getToken()
 ```
 
-### Error Handling
-```javascript
-getErrorMessage(error)        // Get user-friendly error message
-handleApiError(response)      // Handle API error responses
-setToken(token)              // Store token
-clearToken()                 // Clear token
-getToken()                   // Get stored token
-```
+## Frontend Routes
 
-## Available Routes
+### Public
+| Path | Page |
+|------|------|
+| `/` | Home page |
+| `/user/sign-in` | User sign in |
+| `/user/sign-up` | User sign up |
+| `/admin/sign-in` | Admin sign in |
+| `/demo-scheduling` | Demo scheduling |
 
-### Public Routes
-- `/` - Home page
-- `/user/sign-in` - User sign in
-- `/user/sign-up` - User sign up
-- `/admin/sign-in` - Admin sign in
-- `/demo-scheduling` - Demo scheduling page
-
-### Protected Routes
-- `/user/dashboard` - User dashboard
-- `/admin/dashboard` - Admin dashboard
-- `/job-result` - Job results
+### Protected
+| Path | Page |
+|------|------|
+| `/user/dashboard` | User dashboard |
+| `/admin/dashboard` | Admin dashboard |
+| `/job-result` | Job results |
 
 ## Running the Application
 
-### Development Mode
+### Development
 
-**Terminal 1 - Backend:**
 ```bash
+# Terminal 1 — Backend
 cd backend
 npm start
-```
 
-**Terminal 2 - Frontend:**
-```bash
+# Terminal 2 — Frontend
 cd Frontend
 npm run dev
 ```
 
-### Production Build (Frontend)
+### Production Build
 
 ```bash
 cd Frontend
@@ -302,89 +359,69 @@ npm run build
 npm run preview
 ```
 
+### Docker
+
+```bash
+cd Frontend
+docker compose up --build
+```
+
+## Key Features
+
+### Demo Management (Admin)
+- Server-side pagination with `page` and `limit` query params
+- Filterable by status, date, and email
+- Status updates: scheduled, completed, cancelled, no-show
+- Metric cards showing totals
+
+### User Management (Admin)
+- DataTable with all users (name, email, role, status, proposals, join date)
+- Search by name or email with clear button
+- Client-side pagination (10 per page)
+- **Delete** users with confirmation
+- **Flag/Unflag** accounts for terms violations with reason input
+- Metrics: Total Users, Active, Flagged, Proposals Sent
+
+### AI Proposal Generation
+- Supports OpenAI (GPT-4) and Google Gemini
+- Configurable timeout via `PROPOSAL_GENERATION_TIMEOUT`
+- Integrated with Upwork job data
+
+### Job Caching
+- Upwork job results cached with configurable TTL (`JOB_CACHE_TTL`)
+- Toggle via `JOB_CACHE_ENABLED` feature flag
+
 ## Error Handling
 
-The application includes comprehensive error handling:
-
-- **Backend**: Express error middleware with status codes
-- **Frontend**: Try-catch blocks with user-friendly error messages
-- **Validation**: Input validation on both client and server
+- **Backend**: Global error middleware with status codes and structured responses
+- **Frontend**: `apiRequest` wrapper returns `{ success, data }` or `{ success, error }` — no unhandled rejections
+- **Validation**: Input validation on both client and server sides
 
 ## CORS Configuration
 
-The backend is configured to accept requests from:
+Configured in `backend/app.js` to accept requests from:
 - `http://localhost:5173` (Vite dev server)
-- `http://localhost:3000` (Alternative dev server)
-
-Modify `backend/app.js` to add more origins for production.
-
-## Environment Variables
-
-### Backend (.env.development.local)
-```
-PORT                  - Server port (default: 5000)
-NODE_ENV             - Environment (development/production)
-DB_URI               - MongoDB connection string
-JWT_SECRET           - Secret key for JWT signing
-JWT_EXPIRES_IN       - Token expiration time (e.g., 7d)
-ADMIN_USERNAME       - Default admin username
-ADMIN_PASSWORD       - Default admin password
-```
-
-### Frontend (.env.local)
-```
-VITE_API_URL         - Backend API URL
-```
-
-## Key Features Implementation
-
-### Authentication Flow
-1. User/Admin submits credentials
-2. Backend validates and generates JWT token
-3. Token stored in localStorage
-4. Token included in Authorization header for protected routes
-5. Middleware verifies token and attaches user/admin to request
-
-### Demo Scheduling
-1. Frontend fetches available dates (excludes weekends)
-2. User selects date, fetches available time slots
-3. User fills form and submits
-4. Backend validates and creates demo record
-5. Duplicate bookings are prevented
-
-### State Management
-Global context (`Context.jsx`) manages:
-- User/Admin authentication state
-- Form data across steps
-- Loading and error states
-- Step navigation
+- Value of `FRONTEND_URL` env variable
 
 ## Troubleshooting
 
-### CORS Errors
-- Ensure backend is running on correct port
-- Check CORS configuration in `backend/app.js`
-- Verify frontend is using correct API URL
-
-### Authentication Errors
-- Check token is being stored in localStorage
-- Verify JWT_SECRET in .env matches
-- Ensure middleware is properly checking tokens
-
-### Database Connection
-- Verify MongoDB is running
-- Check DB_URI is correct
-- Ensure network access if using MongoDB Atlas
+| Issue | Fix |
+|-------|-----|
+| CORS errors | Ensure backend is running; check `FRONTEND_URL` in env |
+| Auth failures | Verify `JWT_SECRET` matches; check token in localStorage |
+| DB connection | Verify MongoDB is running; check `DB_URI`; allow network access for Atlas |
+| Demo slots not loading | Check date format (YYYY-MM-DD); ensure backend is reachable |
+| Users not showing | Verify `/api/v1/users` endpoint returns data; check browser console |
 
 ## Future Enhancements
 
 - Email notifications for demo confirmations
-- Advanced job filtering with AI
-- User profile insights
-- Admin analytics dashboard
+- Advanced AI job filtering and scoring
+- User profile insights and analytics
 - OAuth integration (Google, GitHub)
 - Real-time chat support
 - Video call integration for demos
+- Webhook notifications for flagged accounts
 
 ## License
 
