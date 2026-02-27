@@ -223,9 +223,14 @@ export const demoAPI = {
 // =====================================================
 
 export const userAPI = {
-  // Get all users
-  getAllUsers: async () => {
-    return apiRequest('/users', {
+  // Get all users with pagination and search
+  getAllUsers: async ({ page = 1, limit = 10, search = '' } = {}) => {
+    const params = new URLSearchParams();
+    params.append('page', page);
+    params.append('limit', limit);
+    if (search) params.append('search', search);
+
+    return apiRequest(`/users?${params.toString()}`, {
       method: 'GET',
     });
   },

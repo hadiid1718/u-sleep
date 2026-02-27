@@ -1,3 +1,4 @@
+import { User } from 'lucide-react';
 
 const TestimonialSection = () => (
   <section className="bg-black py-20 px-6">
@@ -9,7 +10,7 @@ const TestimonialSection = () => (
       <div className="bg-gray-900 p-8 rounded-xl border border-gray-800">
         <div className="flex items-start space-x-4">
           <div className="w-16 h-16 bg-red-500 rounded-lg flex-shrink-0 flex items-center justify-center">
-            <span className="text-white font-bold">👨</span>
+            <User className="w-8 h-8 text-white" />
           </div>
           <div className="flex-1">
             <p className="text-white text-lg mb-4">

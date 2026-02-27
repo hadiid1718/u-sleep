@@ -2,7 +2,7 @@ import React from 'react';
 import { ExternalLink, Star, CheckCircle, XCircle } from 'lucide-react';
 
 const JobDetails = () => {
-  // 🔒 HARD-CODED JOB DATA
+  // HARD-CODED JOB DATA
   const job = {
     title: 'Senior React Developer Needed for SaaS Platform',
     description:
@@ -39,7 +39,7 @@ const JobDetails = () => {
     proposals: '15–20',
   };
 
-  // ✅ Safe destructuring
+  // Safe destructuring
   const {
     title,
     description,

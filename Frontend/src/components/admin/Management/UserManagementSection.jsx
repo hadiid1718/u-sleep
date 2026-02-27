@@ -15,17 +15,37 @@ const UserManagementSection = () => {
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchEmail, setSearchEmail] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, totalCount: 0, limit: ITEMS_PER_PAGE });
   const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
   const [flagTarget, setFlagTarget] = useState(null);
   const [flagReason, setFlagReason] = useState('');
 
-  const fetchUsers = useCallback(async () => {
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchEmail);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchEmail]);
+
+  const fetchUsers = useCallback(async (page = 1) => {
     setLoading(true);
     try {
-      const result = await userAPI.getAllUsers();
+      const result = await userAPI.getAllUsers({ page, limit: ITEMS_PER_PAGE, search: debouncedSearch });
       if (result.success) {
-        setUsers(result.data.data || []);
+        const responseData = result.data;
+        // Support both paginated and non-paginated backend responses
+        const usersData = Array.isArray(responseData.data) ? responseData.data : [];
+        const total = responseData.totalCount ?? usersData.length;
+        const pages = responseData.totalPages ?? 1;
+        const currentPg = responseData.page ?? page;
+        const lim = responseData.limit ?? ITEMS_PER_PAGE;
+
+        setUsers(usersData);
+        setPagination({ page: currentPg, totalPages: pages, totalCount: total, limit: lim });
       } else {
         console.error('Error fetching users:', result.error?.message);
       }
@@ -34,28 +54,13 @@ const UserManagementSection = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [debouncedSearch]);
 
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    fetchUsers(currentPage);
+  }, [fetchUsers, currentPage]);
 
-  // Client-side filtering
-  const filteredUsers = searchEmail
-    ? users.filter(u => u.email?.toLowerCase().includes(searchEmail.toLowerCase()) || u.name?.toLowerCase().includes(searchEmail.toLowerCase()))
-    : users;
-
-  // Pagination
-  const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
-  const paginatedUsers = filteredUsers.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
-
-  // Reset to page 1 when search changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchEmail]);
+  const totalPages = pagination.totalPages;
 
   const handlePageChange = (page) => {
     if (page < 1 || page > totalPages) return;
@@ -67,7 +72,7 @@ const UserManagementSection = () => {
     try {
       const result = await userAPI.deleteUser(user._id);
       if (result.success) {
-        fetchUsers();
+        fetchUsers(currentPage);
         alert('User deleted successfully!');
       } else {
         alert(result.error?.message || 'Error deleting user');
@@ -89,7 +94,7 @@ const UserManagementSection = () => {
     try {
       const result = await userAPI.flagUser(flagTarget._id, flagReason || 'Terms & conditions violation');
       if (result.success) {
-        fetchUsers();
+        fetchUsers(currentPage);
         setIsFlagModalOpen(false);
         setFlagTarget(null);
         setFlagReason('');
@@ -108,7 +113,7 @@ const UserManagementSection = () => {
     try {
       const result = await userAPI.unflagUser(user._id);
       if (result.success) {
-        fetchUsers();
+        fetchUsers(currentPage);
         alert('User account unflagged successfully!');
       } else {
         alert(result.error?.message || 'Error unflagging user');
@@ -120,11 +125,11 @@ const UserManagementSection = () => {
   };
 
   // Format data for DataTable
-  const tableData = paginatedUsers.map(user => ({
+  const tableData = users.map(user => ({
     name: user.name || '—',
     email: user.email,
     role: user.jobPreferences?.userRole || 'freelancer',
-    status: user.isFlagged ? '🚩 Flagged' : '✅ Active',
+    status: user.isFlagged ? 'Flagged' : 'Active',
     proposals: String(user.stats?.proposalsSent ?? 0),
     joined: new Date(user.createdAt).toLocaleDateString(),
     _id: user._id,
@@ -149,7 +154,7 @@ const UserManagementSection = () => {
   ];
 
   // Metrics from real data
-  const totalCount = users.length;
+  const totalCount = pagination.totalCount ?? 0;
   const activeCount = users.filter(u => !u.isFlagged).length;
   const flaggedCount = users.filter(u => u.isFlagged).length;
   const activeProposals = users.reduce((sum, u) => sum + (u.stats?.proposalsSent || 0), 0);
@@ -175,8 +180,8 @@ const UserManagementSection = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 space-y-4 sm:space-y-0">
           <h3 className="text-white text-lg font-semibold">
             All Users
-            {filteredUsers.length !== users.length && (
-              <span className="text-sm text-gray-400 font-normal ml-2">({filteredUsers.length} found)</span>
+            {debouncedSearch && (
+              <span className="text-sm text-gray-400 font-normal ml-2">({pagination.totalCount} found)</span>
             )}
           </h3>
           <div className="relative w-full sm:w-72">
@@ -215,7 +220,7 @@ const UserManagementSection = () => {
             {totalPages > 1 && (
               <div className="flex items-center justify-between mt-6">
                 <p className="text-sm text-gray-400">
-                  Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredUsers.length)} of {filteredUsers.length} users
+                  Showing {(pagination.page - 1) * pagination.limit + 1}–{Math.min(pagination.page * pagination.limit, pagination.totalCount)} of {pagination.totalCount} users
                 </p>
                 <div className="flex items-center gap-2">
                   <button

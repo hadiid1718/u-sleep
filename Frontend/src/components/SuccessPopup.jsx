@@ -24,7 +24,7 @@ const SuccessPopup = ({ onClose }) => {
         onClick={onClose}
         className="w-full bg-gray-900 text-lime-400 py-3 rounded-lg font-bold hover:bg-gray-800 transition text-base"
       >
-        Awesome! 🚀
+        Awesome!
       </button>
     </div>
   );

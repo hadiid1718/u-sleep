@@ -14,7 +14,7 @@ const CountdownTimer = ({ onComplete }) => {
       if (onComplete) onComplete();
       navigate("/job-result");
     }
-  }, [timeLeft, onComplete, navigate]); // ✅ include navigate in dependencies
+  }, [timeLeft, onComplete, navigate]); // include navigate in dependencies
 
   // Format time as MM:SS
   const formatTime = (seconds) => {

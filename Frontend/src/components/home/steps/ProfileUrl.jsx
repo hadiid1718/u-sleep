@@ -23,11 +23,11 @@ const ProfileUrl = () => {
       return;
     }
 
-    // ✅ Only update state — no API call
+    // Only update state - no API call
     const updatedData = { ...formData, profileUrl: profileLink };
     setFormData(updatedData);
 
-    // ✅ Move to next step / page
+    // Move to next step / page
     nextStep();
     navigate('/job-result', { replace: true });
   };

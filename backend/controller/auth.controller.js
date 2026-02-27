@@ -67,7 +67,7 @@ export const adminLogin = async (req, res, next) => {
       throw error;
     }
 
-    // 🔥 SAFETY CHECK (prevents your error)
+    // SAFETY CHECK (prevents password error)
     if (!admin.password) {
       const error = new Error("Admin password not found. Contact system administrator.");
       error.statusCode = 500;

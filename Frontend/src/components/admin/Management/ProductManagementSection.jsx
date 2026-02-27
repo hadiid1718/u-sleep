@@ -199,8 +199,8 @@ const ProductManagementSection = () => {
     Key: p.key,
     Price: p.price,
     Features: `${p.features?.length || 0} features`,
-    Popular: p.isPopular ? "⭐ Yes" : "No",
-    Status: p.isActive ? "✅ Active" : "❌ Inactive",
+    Popular: p.isPopular ? "Yes" : "No",
+    Status: p.isActive ? "Active" : "Inactive",
   }));
 
   const tableActions = [

@@ -1,5 +1,6 @@
 import React, { useContext, useState } from 'react';
 import { AppContext } from '../../../context/Context';
+import { Building2, Laptop, Check } from 'lucide-react';
 
 const RoleSelecting = () => {
   const { formData, setFormData, nextStep, prevStep, steps } = useContext(AppContext);
@@ -36,12 +37,12 @@ const RoleSelecting = () => {
               >
                 {selectedOption === 'agency' && (
                   <div className="absolute top-4 right-4 w-6 h-6 bg-green-400 rounded-full flex items-center justify-center">
-                    <span className="text-gray-900 text-sm">✓</span>
+                    <Check className="w-4 h-4 text-gray-900" />
                   </div>
                 )}
 
                 <div className="flex justify-center mb-6">
-                  <div className="text-6xl">🏢</div>
+                  <Building2 className="w-16 h-16 text-white" />
                 </div>
 
                 <h3 className="text-2xl font-bold text-white text-center">
@@ -60,12 +61,12 @@ const RoleSelecting = () => {
               >
                 {selectedOption === 'freelancer' && (
                   <div className="absolute top-4 right-4 w-6 h-6 bg-green-400 rounded-full flex items-center justify-center">
-                    <span className="text-gray-900 text-sm">✓</span>
+                    <Check className="w-4 h-4 text-gray-900" />
                   </div>
                 )}
 
                 <div className="flex justify-center mb-6">
-                  <div className="text-6xl">💻</div>
+                  <Laptop className="w-16 h-16 text-white" />
                 </div>
 
                 <h3 className="text-2xl font-bold text-white text-center">

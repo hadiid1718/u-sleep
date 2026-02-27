@@ -24,7 +24,7 @@ export const ContextProvider = ({ children }) => {
     }
   });
 
-  // ✅ ADD: Login function to update both localStorage and state
+  // Login function to update both localStorage and state
   const login = (userData, token) => {
     try {
       // Store in localStorage
@@ -39,7 +39,7 @@ export const ContextProvider = ({ children }) => {
     }
   };
 
-  // ✅ UPDATED: Enhanced logout with optional API call
+  // Enhanced logout with optional API call
   const handleLogout = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -97,7 +97,7 @@ export const ContextProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // ✅ ADD: Auto-clear error after 5 seconds
+  // Auto-clear error after 5 seconds
   useEffect(() => {
     if (error) {
       const timer = setTimeout(() => setError(null), 5000);
@@ -117,7 +117,7 @@ export const ContextProvider = ({ children }) => {
         /* Auth */
         user,
         setUser,
-        login, // ✅ NEW: Expose login function
+        login, // Expose login function
         userRole: user?.role || null,
         handleLogout,
 

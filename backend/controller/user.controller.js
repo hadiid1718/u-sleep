@@ -3,14 +3,33 @@ import User from '../models/user.model.js';
 export const getUsers= async(req,res,next)=> {
 
 try{
- const users =await User.find().select("-password")
- if(!users){
-    const error = new Error("No users found")
-    error.statusCode= 404
-    throw error
+ const page = Math.max(parseInt(req.query.page) || 1, 1);
+ const limit = Math.min(Math.max(parseInt(req.query.limit) || 10, 1), 100);
+ const skip = (page - 1) * limit;
+ const search = req.query.search || '';
+
+ // Build filter
+ const filter = {};
+ if (search) {
+   filter.$or = [
+     { name: { $regex: search, $options: 'i' } },
+     { email: { $regex: search, $options: 'i' } },
+   ];
  }
+
+ const [users, totalCount] = await Promise.all([
+   User.find(filter).select("-password").sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+   User.countDocuments(filter),
+ ]);
+
+ const totalPages = Math.ceil(totalCount / limit);
+
  res.status(200).json({
-    success:true,    
+    success:true,
+    totalCount,
+    page,
+    totalPages,
+    limit,
     data:users
  })
 }catch(error){
