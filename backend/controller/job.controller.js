@@ -10,7 +10,7 @@ import aiService from '../services/ai.service.js';
 export const searchJobs = async (req, res, next) => {
     try {
         const { keywords, filters = {} } = req.body;
-        const userId = req.user?.id || req.user?._id;
+        const userId = req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
         if (!userId) {
             const error = new Error('User not authenticated');
@@ -91,7 +91,7 @@ export const searchJobs = async (req, res, next) => {
 export const getFilteredJobs = async (req, res, next) => {
     try {
         const { page = 1, limit = 20, status = 'pending' } = req.query;
-        const userId = req.user?.id || req.user?._id;
+        const userId = req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
         if (!userId) {
             const error = new Error('User not authenticated');
@@ -151,7 +151,7 @@ export const getFilteredJobs = async (req, res, next) => {
 export const getJobDetail = async (req, res, next) => {
     try {
         const { jobId } = req.params;
-        const userId = req.user?.id;
+        const userId = req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
         const job = await Job.findById(jobId);
 
@@ -183,7 +183,7 @@ export const getJobDetail = async (req, res, next) => {
 export const markJobAsMatched = async (req, res, next) => {
     try {
         const { jobId } = req.params;
-        const userId = req.user?.id;
+        const userId = req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
         const job = await Job.findByIdAndUpdate(
             jobId,
@@ -224,7 +224,7 @@ export const markJobAsRejected = async (req, res, next) => {
     try {
         const { jobId } = req.params;
         const { reason } = req.body;
-        const userId = req.user?.id;
+        const userId = req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
         const job = await Job.findByIdAndUpdate(
             jobId,
@@ -261,7 +261,7 @@ export const markJobAsRejected = async (req, res, next) => {
 export const searchJobsWithAIAnalysis = async (req, res, next) => {
     try {
         const { keywords, filters = {} } = req.body;
-        const userId = req.user?.id || req.user?._id;
+        const userId = req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
         if (!userId) {
             const error = new Error('User not authenticated');

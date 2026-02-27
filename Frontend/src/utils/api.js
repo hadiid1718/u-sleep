@@ -19,6 +19,15 @@ const apiRequest = async (endpoint, options = {}) => {
       headers,
     });
 
+    // Guard against non-JSON responses (e.g. HTML 404 pages)
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      throw Object.assign(
+        new Error(`Server returned non-JSON response (${response.status}). Is the backend running?`),
+        { statusCode: response.status }
+      );
+    }
+
     const data = await response.json();
 
     // Handle error responses
@@ -682,4 +691,32 @@ export const proposalAPI = {
       method: 'DELETE',
     });
   },
+};
+
+// =====================================================
+// COMPARISON API ENDPOINTS
+// =====================================================
+
+export const comparisonAPI = {
+  /** Get active comparisons (public) */
+  getComparisons: () => apiRequest('/comparisons'),
+
+  /** Get all comparisons including inactive (admin) */
+  getAllComparisons: () => apiRequest('/comparisons/all'),
+
+  /** Create a comparison row (admin) */
+  createComparison: (data) =>
+    apiRequest('/comparisons', { method: 'POST', body: JSON.stringify(data) }),
+
+  /** Update a comparison row (admin) */
+  updateComparison: (id, data) =>
+    apiRequest(`/comparisons/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+
+  /** Delete a comparison row (admin) */
+  deleteComparison: (id) =>
+    apiRequest(`/comparisons/${id}`, { method: 'DELETE' }),
+
+  /** Seed default comparisons (admin) */
+  seedComparisons: () =>
+    apiRequest('/comparisons/seed', { method: 'POST' }),
 };

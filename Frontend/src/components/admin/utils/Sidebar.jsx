@@ -1,18 +1,19 @@
   const menuItems = [
     { id: 'analytics', label: 'Analytics & Monitoring', icon: BarChart3 },
-    { id: 'demos', label: 'Demo', icon: Calendar },
-    { id: 'users', label: 'Users', icon: Users },
     { id: 'jobs', label: 'Jobs', icon: Briefcase },
     { id: 'proposals', label: 'Proposals', icon: FileText },
+    { id: 'users', label: 'Users', icon: Users },
+    { id: 'products', label: 'Products', icon: Package },
+    { id: 'revenue', label: 'Revenue & BI', icon: DollarSign },
+    { id: 'comparisons', label: 'Comparisons', icon: Table2 },
+    { id: 'demos', label: 'Demo', icon: Calendar },
     { id: 'messages', label: 'Messages', icon: MessageSquare },
     { id: 'system', label: 'System Health', icon: Activity },
-    { id: 'revenue', label: 'Revenue & BI', icon: DollarSign },
     { id: 'compliance', label: 'Compliance & Safety', icon: Shield },
-    { id: 'products', label: 'Products', icon: Package },
     { id: 'settings', label: 'Settings', icon: Settings }
   ];
 
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useContext } from 'react';
 import { 
   BarChart3, 
   Users, 
@@ -25,6 +26,7 @@ import {
   Package,
   Briefcase,
   FileText,
+  Table2,
 } from 'lucide-react';
 import { AppContext } from '../../../context/Context';
 

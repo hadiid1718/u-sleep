@@ -11,7 +11,7 @@ export const generateProposal = async (req, res, next) => {
     try {
         const { jobId } = req.params;
         const { aiService: preferredAIService = 'openai' } = req.body;
-        const userId = req.user?.id || req.user?._id;
+        const userId = req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
         if (!userId) {
             const error = new Error('User not authenticated');
@@ -116,7 +116,7 @@ async function generateProposalAsync(proposalId, job, user, preferredAIService) 
 export const getProposal = async (req, res, next) => {
     try {
         const { proposalId } = req.params;
-        const userId = req.user?.id;
+        const userId = req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
         const proposal = await Proposal.findById(proposalId)
             .populate('userId', 'name email')
@@ -150,7 +150,7 @@ export const getProposal = async (req, res, next) => {
 export const getUserProposals = async (req, res, next) => {
     try {
         const { page = 1, limit = 10, status, sortBy = '-createdAt' } = req.query;
-        const userId = req.user?.id;
+        const userId = req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
         const skip = (page - 1) * limit;
 
@@ -202,7 +202,7 @@ export const sendProposal = async (req, res, next) => {
     try {
         const { proposalId } = req.params;
         const { bidAmount, estimatedDuration, deliveryDate } = req.body;
-        const userId = req.user?.id;
+        const userId = req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
         const proposal = await Proposal.findById(proposalId);
 
@@ -264,7 +264,7 @@ export const updateProposalStatus = async (req, res, next) => {
     try {
         const { proposalId } = req.params;
         const { status, notes = '' } = req.body;
-        const userId = req.user?.id;
+        const userId = req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
         const validStatuses = ['draft', 'sent', 'received', 'viewed', 'accepted', 'rejected', 'withdrawn'];
 
@@ -331,7 +331,7 @@ export const upgradeProposal = async (req, res, next) => {
     try {
         const { proposalId } = req.params;
         const { caseStudy } = req.body;
-        const userId = req.user?.id;
+        const userId = req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
         if (!caseStudy || caseStudy.trim() === '') {
             const error = new Error('Case study is required');
@@ -423,7 +423,7 @@ async function upgradeProposalAsync(proposalId, proposal, job, user, caseStudyTe
 export const copyProposal = async (req, res, next) => {
     try {
         const { proposalId } = req.params;
-        const userId = req.user?.id;
+        const userId = req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
         const proposal = await Proposal.findById(proposalId);
 
@@ -460,7 +460,7 @@ export const rateProposal = async (req, res, next) => {
     try {
         const { proposalId } = req.params;
         const { rating, feedback } = req.body;
-        const userId = req.user?.id;
+        const userId = req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
         if (!rating || rating < 1 || rating > 5) {
             const error = new Error('Rating must be between 1 and 5');
@@ -502,7 +502,7 @@ export const rateProposal = async (req, res, next) => {
 export const deleteProposal = async (req, res, next) => {
     try {
         const { proposalId } = req.params;
-        const userId = req.user?.id;
+        const userId = req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
         const proposal = await Proposal.findById(proposalId);
 
@@ -536,7 +536,7 @@ export const deleteProposal = async (req, res, next) => {
  */
 export const getProposalStats = async (req, res, next) => {
     try {
-        const userId = req.user?.id;
+        const userId = req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
         const stats = {
             total: await Proposal.countDocuments({ userId }),
