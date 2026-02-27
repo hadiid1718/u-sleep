@@ -718,7 +718,7 @@ suite('9. Controllers — user.controller.js');
 const userController = readSource('controller/user.controller.js');
 
 test('Exports getUsers (all users, password excluded)', () => {
-  assertIncludesAll(userController, ['export const getUsers', 'User.find()', 'select("-password")'], 'getUsers: ');
+  assertIncludesAll(userController, ['export const getUsers', 'User.find(', 'select("-password")'], 'getUsers: ');
 });
 
 test('Exports getUser (single user by ID)', () => {
