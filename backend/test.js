@@ -1681,6 +1681,300 @@ test('All controller functions use try/catch with next(error)', () => {
 });
 
 // ═════════════════════════════════════════════
+//  24. COMPARISON — Model
+// ═════════════════════════════════════════════
+suite('24. Comparison — Model');
+
+const comparisonModel = readSource('models/comparison.model.js');
+
+test('Has feature field (required, trim)', () => {
+  assertIncludesAll(comparisonModel, ['feature', 'required', 'trim'], 'feature: ');
+});
+
+test('Has uSleep field (required, trim)', () => {
+  assertIncludesAll(comparisonModel, ['uSleep', 'required', 'trim'], 'uSleep: ');
+});
+
+test('Has human field (required, trim)', () => {
+  assertIncludesAll(comparisonModel, ['human', 'required', 'trim'], 'human: ');
+});
+
+test('Has order field with default 0', () => {
+  assertIncludesAll(comparisonModel, ['order', 'Number', 'default: 0'], 'order: ');
+});
+
+test('Has isActive boolean (default true)', () => {
+  assertIncludesAll(comparisonModel, ['isActive', 'Boolean', 'true'], 'isActive: ');
+});
+
+test('Has timestamps enabled', () => {
+  assertIncludes(comparisonModel, 'timestamps: true', 'timestamps missing');
+});
+
+test('Exports Comparison model', () => {
+  assertIncludes(comparisonModel, 'Comparison', 'Comparison model export missing');
+});
+
+// ═════════════════════════════════════════════
+//  25. COMPARISON — Controller
+// ═════════════════════════════════════════════
+suite('25. Comparison — Controller');
+
+const comparisonController = readSource('controller/comparison.controller.js');
+
+test('Imports Comparison model', () => {
+  assertIncludes(comparisonController, 'import Comparison from', 'Comparison import missing');
+});
+
+test('Exports getComparisons (public, active only)', () => {
+  assertIncludesAll(comparisonController, [
+    'export const getComparisons', 'isActive: true', 'sort',
+  ], 'getComparisons: ');
+});
+
+test('Exports getAllComparisons (admin, all records)', () => {
+  assertIncludesAll(comparisonController, [
+    'export const getAllComparisons', 'Comparison.find()', 'sort',
+  ], 'getAllComparisons: ');
+});
+
+test('Exports createComparison with validation', () => {
+  assertIncludesAll(comparisonController, [
+    'export const createComparison', 'feature', 'uSleep', 'human',
+  ], 'createComparison: ');
+});
+
+test('createComparison validates required fields', () => {
+  assertIncludes(comparisonController, '!feature || !uSleep || !human', 'Input validation missing');
+});
+
+test('createComparison returns 201 on success', () => {
+  assertIncludes(comparisonController, '201', '201 status missing');
+});
+
+test('Exports updateComparison with runValidators', () => {
+  assertIncludesAll(comparisonController, [
+    'export const updateComparison', 'findByIdAndUpdate', 'runValidators',
+  ], 'updateComparison: ');
+});
+
+test('updateComparison returns 404 if not found', () => {
+  assertIncludes(comparisonController, 'Comparison not found', '404 handling missing');
+});
+
+test('Exports deleteComparison', () => {
+  assertIncludesAll(comparisonController, [
+    'export const deleteComparison', 'findByIdAndDelete',
+  ], 'deleteComparison: ');
+});
+
+test('Exports seedComparisons with existing data check', () => {
+  assertIncludesAll(comparisonController, [
+    'export const seedComparisons', 'countDocuments', 'insertMany',
+  ], 'seedComparisons: ');
+});
+
+test('seedComparisons includes default comparison data', () => {
+  assertIncludesAll(comparisonController, [
+    'Average revenue saved', 'Proposal writing', 'Cost per sale',
+  ], 'Default seed data: ');
+});
+
+test('All comparison controller functions use try/catch with next(error)', () => {
+  assertIncludes(comparisonController, 'next(error)', 'next(error) missing');
+  const nextCount = (comparisonController.match(/next\(error\)/g) || []).length;
+  assert(nextCount >= 6, `Expected ≥6 next(error) calls, found ${nextCount}`);
+});
+
+// ═════════════════════════════════════════════
+//  26. COMPARISON — Routes
+// ═════════════════════════════════════════════
+suite('26. Comparison — Routes');
+
+test('GET / is public (getComparisons)', () => {
+  assertIncludes(comparisonRouter, 'getComparisons', 'getComparisons handler missing');
+});
+
+test('GET /all is protected (admin)', () => {
+  assertIncludesAll(comparisonRouter, ['/all', 'authorize', 'getAllComparisons'], 'GET /all: ');
+});
+
+test('POST / is protected (create)', () => {
+  assertIncludesAll(comparisonRouter, ['post', 'authorize', 'createComparison'], 'POST /: ');
+});
+
+test('POST /seed is protected (seed)', () => {
+  assertIncludesAll(comparisonRouter, ['/seed', 'authorize', 'seedComparisons'], 'POST /seed: ');
+});
+
+test('PUT /:id is protected (update)', () => {
+  assertIncludesAll(comparisonRouter, ['/:id', 'authorize', 'updateComparison'], 'PUT /:id: ');
+});
+
+test('DELETE /:id is protected (delete)', () => {
+  assertIncludesAll(comparisonRouter, ['deleteComparison', 'authorize'], 'DELETE /:id: ');
+});
+
+// ═════════════════════════════════════════════
+//  27. PRODUCT — Model
+// ═════════════════════════════════════════════
+suite('27. Product — Model');
+
+const productModel = readSource('models/product.model.js');
+
+test('Has key field (required, unique, trim)', () => {
+  assertIncludesAll(productModel, ['key', 'required', 'unique', 'trim'], 'key: ');
+});
+
+test('Has name field (required, trim)', () => {
+  assertIncludesAll(productModel, ['name', 'required', 'trim'], 'name: ');
+});
+
+test('Has price field (required)', () => {
+  assertIncludesAll(productModel, ['price', 'required'], 'price: ');
+});
+
+test('Has features array of strings', () => {
+  assertIncludesAll(productModel, ['features', '[String]'], 'features: ');
+});
+
+test('Has isPopular boolean (default false)', () => {
+  assertIncludesAll(productModel, ['isPopular', 'Boolean', 'false'], 'isPopular: ');
+});
+
+test('Has isActive boolean (default true)', () => {
+  assertIncludesAll(productModel, ['isActive', 'Boolean', 'true'], 'isActive: ');
+});
+
+test('Has order field with default 0', () => {
+  assertIncludesAll(productModel, ['order', 'Number', 'default: 0'], 'order: ');
+});
+
+test('Has description field', () => {
+  assertIncludes(productModel, 'description', 'description missing');
+});
+
+test('Has timestamps enabled', () => {
+  assertIncludes(productModel, 'timestamps: true', 'timestamps missing');
+});
+
+test('Exports Product model', () => {
+  assertIncludes(productModel, 'Product', 'Product model export missing');
+});
+
+// ═════════════════════════════════════════════
+//  28. PRODUCT — Controller
+// ═════════════════════════════════════════════
+suite('28. Product — Controller');
+
+const productController = readSource('controller/product.controller.js');
+
+test('Imports Product model', () => {
+  assertIncludes(productController, 'import Product from', 'Product import missing');
+});
+
+test('Exports getProducts (public, active only)', () => {
+  assertIncludesAll(productController, [
+    'export const getProducts', 'isActive: true', 'sort',
+  ], 'getProducts: ');
+});
+
+test('Exports getAllProducts (admin, all records)', () => {
+  assertIncludesAll(productController, [
+    'export const getAllProducts', 'Product.find()', 'sort',
+  ], 'getAllProducts: ');
+});
+
+test('Exports getProductById with 404 handling', () => {
+  assertIncludesAll(productController, [
+    'export const getProductById', 'Product.findById', 'Product not found',
+  ], 'getProductById: ');
+});
+
+test('Exports createProduct with validation', () => {
+  assertIncludesAll(productController, [
+    'export const createProduct', 'key', 'name', 'price',
+  ], 'createProduct: ');
+});
+
+test('createProduct validates required fields (key, name, price)', () => {
+  assertIncludes(productController, '!key || !name || !price', 'Input validation missing');
+});
+
+test('createProduct checks for duplicate key (409)', () => {
+  assertIncludesAll(productController, [
+    'Product.findOne({ key })', '409', 'already exists',
+  ], 'Duplicate key check: ');
+});
+
+test('createProduct returns 201 on success', () => {
+  assertIncludes(productController, '201', '201 status missing');
+});
+
+test('Exports updateProduct with duplicate key check', () => {
+  assertIncludesAll(productController, [
+    'export const updateProduct', 'findById', 'product.save()',
+  ], 'updateProduct: ');
+});
+
+test('Exports deleteProduct with 404 handling', () => {
+  assertIncludesAll(productController, [
+    'export const deleteProduct', 'findByIdAndDelete', 'Product not found',
+  ], 'deleteProduct: ');
+});
+
+test('Exports seedProducts with existing data check', () => {
+  assertIncludesAll(productController, [
+    'export const seedProducts', 'countDocuments', 'insertMany',
+  ], 'seedProducts: ');
+});
+
+test('seedProducts includes default product data (manual, auto)', () => {
+  assertIncludesAll(productController, [
+    'manual', 'auto', 'Manual job responding', 'Auto responder',
+  ], 'Default seed data: ');
+});
+
+test('All product controller functions use try/catch with next(error)', () => {
+  assertIncludes(productController, 'next(error)', 'next(error) missing');
+  const nextCount = (productController.match(/next\(error\)/g) || []).length;
+  assert(nextCount >= 7, `Expected ≥7 next(error) calls, found ${nextCount}`);
+});
+
+// ═════════════════════════════════════════════
+//  29. PRODUCT — Routes
+// ═════════════════════════════════════════════
+suite('29. Product — Routes');
+
+test('GET / is public (getProducts)', () => {
+  assertIncludes(productRouter, 'getProducts', 'getProducts handler missing');
+});
+
+test('GET /all is protected (admin)', () => {
+  assertIncludesAll(productRouter, ['/all', 'authorize', 'getAllProducts'], 'GET /all: ');
+});
+
+test('GET /:id (getProductById)', () => {
+  assertIncludesAll(productRouter, ['/:id', 'getProductById'], 'GET /:id: ');
+});
+
+test('POST / is protected (create)', () => {
+  assertIncludesAll(productRouter, ['post', 'authorize', 'createProduct'], 'POST /: ');
+});
+
+test('POST /seed is protected (seed)', () => {
+  assertIncludesAll(productRouter, ['/seed', 'authorize', 'seedProducts'], 'POST /seed: ');
+});
+
+test('PUT /:id is protected (update)', () => {
+  assertIncludesAll(productRouter, ['/:id', 'authorize', 'updateProduct'], 'PUT /:id: ');
+});
+
+test('DELETE /:id is protected (delete)', () => {
+  assertIncludesAll(productRouter, ['deleteProduct', 'authorize'], 'DELETE /:id: ');
+});
+
+// ═════════════════════════════════════════════
 //  23. ANALYTICS — Real-time Endpoints
 // ═════════════════════════════════════════════
 suite('23. Analytics — Real-time Endpoints');

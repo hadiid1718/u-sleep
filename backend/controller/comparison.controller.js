@@ -1,43 +1,45 @@
 import Comparison from "../models/comparison.model.js";
 
 // GET all active comparisons (public)
-export const getComparisons = async (req, res) => {
+export const getComparisons = async (req, res, next) => {
   try {
     const comparisons = await Comparison.find({ isActive: true }).sort({ order: 1 });
     res.status(200).json({ success: true, data: comparisons });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to fetch comparisons", error: error.message });
+    next(error);
   }
 };
 
 // GET all comparisons including inactive (admin)
-export const getAllComparisons = async (req, res) => {
+export const getAllComparisons = async (req, res, next) => {
   try {
     const comparisons = await Comparison.find().sort({ order: 1 });
     res.status(200).json({ success: true, data: comparisons });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to fetch comparisons", error: error.message });
+    next(error);
   }
 };
 
 // CREATE a new comparison row (admin)
-export const createComparison = async (req, res) => {
+export const createComparison = async (req, res, next) => {
   try {
     const { feature, uSleep, human, order } = req.body;
 
     if (!feature || !uSleep || !human) {
-      return res.status(400).json({ success: false, message: "Feature, uSleep, and human values are required" });
+      const error = new Error("Feature, uSleep, and human values are required");
+      error.statusCode = 400;
+      throw error;
     }
 
     const comparison = await Comparison.create({ feature, uSleep, human, order: order ?? 0 });
     res.status(201).json({ success: true, data: comparison });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to create comparison", error: error.message });
+    next(error);
   }
 };
 
 // UPDATE a comparison row (admin)
-export const updateComparison = async (req, res) => {
+export const updateComparison = async (req, res, next) => {
   try {
     const { id } = req.params;
     const updates = req.body;
@@ -45,37 +47,43 @@ export const updateComparison = async (req, res) => {
     const comparison = await Comparison.findByIdAndUpdate(id, updates, { new: true, runValidators: true });
 
     if (!comparison) {
-      return res.status(404).json({ success: false, message: "Comparison not found" });
+      const error = new Error("Comparison not found");
+      error.statusCode = 404;
+      throw error;
     }
 
     res.status(200).json({ success: true, data: comparison });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to update comparison", error: error.message });
+    next(error);
   }
 };
 
 // DELETE a comparison row (admin)
-export const deleteComparison = async (req, res) => {
+export const deleteComparison = async (req, res, next) => {
   try {
     const { id } = req.params;
     const comparison = await Comparison.findByIdAndDelete(id);
 
     if (!comparison) {
-      return res.status(404).json({ success: false, message: "Comparison not found" });
+      const error = new Error("Comparison not found");
+      error.statusCode = 404;
+      throw error;
     }
 
     res.status(200).json({ success: true, message: "Comparison deleted successfully" });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to delete comparison", error: error.message });
+    next(error);
   }
 };
 
 // SEED default comparisons if collection is empty
-export const seedComparisons = async (req, res) => {
+export const seedComparisons = async (req, res, next) => {
   try {
     const count = await Comparison.countDocuments();
     if (count > 0) {
-      return res.status(400).json({ success: false, message: "Comparisons already exist. Delete them first to re-seed." });
+      const error = new Error("Comparisons already exist. Delete them first to re-seed.");
+      error.statusCode = 400;
+      throw error;
     }
 
     const defaults = [
@@ -93,6 +101,6 @@ export const seedComparisons = async (req, res) => {
     const comparisons = await Comparison.insertMany(defaults);
     res.status(201).json({ success: true, data: comparisons, message: "Default comparisons seeded successfully" });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to seed comparisons", error: error.message });
+    next(error);
   }
 };
