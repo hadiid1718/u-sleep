@@ -564,3 +564,124 @@ export const getProposalStats = async (req, res, next) => {
         next(error);
     }
 };
+
+/**
+ * Get top performing proposal templates (by job category)
+ * Aggregates proposals grouped by the category of the job they target,
+ * and computes acceptance rate per category.
+ */
+export const getTopTemplates = async (req, res, next) => {
+    try {
+        const isAdmin = !!req.adminId;
+
+        const matchStage = isAdmin
+            ? { status: { $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'] } }
+            : {
+                userId: req.user?._id || req.user?.id,
+                status: { $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'] },
+            };
+
+        const results = await Proposal.aggregate([
+            { $match: matchStage },
+            {
+                $lookup: {
+                    from: 'jobs',
+                    localField: 'jobId',
+                    foreignField: '_id',
+                    as: 'job',
+                },
+            },
+            { $unwind: { path: '$job', preserveNullAndEmptyArrays: true } },
+            {
+                $group: {
+                    _id: { $ifNull: ['$job.category', 'Uncategorised'] },
+                    total: { $sum: 1 },
+                    accepted: {
+                        $sum: { $cond: [{ $eq: ['$status', 'accepted'] }, 1, 0] },
+                    },
+                },
+            },
+            {
+                $project: {
+                    _id: 0,
+                    name: '$_id',
+                    total: 1,
+                    accepted: 1,
+                    rate: {
+                        $concat: [
+                            {
+                                $toString: {
+                                    $round: [
+                                        { $multiply: [{ $divide: ['$accepted', '$total'] }, 100] },
+                                        0,
+                                    ],
+                                },
+                            },
+                            '%',
+                        ],
+                    },
+                },
+            },
+            { $sort: { accepted: -1, total: -1 } },
+            { $limit: 6 },
+        ]);
+
+        res.status(200).json({ success: true, data: results });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Get job category performance — count of proposals per job category.
+ */
+export const getJobCategoryPerformance = async (req, res, next) => {
+    try {
+        const isAdmin = !!req.adminId;
+
+        const matchStage = isAdmin ? {} : { userId: req.user?._id || req.user?.id };
+
+        const results = await Job.aggregate([
+            { $match: { ...matchStage, isActive: true } },
+            {
+                $group: {
+                    _id: { $ifNull: ['$category', 'Uncategorised'] },
+                    totalJobs: { $sum: 1 },
+                },
+            },
+            {
+                $lookup: {
+                    from: 'proposals',
+                    let: { cat: '$_id' },
+                    pipeline: [
+                        {
+                            $lookup: {
+                                from: 'jobs',
+                                localField: 'jobId',
+                                foreignField: '_id',
+                                as: 'job',
+                            },
+                        },
+                        { $unwind: '$job' },
+                        { $match: { $expr: { $eq: [{ $ifNull: ['$job.category', 'Uncategorised'] }, '$$cat'] } } },
+                    ],
+                    as: 'proposals',
+                },
+            },
+            {
+                $project: {
+                    _id: 0,
+                    category: '$_id',
+                    totalJobs: 1,
+                    responses: { $size: '$proposals' },
+                },
+            },
+            { $sort: { responses: -1, totalJobs: -1 } },
+            { $limit: 6 },
+        ]);
+
+        res.status(200).json({ success: true, data: results });
+    } catch (error) {
+        next(error);
+    }
+};

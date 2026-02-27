@@ -1,4 +1,4 @@
-import { Clock, Eye, MessageSquare, Target, Briefcase, FileText } from "lucide-react";
+import { Clock, Eye, MessageSquare, Target, Briefcase, FileText, Loader2 } from "lucide-react";
 import MetricCard from "../utils/MatricCard";
 import { useEffect, useState } from "react";
 import { proposalAPI, jobAPI } from "../../../utils/api";
@@ -6,15 +6,21 @@ import { proposalAPI, jobAPI } from "../../../utils/api";
 const AnalyticsSection = () => {
   const [stats, setStats] = useState(null);
   const [jobCount, setJobCount] = useState(0);
+  const [topTemplates, setTopTemplates] = useState([]);
+  const [categoryPerformance, setCategoryPerformance] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [chartsLoading, setChartsLoading] = useState(true);
 
   useEffect(() => {
     const fetchAnalytics = async () => {
       setLoading(true);
+      setChartsLoading(true);
       try {
-        const [proposalResult, jobResult] = await Promise.all([
+        const [proposalResult, jobResult, templatesResult, categoryResult] = await Promise.all([
           proposalAPI.getProposalStats(),
           jobAPI.getFilteredJobs({ limit: 1 }),
+          proposalAPI.getTopTemplates(),
+          proposalAPI.getJobCategoryPerformance(),
         ]);
         if (proposalResult.success) {
           setStats(proposalResult.data?.data || null);
@@ -22,10 +28,17 @@ const AnalyticsSection = () => {
         if (jobResult.success) {
           setJobCount(jobResult.data?.data?.pagination?.total || 0);
         }
+        if (templatesResult.success) {
+          setTopTemplates(templatesResult.data?.data || []);
+        }
+        if (categoryResult.success) {
+          setCategoryPerformance(categoryResult.data?.data || []);
+        }
       } catch (err) {
         console.error('Analytics fetch error:', err);
       } finally {
         setLoading(false);
+        setChartsLoading(false);
       }
     };
     fetchAnalytics();
@@ -54,36 +67,42 @@ const AnalyticsSection = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
         <div className="bg-gray-800 p-4 lg:p-6 rounded-lg">
           <h3 className="text-white text-lg font-semibold mb-4">Top Performing Templates</h3>
-          <div className="space-y-3">
-            {[
-              { name: 'Professional Introduction', rate: '67%' },
-              { name: 'Technical Expertise', rate: '54%' },
-              { name: 'Quick Turnaround', rate: '48%' },
-              { name: 'Portfolio Showcase', rate: '42%' }
-            ].map((template, index) => (
-              <div key={index} className="flex justify-between items-center">
-                <span className="text-gray-300 text-sm lg:text-base truncate">{template.name}</span>
-                <span className="text-lime-400 font-medium ml-2">{template.rate}</span>
-              </div>
-            ))}
-          </div>
+          {chartsLoading ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="w-6 h-6 text-lime-400 animate-spin" />
+            </div>
+          ) : topTemplates.length === 0 ? (
+            <p className="text-gray-400 text-sm">No proposal data available yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {topTemplates.map((template, index) => (
+                <div key={index} className="flex justify-between items-center">
+                  <span className="text-gray-300 text-sm lg:text-base truncate">{template.name}</span>
+                  <span className="text-lime-400 font-medium ml-2">{template.rate}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="bg-gray-800 p-4 lg:p-6 rounded-lg">
           <h3 className="text-white text-lg font-semibold mb-4">Job Category Performance</h3>
-          <div className="space-y-3">
-            {[
-              { category: 'Web Development', responses: '3,241' },
-              { category: 'Mobile Apps', responses: '2,876' },
-              { category: 'UI/UX Design', responses: '2,103' },
-              { category: 'Data Science', responses: '1,892' }
-            ].map((cat, index) => (
-              <div key={index} className="flex justify-between items-center">
-                <span className="text-gray-300 text-sm lg:text-base truncate">{cat.category}</span>
-                <span className="text-white font-medium ml-2">{cat.responses}</span>
-              </div>
-            ))}
-          </div>
+          {chartsLoading ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="w-6 h-6 text-lime-400 animate-spin" />
+            </div>
+          ) : categoryPerformance.length === 0 ? (
+            <p className="text-gray-400 text-sm">No job data available yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {categoryPerformance.map((cat, index) => (
+                <div key={index} className="flex justify-between items-center">
+                  <span className="text-gray-300 text-sm lg:text-base truncate">{cat.category}</span>
+                  <span className="text-white font-medium ml-2">{cat.responses.toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

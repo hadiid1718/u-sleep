@@ -104,6 +104,9 @@ const models = [
   'models/demo.model.js',
   'models/job.model.js',
   'models/proposal.model.js',
+  'models/product.model.js',
+  'models/comparison.model.js',
+  'models/reviewVideo.model.js',
 ];
 
 models.forEach(f => {
@@ -118,6 +121,9 @@ const controllers = [
   'controller/demo.controller.js',
   'controller/job.controller.js',
   'controller/proposal.controller.js',
+  'controller/product.controller.js',
+  'controller/comparison.controller.js',
+  'controller/reviewVideo.controller.js',
 ];
 
 controllers.forEach(f => {
@@ -132,6 +138,9 @@ const routes = [
   'routes/demo.router.js',
   'routes/job.router.js',
   'routes/proposal.router.js',
+  'routes/product.router.js',
+  'routes/comparison.router.js',
+  'routes/reviewVideo.router.js',
 ];
 
 routes.forEach(f => {
@@ -211,13 +220,14 @@ test('Uses Arcjet rate-limit/bot middleware', () => {
   assertIncludes(appContent, 'arcjetMiddleware', 'Arcjet middleware not applied');
 });
 
-test('Registers all 5 route modules', () => {
-  assertIncludesAll(appContent, ['authRouter', 'userRouter', 'demoRouter', 'jobRouter', 'proposalRouter'], 'Router missing: ');
+test('Registers all 8 route modules', () => {
+  assertIncludesAll(appContent, ['authRouter', 'userRouter', 'demoRouter', 'jobRouter', 'proposalRouter', 'productRouter', 'comparisonRouter', 'reviewVideoRouter'], 'Router missing: ');
 });
 
 test('Mounts routes under /api/v1 namespace', () => {
   assertIncludesAll(appContent, [
     '/api/v1/auth', '/api/v1/users', '/api/v1/demo', '/api/v1/jobs', '/api/v1/proposals',
+    '/api/v1/products', '/api/v1/comparisons', '/api/v1/review-video',
   ], 'Route mount missing: ');
 });
 
@@ -994,6 +1004,18 @@ test('Exports getProposalStats with acceptance rate calculation', () => {
   ], 'getProposalStats: ');
 });
 
+test('Exports getTopTemplates with aggregation pipeline', () => {
+  assertIncludesAll(proposalController, [
+    'export const getTopTemplates', 'aggregate', 'lookup', 'group', 'rate',
+  ], 'getTopTemplates: ');
+});
+
+test('Exports getJobCategoryPerformance with aggregation pipeline', () => {
+  assertIncludesAll(proposalController, [
+    'export const getJobCategoryPerformance', 'aggregate', 'category',
+  ], 'getJobCategoryPerformance: ');
+});
+
 // ═════════════════════════════════════════════
 //  13. ROUTES — Endpoint Definitions
 // ═════════════════════════════════════════════
@@ -1095,6 +1117,69 @@ test('POST /:proposalId/rate (protected)', () => {
 });
 test('DELETE /:proposalId (protected)', () => {
   assertIncludesAll(proposalRouter, ['deleteProposal', 'authorize'], 'DELETE /:proposalId: ');
+});
+test('GET /stats/top-templates (protected)', () => {
+  assertIncludesAll(proposalRouter, ["'/stats/top-templates'", 'authorize', 'getTopTemplates'], 'GET /top-templates: ');
+});
+test('GET /stats/category-performance (protected)', () => {
+  assertIncludesAll(proposalRouter, ["'/stats/category-performance'", 'authorize', 'getJobCategoryPerformance'], 'GET /category-performance: ');
+});
+
+suite('13. Routes — product.router.js');
+
+const productRouter = readSource('routes/product.router.js');
+
+test('Imports authorize middleware', () => {
+  assertIncludes(productRouter, 'authorize', 'authorize import missing');
+});
+
+test('Has GET route for products', () => {
+  assertIncludes(productRouter, 'get', 'GET route missing');
+});
+
+suite('13. Routes — comparison.router.js');
+
+const comparisonRouter = readSource('routes/comparison.router.js');
+
+test('Imports authorize middleware', () => {
+  assertIncludes(comparisonRouter, 'authorize', 'authorize import missing');
+});
+
+test('Has GET and POST routes', () => {
+  assertIncludes(comparisonRouter, 'get', 'GET route missing');
+  assertIncludes(comparisonRouter, 'post', 'POST route missing');
+});
+
+suite('13. Routes — reviewVideo.router.js');
+
+const reviewVideoRouter = readSource('routes/reviewVideo.router.js');
+
+test('Imports authorize middleware', () => {
+  assertIncludes(reviewVideoRouter, 'authorize', 'authorize import missing');
+});
+
+test('GET /latest is public (no authorize)', () => {
+  assertIncludes(reviewVideoRouter, "'/latest'", '/latest route missing');
+});
+
+test('POST /upload is protected', () => {
+  assertIncludesAll(reviewVideoRouter, ["'/upload'", 'authorize', 'uploadReviewVideo'], 'POST /upload: ');
+});
+
+test('GET /all is protected', () => {
+  assertIncludesAll(reviewVideoRouter, ["'/all'", 'authorize', 'getAllReviewVideos'], 'GET /all: ');
+});
+
+test('PUT /:id is protected', () => {
+  assertIncludesAll(reviewVideoRouter, ["'/:id'", 'authorize', 'updateReviewVideo'], 'PUT /:id: ');
+});
+
+test('PATCH /:id/set-active is protected', () => {
+  assertIncludesAll(reviewVideoRouter, ["'/:id/set-active'", 'authorize', 'setActiveReviewVideo'], 'PATCH /set-active: ');
+});
+
+test('DELETE /:id is protected', () => {
+  assertIncludesAll(reviewVideoRouter, ['deleteReviewVideo', 'authorize'], 'DELETE /:id: ');
 });
 
 // ═════════════════════════════════════════════
@@ -1451,6 +1536,191 @@ test('app.js imports createDefaultAdmin from auth controller', () => {
 
 test('app.js imports arcjetMiddleware', () => {
   assertIncludes(appContent, "import arcjetMiddleware from './middleware/arcject.middleware.js'", 'Arcjet middleware import missing');
+});
+
+test('app.js imports reviewVideoRouter', () => {
+  assertIncludes(appContent, "import reviewVideoRouter from './routes/reviewVideo.router.js'", 'reviewVideoRouter import missing');
+});
+
+test('app.js mounts /api/v1/review-video', () => {
+  assertIncludes(appContent, '/api/v1/review-video', 'review-video route mount missing');
+});
+
+// ═════════════════════════════════════════════
+//  21. REVIEW VIDEO — Model
+// ═════════════════════════════════════════════
+suite('21. Review Video — Model');
+
+const reviewVideoModel = readSource('models/reviewVideo.model.js');
+
+test('Has title field (required, trim, maxlength)', () => {
+  assertIncludesAll(reviewVideoModel, ['title', 'required', 'trim', 'maxlength'], 'title: ');
+});
+
+test('Has videoUrl field (required, trim)', () => {
+  assertIncludesAll(reviewVideoModel, ['videoUrl', 'required', 'trim'], 'videoUrl: ');
+});
+
+test('Has thumbnailUrl field (optional)', () => {
+  assertIncludes(reviewVideoModel, 'thumbnailUrl', 'thumbnailUrl missing');
+});
+
+test('Has description field with maxlength', () => {
+  assertIncludesAll(reviewVideoModel, ['description', 'maxlength'], 'description: ');
+});
+
+test('Has reviewerName field (required)', () => {
+  assertIncludesAll(reviewVideoModel, ['reviewerName', 'required'], 'reviewerName: ');
+});
+
+test('Has reviewerRole field', () => {
+  assertIncludes(reviewVideoModel, 'reviewerRole', 'reviewerRole missing');
+});
+
+test('Has isActive boolean (default true)', () => {
+  assertIncludesAll(reviewVideoModel, ['isActive', 'Boolean', 'true'], 'isActive: ');
+});
+
+test('Has uploadedBy ref to Admin model', () => {
+  assertIncludesAll(reviewVideoModel, ['uploadedBy', 'ObjectId', 'Admin'], 'uploadedBy: ');
+});
+
+test('Has timestamps enabled', () => {
+  assertIncludes(reviewVideoModel, 'timestamps', 'timestamps missing');
+});
+
+test('Exports ReviewVideo model', () => {
+  assertIncludes(reviewVideoModel, 'ReviewVideo', 'ReviewVideo model export missing');
+});
+
+// ═════════════════════════════════════════════
+//  22. REVIEW VIDEO — Controller
+// ═════════════════════════════════════════════
+suite('22. Review Video — Controller');
+
+const reviewVideoController = readSource('controller/reviewVideo.controller.js');
+
+test('Imports ReviewVideo model', () => {
+  assertIncludes(reviewVideoController, "import ReviewVideo from", 'ReviewVideo import missing');
+});
+
+test('Exports uploadReviewVideo with validation', () => {
+  assertIncludesAll(reviewVideoController, [
+    'export const uploadReviewVideo', 'title', 'videoUrl', 'reviewerName',
+  ], 'uploadReviewVideo: ');
+});
+
+test('uploadReviewVideo deactivates all previous videos', () => {
+  assertIncludesAll(reviewVideoController, [
+    'updateMany', 'isActive: false',
+  ], 'Deactivation: ');
+});
+
+test('uploadReviewVideo creates new video with isActive: true', () => {
+  assertIncludesAll(reviewVideoController, [
+    'ReviewVideo.create', 'isActive: true',
+  ], 'Create active: ');
+});
+
+test('Exports getLatestReviewVideo (public endpoint)', () => {
+  assertIncludesAll(reviewVideoController, [
+    'export const getLatestReviewVideo', 'findOne', 'isActive: true',
+  ], 'getLatestReviewVideo: ');
+});
+
+test('getLatestReviewVideo sorts by createdAt descending', () => {
+  assertIncludes(reviewVideoController, 'createdAt: -1', 'Sort by createdAt missing');
+});
+
+test('getLatestReviewVideo returns null gracefully when no video exists', () => {
+  assertIncludesAll(reviewVideoController, [
+    'data: null', 'No review video available',
+  ], 'Null handling: ');
+});
+
+test('Exports getAllReviewVideos with pagination', () => {
+  assertIncludesAll(reviewVideoController, [
+    'export const getAllReviewVideos', 'page', 'limit', 'skip', 'totalPages',
+  ], 'getAllReviewVideos: ');
+});
+
+test('getAllReviewVideos populates uploadedBy', () => {
+  assertIncludes(reviewVideoController, 'populate', 'populate missing');
+});
+
+test('Exports deleteReviewVideo with fallback activation', () => {
+  assertIncludesAll(reviewVideoController, [
+    'export const deleteReviewVideo', 'findByIdAndDelete',
+  ], 'deleteReviewVideo: ');
+});
+
+test('deleteReviewVideo activates latest remaining when active is deleted', () => {
+  assertIncludesAll(reviewVideoController, [
+    'video.isActive', 'latestVideo',
+  ], 'Fallback activation: ');
+});
+
+test('Exports updateReviewVideo', () => {
+  assertIncludesAll(reviewVideoController, [
+    'export const updateReviewVideo', 'findById', 'video.save()',
+  ], 'updateReviewVideo: ');
+});
+
+test('Exports setActiveReviewVideo', () => {
+  assertIncludesAll(reviewVideoController, [
+    'export const setActiveReviewVideo', 'updateMany', 'isActive: false',
+  ], 'setActiveReviewVideo: ');
+});
+
+test('setActiveReviewVideo deactivates all then activates selected', () => {
+  assertIncludes(reviewVideoController, 'video.isActive = true', 'Activation logic missing');
+});
+
+test('All controller functions use try/catch with next(error)', () => {
+  assertIncludes(reviewVideoController, 'next(error)', 'next(error) missing');
+});
+
+// ═════════════════════════════════════════════
+//  23. ANALYTICS — Real-time Endpoints
+// ═════════════════════════════════════════════
+suite('23. Analytics — Real-time Endpoints');
+
+test('getTopTemplates uses MongoDB aggregation with $lookup and $group', () => {
+  assertIncludesAll(proposalController, [
+    'getTopTemplates', '$lookup', '$group', '$sort',
+  ], 'Top templates aggregation: ');
+});
+
+test('getTopTemplates computes acceptance rate per category', () => {
+  assertIncludesAll(proposalController, [
+    '$divide', '$multiply', '$round',
+  ], 'Rate calculation: ');
+});
+
+test('getTopTemplates limits results to top 6', () => {
+  assertIncludes(proposalController, "$limit: 6", 'Top 6 limit missing');
+});
+
+test('getTopTemplates handles admin vs user scope', () => {
+  assertIncludesAll(proposalController, [
+    'isAdmin', 'req.adminId',
+  ], 'Admin scope: ');
+});
+
+test('getJobCategoryPerformance aggregates jobs by category', () => {
+  assertIncludesAll(proposalController, [
+    'getJobCategoryPerformance', '$group', 'category',
+  ], 'Category aggregation: ');
+});
+
+test('getJobCategoryPerformance counts proposals per category', () => {
+  assertIncludes(proposalController, '$size', 'Proposal count missing');
+});
+
+test('Proposal routes register both analytics endpoints', () => {
+  assertIncludesAll(proposalRouter, [
+    'top-templates', 'category-performance', 'getTopTemplates', 'getJobCategoryPerformance',
+  ], 'Analytics routes: ');
 });
 
 // ═════════════════════════════════════════════

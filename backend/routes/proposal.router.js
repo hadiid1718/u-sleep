@@ -10,6 +10,8 @@ import {
     rateProposal,
     deleteProposal,
     getProposalStats,
+    getTopTemplates,
+    getJobCategoryPerformance,
 } from '../controller/proposal.controller.js';
 import authorize from '../middleware/auth.middleware.js';
 
@@ -22,6 +24,18 @@ const proposalRouter = Router();
  * Get proposal statistics
  */
 proposalRouter.get('/stats/summary', authorize, getProposalStats);
+
+/**
+ * GET /api/v1/proposals/stats/top-templates
+ * Get top performing templates by acceptance rate
+ */
+proposalRouter.get('/stats/top-templates', authorize, getTopTemplates);
+
+/**
+ * GET /api/v1/proposals/stats/category-performance
+ * Get job category performance
+ */
+proposalRouter.get('/stats/category-performance', authorize, getJobCategoryPerformance);
 
 /**
  * GET /api/v1/proposals

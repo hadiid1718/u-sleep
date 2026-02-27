@@ -593,6 +593,26 @@ export const proposalAPI = {
   },
 
   /**
+   * Get top performing templates by acceptance rate
+   * GET /api/v1/proposals/stats/top-templates
+   */
+  getTopTemplates: async () => {
+    return apiRequest('/proposals/stats/top-templates', {
+      method: 'GET',
+    });
+  },
+
+  /**
+   * Get job category performance
+   * GET /api/v1/proposals/stats/category-performance
+   */
+  getJobCategoryPerformance: async () => {
+    return apiRequest('/proposals/stats/category-performance', {
+      method: 'GET',
+    });
+  },
+
+  /**
    * Send proposal to Upwork
    * POST /api/v1/proposals/:proposalId/send
    */
@@ -719,4 +739,35 @@ export const comparisonAPI = {
   /** Seed default comparisons (admin) */
   seedComparisons: () =>
     apiRequest('/comparisons/seed', { method: 'POST' }),
+};
+
+// =====================================================
+// REVIEW VIDEO API ENDPOINTS
+// =====================================================
+
+export const reviewVideoAPI = {
+  /** Get the latest active review video (public) */
+  getLatest: () => apiRequest('/review-video/latest'),
+
+  /** Upload a new review video (admin) */
+  upload: (data) =>
+    apiRequest('/review-video/upload', { method: 'POST', body: JSON.stringify(data) }),
+
+  /** Get all review videos (admin) */
+  getAll: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return apiRequest(`/review-video/all${query ? `?${query}` : ''}`);
+  },
+
+  /** Update a review video (admin) */
+  update: (id, data) =>
+    apiRequest(`/review-video/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+
+  /** Set a video as active (admin) */
+  setActive: (id) =>
+    apiRequest(`/review-video/${id}/set-active`, { method: 'PATCH' }),
+
+  /** Delete a review video (admin) */
+  delete: (id) =>
+    apiRequest(`/review-video/${id}`, { method: 'DELETE' }),
 };

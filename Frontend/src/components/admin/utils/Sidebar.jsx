@@ -7,6 +7,7 @@
     { id: 'revenue', label: 'Revenue & BI', icon: DollarSign },
     { id: 'comparisons', label: 'Comparisons', icon: Table2 },
     { id: 'demos', label: 'Demo', icon: Calendar },
+    { id: 'reviews', label: 'Review Videos', icon: Video },
     { id: 'messages', label: 'Messages', icon: MessageSquare },
     { id: 'system', label: 'System Health', icon: Activity },
     { id: 'compliance', label: 'Compliance & Safety', icon: Shield },
@@ -14,7 +15,7 @@
   ];
 
 import React, { useContext } from 'react';
-import { 
+import {
   BarChart3, 
   Users, 
   MessageSquare, 
@@ -27,6 +28,7 @@ import {
   Briefcase,
   FileText,
   Table2,
+  Video,
 } from 'lucide-react';
 import { AppContext } from '../../../context/Context';
 

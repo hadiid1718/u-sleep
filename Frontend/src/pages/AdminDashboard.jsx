@@ -10,6 +10,7 @@ import ProductManagementSection from "../components/admin/Management/ProductMana
 import JobManagementSection from "../components/admin/Management/JobManagementSection"
 import ProposalManagementSection from "../components/admin/Management/ProposalManagementSection"
 import ComparisonManagementSection from "../components/admin/Management/ComparisonManagementSection"
+import ReviewManagementSection from "../components/admin/Management/ReviewManagementSection"
 import { useState } from "react";
 
 import { MobileMenuButton } from "../components/admin/utils/MobileMenuButton"
@@ -45,6 +46,8 @@ const AdminDashboard = () => {
         return <ProposalManagementSection />;
       case 'comparisons':
         return <ComparisonManagementSection />;
+      case 'reviews':
+        return <ReviewManagementSection />;
       default:
         return <AnalyticsSection />;
     }
