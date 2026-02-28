@@ -36,4 +36,15 @@ export const {
     // Stripe
     STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET,
+
+    // Upstash
+    QSTASH_URL,
+    QSTASH_TOKEN,
+
+    // Nodemailer (SMTP)
+    EMAIL_HOST,
+    EMAIL_PORT,
+    EMAIL_USER,
+    EMAIL_PASS,
+    EMAIL_FROM,
     } = process.env;

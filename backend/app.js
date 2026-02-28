@@ -8,6 +8,7 @@ import demoRouter from "./routes/demo.router.js";
 import jobRouter from "./routes/job.router.js";
 import proposalRouter from './routes/proposal.router.js';import productRouter from './routes/product.router.js';import comparisonRouter from './routes/comparison.router.js';import reviewVideoRouter from './routes/reviewVideo.router.js';
 import paymentRouter from './routes/payment.router.js';
+import { subscriptionWorkflow } from './workflows/subscription.workflow.js';
 import connectToDatabase from './database/mongodb.js';
 import cookieParser from 'cookie-parser';
 import errorMiddleware from './middleware/error.middleware.js';
@@ -41,6 +42,9 @@ app.use("/api/v1/products", productRouter)
 app.use("/api/v1/comparisons", comparisonRouter)
 app.use("/api/v1/review-video", reviewVideoRouter)
 app.use("/api/v1/payments", paymentRouter)
+
+// Upstash Workflow endpoint – subscription expiry reminders
+app.use("/api/v1/workflows/subscription", subscriptionWorkflow)
 
 app.use(errorMiddleware)
 
