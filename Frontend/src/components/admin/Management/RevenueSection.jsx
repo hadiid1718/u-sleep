@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { DollarSign, Target, TrendingUp, Users, Loader2, RefreshCw, CreditCard } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { DollarSign, Target, TrendingUp, Users, Loader2, RefreshCw, CreditCard, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import MetricCard from "../utils/MatricCard";
 import { paymentAPI } from "../../../utils/api";
 
@@ -7,12 +7,24 @@ const RevenueSection = () => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [error, setError] = useState(null);
+  const [subPage, setSubPage] = useState(1);
+  const [payPage, setPayPage] = useState(1);
+  const [subLoading, setSubLoading] = useState(false);
+  const [payLoading, setPayLoading] = useState(false);
+  const ITEMS_PER_PAGE = 2;
 
-  const fetchRevenueStats = async () => {
-    setLoading(true);
+  const fetchRevenueStats = useCallback(async (currentSubPage = subPage, currentPayPage = payPage, opts = {}) => {
+    if (opts.initial) setLoading(true);
+    if (opts.sub) setSubLoading(true);
+    if (opts.pay) setPayLoading(true);
     setError(null);
     try {
-      const result = await paymentAPI.getRevenueStats();
+      const result = await paymentAPI.getRevenueStats({
+        subPage: currentSubPage,
+        subLimit: ITEMS_PER_PAGE,
+        payPage: currentPayPage,
+        payLimit: ITEMS_PER_PAGE,
+      });
       if (result.success) {
         setStats(result.data?.data);
       } else {
@@ -22,12 +34,24 @@ const RevenueSection = () => {
       setError(err.message || 'Failed to load revenue data');
     } finally {
       setLoading(false);
+      setSubLoading(false);
+      setPayLoading(false);
     }
-  };
+  }, [subPage, payPage]);
 
   useEffect(() => {
-    fetchRevenueStats();
+    fetchRevenueStats(1, 1, { initial: true });
   }, []);
+
+  const handleSubPageChange = (newPage) => {
+    setSubPage(newPage);
+    fetchRevenueStats(newPage, payPage, { sub: true });
+  };
+
+  const handlePayPageChange = (newPage) => {
+    setPayPage(newPage);
+    fetchRevenueStats(subPage, newPage, { pay: true });
+  };
 
   const metrics = stats?.metrics;
 
@@ -35,9 +59,14 @@ const RevenueSection = () => {
     {
       title: 'Monthly Revenue',
       value: metrics?.monthlyRevenue || '$0.00',
-      change: metrics?.revenueChange || '0%',
+      change: `${metrics?.monthlyRevenueCount ?? 0} subscriptions`,
       icon: DollarSign,
-      trend: parseFloat(metrics?.revenueChange) >= 0 ? 'up' : 'down',
+    },
+    {
+      title: 'Annual Revenue',
+      value: metrics?.annualRevenue || '$0.00',
+      change: `${metrics?.annualRevenueCount ?? 0} subscriptions`,
+      icon: CalendarDays,
     },
     {
       title: 'New Subscriptions',
@@ -80,7 +109,7 @@ const RevenueSection = () => {
         <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-6 text-center">
           <p className="text-red-400 mb-4">{error}</p>
           <button
-            onClick={fetchRevenueStats}
+            onClick={() => fetchRevenueStats(subPage, payPage, { initial: true })}
             className="bg-gray-700 text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors inline-flex items-center gap-2"
           >
             <RefreshCw className="w-4 h-4" /> Retry
@@ -95,7 +124,7 @@ const RevenueSection = () => {
       <div className="flex items-center justify-between">
         <h2 className="text-white text-xl lg:text-2xl font-bold">Revenue & Business Intelligence</h2>
         <button
-          onClick={fetchRevenueStats}
+          onClick={() => fetchRevenueStats(subPage, payPage, { initial: true })}
           className="text-gray-400 hover:text-lime-400 transition-colors p-2 rounded-lg hover:bg-gray-800"
           title="Refresh data"
         >
@@ -103,7 +132,7 @@ const RevenueSection = () => {
         </button>
       </div>
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 lg:gap-6">
         {revenueMetrics.map((metric, index) => (
           <MetricCard key={index} {...metric} />
         ))}
@@ -111,10 +140,14 @@ const RevenueSection = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
         {/* Subscription Breakdown */}
-        <div className="bg-gray-800 p-4 lg:p-6 rounded-lg">
+        <div className="bg-gray-800 p-4 lg:p-6 rounded-lg flex flex-col">
           <h3 className="text-white text-lg font-semibold mb-4">Subscription Breakdown</h3>
-          <div className="space-y-3">
-            {stats?.planBreakdown?.length > 0 ? (
+          <div className="space-y-3 flex-1">
+            {subLoading ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="w-5 h-5 text-lime-400 animate-spin" />
+              </div>
+            ) : stats?.planBreakdown?.length > 0 ? (
               stats.planBreakdown.map((sub, index) => (
                 <div key={index} className="flex justify-between items-center">
                   <div className="flex-1 min-w-0">
@@ -130,13 +163,38 @@ const RevenueSection = () => {
               <p className="text-gray-500 text-sm text-center py-4">No subscription data yet</p>
             )}
           </div>
+          {stats?.planBreakdownPagination?.pages > 1 && (
+            <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-700">
+              <button
+                onClick={() => handleSubPageChange(subPage - 1)}
+                disabled={subPage <= 1 || subLoading}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-gray-400 text-sm">
+                Page {subPage} of {stats.planBreakdownPagination.pages}
+              </span>
+              <button
+                onClick={() => handleSubPageChange(subPage + 1)}
+                disabled={subPage >= stats.planBreakdownPagination.pages || subLoading}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Recent Payments */}
-        <div className="bg-gray-800 p-4 lg:p-6 rounded-lg">
+        <div className="bg-gray-800 p-4 lg:p-6 rounded-lg flex flex-col">
           <h3 className="text-white text-lg font-semibold mb-4">Recent Payments</h3>
-          <div className="space-y-3">
-            {stats?.recentPayments?.length > 0 ? (
+          <div className="space-y-3 flex-1">
+            {payLoading ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="w-5 h-5 text-lime-400 animate-spin" />
+              </div>
+            ) : stats?.recentPayments?.length > 0 ? (
               stats.recentPayments.map((payment, index) => (
                 <div key={index} className="flex justify-between items-center">
                   <div className="flex-1 min-w-0">
@@ -159,6 +217,27 @@ const RevenueSection = () => {
               <p className="text-gray-500 text-sm text-center py-4">No payments yet</p>
             )}
           </div>
+          {stats?.recentPaymentsPagination?.pages > 1 && (
+            <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-700">
+              <button
+                onClick={() => handlePayPageChange(payPage - 1)}
+                disabled={payPage <= 1 || payLoading}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-gray-400 text-sm">
+                Page {payPage} of {stats.recentPaymentsPagination.pages}
+              </span>
+              <button
+                onClick={() => handlePayPageChange(payPage + 1)}
+                disabled={payPage >= stats.recentPaymentsPagination.pages || payLoading}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

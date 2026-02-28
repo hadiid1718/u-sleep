@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useContext, useCallback, useMemo } from 'react';
 import {
   CreditCard,
-  Coins,
   Crown,
   Zap,
   Clock,
@@ -9,9 +8,9 @@ import {
   AlertCircle,
   ArrowRight,
   Loader2,
-  History,
   Sparkles,
   RefreshCw,
+  Coins,
 } from 'lucide-react';
 import { AppContext } from '../../../context/Context';
 import { paymentAPI } from '../../../utils/api';
@@ -53,11 +52,12 @@ const paymentStatusColors = {
 
 // ─── Main Component ──────────────────────────────────
 const SubscriptionView = () => {
-  const { user, coinBalance, fetchCoinBalance } = useContext(AppContext);
+  const { user } = useContext(AppContext);
 
-  const [coinData, setCoinData] = useState(null);
   const [payments, setPayments] = useState([]);
   const [products, setProducts] = useState([]);
+  const [coinData, setCoinData] = useState({ coins: 0, coinHistory: [] });
+  const [frequency, setFrequency] = useState('monthly');
   const [loading, setLoading] = useState({ coin: true, payments: true, products: true });
   const [checkoutLoading, setCheckoutLoading] = useState(null);
   const [error, setError] = useState(null);
@@ -65,6 +65,11 @@ const SubscriptionView = () => {
   const subscription = user?.subscription || {};
   const isActive = subscription.status === 'active';
   const remaining = daysLeft(subscription.expiresAt);
+
+  // Memoize recent coin history (limited to 5)
+  const recentCoinHistory = useMemo(() => {
+    return (coinData.coinHistory || []).slice(0, 5);
+  }, [coinData]);
 
   // ─── Fetch data in parallel on mount ───────────────
   useEffect(() => {
@@ -81,7 +86,10 @@ const SubscriptionView = () => {
 
       // Coin balance
       if (coinRes.status === 'fulfilled' && coinRes.value.success) {
-        setCoinData(coinRes.value.data?.data);
+        setCoinData({
+          coins: coinRes.value.data?.data?.coins || 0,
+          coinHistory: coinRes.value.data?.data?.coinHistory || [],
+        });
       }
       setLoading((p) => ({ ...p, coin: false }));
 
@@ -107,7 +115,7 @@ const SubscriptionView = () => {
     setCheckoutLoading(planKey);
     setError(null);
     try {
-      const result = await paymentAPI.createCheckoutSession(planKey);
+      const result = await paymentAPI.createCheckoutSession(planKey, frequency);
       if (!result.success) throw new Error(result.error?.message || 'Checkout failed');
       if (result.data?.url) {
         window.location.href = result.data.url;
@@ -116,29 +124,32 @@ const SubscriptionView = () => {
       setError(err.message);
       setCheckoutLoading(null);
     }
-  }, []);
+  }, [frequency]);
 
-  // ─── Refresh coin balance ──────────────────────────
+  // ─── Refresh coins handler ─────────────────────────
   const handleRefreshCoins = useCallback(async () => {
     setLoading((p) => ({ ...p, coin: true }));
-    await fetchCoinBalance();
-    const res = await paymentAPI.getCoinBalance();
-    if (res.success) setCoinData(res.data?.data);
-    setLoading((p) => ({ ...p, coin: false }));
-  }, [fetchCoinBalance]);
-
-  // Coin history (last 5)
-  const recentCoinHistory = useMemo(
-    () => (coinData?.recentHistory || []).slice(0, 5),
-    [coinData],
-  );
+    try {
+      const result = await paymentAPI.getCoinBalance();
+      if (result.success) {
+        setCoinData({
+          coins: result.data?.data?.coins || 0,
+          coinHistory: result.data?.data?.coinHistory || [],
+        });
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading((p) => ({ ...p, coin: false }));
+    }
+  }, []);
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-          Subscription & U-Coins
+          Subscription
         </h2>
         {isActive && (
           <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium border ${statusColors.active}`}>
@@ -166,6 +177,9 @@ const SubscriptionView = () => {
           <p className="text-white text-xl font-bold capitalize">
             {subscription.plan === 'none' || !subscription.plan ? 'Free' : subscription.plan}
           </p>
+          {subscription.frequency && subscription.plan !== 'none' && (
+            <span className="text-xs text-gray-500 capitalize">{subscription.frequency}</span>
+          )}
         </InteractiveCard>
 
         {/* Status */}
@@ -180,25 +194,22 @@ const SubscriptionView = () => {
           </span>
         </InteractiveCard>
 
-        {/* U-Coins */}
-        <InteractiveCard className="p-5 bg-gradient-to-br from-orange-500/10 to-orange-600/5 border-orange-500/20">
+        {/* U-Coins Balance */}
+        <InteractiveCard className="p-5 bg-gradient-to-br from-amber-500/10 to-amber-600/5 border-amber-500/20">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <Coins className="w-5 h-5 text-orange-400" />
+              <Coins className="w-5 h-5 text-amber-400" />
               <span className="text-gray-400 text-sm">U-Coins</span>
             </div>
-            <button
-              onClick={handleRefreshCoins}
-              disabled={loading.coin}
-              className="text-gray-500 hover:text-gray-300 transition-colors"
-              title="Refresh balance"
-            >
+            <button onClick={handleRefreshCoins} className="text-gray-400 hover:text-white transition-colors">
               <RefreshCw className={`w-4 h-4 ${loading.coin ? 'animate-spin' : ''}`} />
             </button>
           </div>
-          <p className="text-orange-400 text-xl font-bold">
-            {loading.coin ? '...' : (coinBalance ?? user?.coins ?? 0).toLocaleString()}
-          </p>
+          {loading.coin ? (
+            <Loader2 className="w-5 h-5 text-amber-400 animate-spin" />
+          ) : (
+            <p className="text-white text-xl font-bold">{coinData.coins.toLocaleString()}</p>
+          )}
         </InteractiveCard>
 
         {/* Days Left */}
@@ -223,6 +234,37 @@ const SubscriptionView = () => {
           <Sparkles className="w-5 h-5 text-lime-400" />
           {isActive ? 'Renew or Switch Plan' : 'Subscribe to a Plan'}
         </h3>
+
+        {/* Frequency Toggle */}
+        {!loading.products && products.length > 0 && (
+          <div className="flex mb-6">
+            <div className="bg-gray-800 border border-gray-700 rounded-full p-1 flex items-center gap-1">
+              <button
+                onClick={() => setFrequency('monthly')}
+                className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+                  frequency === 'monthly'
+                    ? 'bg-lime-400 text-black shadow-lg'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Monthly
+              </button>
+              <button
+                onClick={() => setFrequency('annually')}
+                className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-300 relative ${
+                  frequency === 'annually'
+                    ? 'bg-lime-400 text-black shadow-lg'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Annually
+                <span className="absolute -top-2 -right-1 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold leading-none">
+                  -20%
+                </span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {loading.products ? (
           <div className="flex items-center justify-center py-10">
@@ -252,14 +294,34 @@ const SubscriptionView = () => {
                       Popular
                     </span>
                   )}
-                  {isCurrentPlan && (
+                  {isCurrentPlan && !product.isPopular && (
                     <span className="absolute top-3 right-3 bg-purple-500 text-white px-2.5 py-0.5 rounded-full text-xs font-semibold">
                       Current
                     </span>
                   )}
+                  {product.tag && (
+                    <span className="absolute top-3 left-3 bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-full text-xs font-semibold">
+                      {product.tag}
+                    </span>
+                  )}
 
-                  <h4 className="text-white text-lg font-bold mb-1">{product.name}</h4>
-                  <p className="text-lime-400 text-2xl font-bold mb-4">{product.price}</p>
+                  <h4 className="text-white text-lg font-bold mb-1 mt-2">{product.name}</h4>
+                  <div className="mb-1">
+                    <span className="text-lime-400 text-2xl font-bold">
+                      {product.price || `$${frequency === 'annually'
+                        ? (product.annualPrice / 100).toFixed(2)
+                        : (product.monthlyPrice / 100).toFixed(2)}`}
+                    </span>
+                    <span className="text-gray-400 text-sm">
+                      {frequency === 'annually' ? '/year' : '/month'}
+                    </span>
+                  </div>
+                  {frequency === 'annually' && (
+                    <p className="text-gray-500 text-xs mb-4 line-through">
+                      ${((product.monthlyPrice / 100) * 12).toFixed(2)}/year
+                    </p>
+                  )}
+                  {frequency !== 'annually' && <div className="mb-4" />}
 
                   {product.features?.length > 0 && (
                     <ul className="space-y-2 mb-6">
@@ -300,38 +362,32 @@ const SubscriptionView = () => {
       {/* ─── Coin History ──────────────────────────── */}
       <div>
         <h3 className="text-white text-lg font-semibold mb-4 flex items-center gap-2">
-          <History className="w-5 h-5 text-orange-400" />
+          <Coins className="w-5 h-5 text-amber-400" />
           Recent Coin Activity
         </h3>
 
         {loading.coin ? (
           <div className="flex items-center justify-center py-6">
-            <Loader2 className="w-5 h-5 text-orange-400 animate-spin" />
+            <Loader2 className="w-5 h-5 text-amber-400 animate-spin" />
           </div>
         ) : recentCoinHistory.length === 0 ? (
           <InteractiveCard className="p-5 text-center">
             <p className="text-gray-500 text-sm">No coin activity yet.</p>
           </InteractiveCard>
         ) : (
-          <InteractiveCard className="divide-y divide-gray-800">
+          <div className="space-y-2">
             {recentCoinHistory.map((entry, idx) => (
-              <div key={idx} className="flex items-center justify-between px-5 py-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    entry.type === 'credit' ? 'bg-lime-400/10' : 'bg-red-400/10'
-                  }`}>
-                    <Coins className={`w-4 h-4 ${entry.type === 'credit' ? 'text-lime-400' : 'text-red-400'}`} />
-                  </div>
-                  <p className="text-gray-300 text-sm truncate">{entry.reason}</p>
+              <InteractiveCard key={idx} className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-white text-sm font-medium">{entry.reason || 'Coin transaction'}</p>
+                  <p className="text-gray-500 text-xs">{formatDate(entry.createdAt)}</p>
                 </div>
-                <span className={`font-semibold text-sm flex-shrink-0 ml-3 ${
-                  entry.type === 'credit' ? 'text-lime-400' : 'text-red-400'
-                }`}>
+                <span className={`text-sm font-bold ${entry.type === 'credit' ? 'text-lime-400' : 'text-red-400'}`}>
                   {entry.type === 'credit' ? '+' : '-'}{entry.amount?.toLocaleString()}
                 </span>
-              </div>
+              </InteractiveCard>
             ))}
-          </InteractiveCard>
+          </div>
         )}
       </div>
 
@@ -370,8 +426,8 @@ const SubscriptionView = () => {
                     <td className="px-5 py-3 text-gray-300 whitespace-nowrap">
                       ${(p.amount / 100).toFixed(2)}
                     </td>
-                    <td className="px-5 py-3 text-orange-400 whitespace-nowrap">
-                      {p.coinsAwarded > 0 ? `+${p.coinsAwarded.toLocaleString()}` : '—'}
+                    <td className="px-5 py-3 text-amber-400 whitespace-nowrap">
+                      {p.coinsAwarded ? `+${p.coinsAwarded.toLocaleString()}` : '—'}
                     </td>
                     <td className="px-5 py-3 whitespace-nowrap">
                       <span className={`capitalize ${paymentStatusColors[p.status] || 'text-gray-400'}`}>

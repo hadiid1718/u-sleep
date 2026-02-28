@@ -79,12 +79,17 @@ const userSchema = new mongoose.Schema({
         default: null,
     },
 
-    // Subscription & Coins
+    // Subscription
     subscription: {
         plan: {
             type: String,
             enum: ['none', 'manual', 'auto'],
             default: 'none',
+        },
+        frequency: {
+            type: String,
+            enum: ['monthly', 'annually'],
+            default: 'monthly',
         },
         stripeCustomerId: { type: String, default: null },
         stripeSubscriptionId: { type: String, default: null },
@@ -97,12 +102,15 @@ const userSchema = new mongoose.Schema({
         expiresAt: { type: Date, default: null },
     },
 
-    coins: { type: Number, default: 0 },
-
+    // Coins
+    coins: {
+        type: Number,
+        default: 0,
+    },
     coinHistory: [{
         amount: { type: Number, required: true },
         type: { type: String, enum: ['credit', 'debit'], required: true },
-        reason: { type: String, required: true },
+        reason: { type: String, default: '' },
         jobId: { type: mongoose.Schema.Types.ObjectId, ref: 'Job', default: null },
         proposalId: { type: mongoose.Schema.Types.ObjectId, ref: 'Proposal', default: null },
         createdAt: { type: Date, default: Date.now },

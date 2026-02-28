@@ -239,12 +239,6 @@ export const sendProposal = async (req, res, next) => {
             throw error;
         }
 
-        if (user.coins < 1) {
-            const error = new Error('Insufficient U-Coins. You need at least 1 coin to send a proposal. Please recharge your subscription.');
-            error.statusCode = 403;
-            throw error;
-        }
-
         // In production, send to Upwork API here
         // For now, mark as sent and update status
 
@@ -261,28 +255,15 @@ export const sendProposal = async (req, res, next) => {
 
         await proposal.save();
 
-        // Deduct 1 coin and update user stats
+        // Update user stats
         await User.findByIdAndUpdate(userId, {
-            $inc: { 'stats.proposalsSent': 1, coins: -1 },
-            $push: {
-                coinHistory: {
-                    amount: 1,
-                    type: 'debit',
-                    reason: 'Proposal sent to client',
-                    jobId: proposal.jobId,
-                    proposalId: proposal._id,
-                    createdAt: new Date(),
-                },
-            },
+            $inc: { 'stats.proposalsSent': 1 },
         });
-
-        const updatedUser = await User.findById(userId).select('coins');
 
         res.status(200).json({
             success: true,
             message: 'Proposal sent successfully',
             data: proposal,
-            coinsRemaining: updatedUser.coins,
         });
 
     } catch (error) {

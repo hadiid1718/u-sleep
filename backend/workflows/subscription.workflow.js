@@ -13,7 +13,7 @@ function buildReminderEmail(userName, daysLeft, plan) {
     text: `Hi ${userName}, your "${plan}" plan expires in ${daysLeft} day${daysLeft > 1 ? "s" : ""}. Renew now to keep uninterrupted access.`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 520px; margin: auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px;">
-        <h2 style="color: #1e293b;">Hi ${userName} 👋</h2>
+        <h2 style="color: #1e293b;">Hi ${userName}</h2>
         <p style="font-size: 16px; color: #334155;">
           Your <strong>${plan}</strong> subscription is expiring in
           <strong style="color: #dc2626;">${daysLeft} day${daysLeft > 1 ? "s" : ""}</strong>.
@@ -112,7 +112,7 @@ export const subscriptionWorkflow = serve(async (context) => {
         html,
       });
 
-      console.log(`✅ Sent ${daysLeft}-day reminder to ${user.email}`);
+      console.log(` Sent ${daysLeft}-day reminder to ${user.email}`);
     });
   }
 

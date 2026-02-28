@@ -4,8 +4,8 @@ import {
     stripeWebhook,
     verifySession,
     getMyPayments,
-    getRevenueStats,
     getCoinBalance,
+    getRevenueStats,
 } from "../controller/payment.controller.js";
 import authorize from "../middleware/auth.middleware.js";
 
@@ -23,5 +23,5 @@ paymentRouter.get("/revenue-stats", authorize, getRevenueStats);
 // Stripe webhook (no auth - stripe sends this)
 // Note: webhook needs raw body, handled in app.js
 paymentRouter.post("/webhook", stripeWebhook);
-
+   
 export default paymentRouter;

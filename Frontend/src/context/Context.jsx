@@ -97,6 +97,28 @@ export const ContextProvider = ({ children }) => {
   ========================== */
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [coinBalance, setCoinBalance] = useState(0);
+
+  // Fetch coin balance from API and sync with user
+  const fetchCoinBalance = async () => {
+    try {
+      const result = await paymentAPI.getCoinBalance();
+      if (result.success) {
+        const coins = result.data?.data?.coins || 0;
+        setCoinBalance(coins);
+        // Sync user object with latest coin balance
+        setUser((prev) => {
+          if (!prev) return prev;
+          const updatedUser = { ...prev, coins };
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+          return updatedUser;
+        });
+      }
+      return result;
+    } catch (err) {
+      return { success: false, error: { message: err.message } };
+    }
+  };
 
   // Auto-clear error after 5 seconds
   useEffect(() => {
@@ -288,38 +310,6 @@ export const ContextProvider = ({ children }) => {
     }
   };
 
-  /* =========================
-     Coin Balance
-  ========================== */
-  const [coinBalance, setCoinBalance] = useState(user?.coins || 0);
-
-  const fetchCoinBalance = async () => {
-    try {
-      const result = await paymentAPI.getCoinBalance();
-      if (result.success) {
-        const coins = result.data?.data?.coins || 0;
-        setCoinBalance(coins);
-        // Also update user object
-        if (user) {
-          const updatedUser = { ...user, coins };
-          setUser(updatedUser);
-          localStorage.setItem('user', JSON.stringify(updatedUser));
-        }
-        return result;
-      }
-      return result;
-    } catch (err) {
-      return { success: false, error: { message: err.message } };
-    }
-  };
-
-  // Update coin balance when user changes
-  useEffect(() => {
-    if (user) {
-      setCoinBalance(user.coins || 0);
-    }
-  }, [user]);
-
   return (
     <AppContext.Provider
       value={{
@@ -346,6 +336,9 @@ export const ContextProvider = ({ children }) => {
         setLoading,
         error,
         setError,
+        coinBalance,
+        setCoinBalance,
+        fetchCoinBalance,
 
         /* Jobs */
         jobResults,
@@ -369,11 +362,6 @@ export const ContextProvider = ({ children }) => {
         pollProposal,
         fetchUserProposals,
         fetchProposalStats,
-
-        /* Coins */
-        coinBalance,
-        setCoinBalance,
-        fetchCoinBalance,
       }}
     >
       {children}

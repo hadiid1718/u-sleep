@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { CheckCircle, Loader2, Coins, ArrowRight, Sparkles } from 'lucide-react';
+import { CheckCircle, Loader2, ArrowRight } from 'lucide-react';
 import { AppContext } from '../context/Context';
 import { paymentAPI } from '../utils/api';
 
@@ -28,11 +28,10 @@ const PaymentSuccess = () => {
         if (result.success) {
           setPaymentData(result.data?.data);
 
-          // Update user context with new coin balance
-          if (result.data?.data?.coins !== undefined && user) {
+          // Update user context with subscription
+          if (result.data?.data && user) {
             const updatedUser = {
               ...user,
-              coins: result.data.data.coins,
               subscription: result.data.data.subscription,
             };
             setUser(updatedUser);
@@ -123,22 +122,6 @@ const PaymentSuccess = () => {
               </div>
             )}
 
-            {/* Coins Awarded */}
-            <div className="bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border border-orange-500/20 rounded-xl p-6 mb-6">
-              <div className="flex items-center justify-center gap-3 mb-2">
-                <Coins className="w-8 h-8 text-orange-400" />
-                <span className="text-white text-3xl font-bold">
-                  {paymentData?.coins?.toLocaleString() || '30,000'}
-                </span>
-              </div>
-              <p className="text-orange-300 text-sm flex items-center justify-center gap-1">
-                <Sparkles className="w-4 h-4" />
-                U-Coins credited to your account
-              </p>
-              <p className="text-gray-500 text-xs mt-2">
-                1 coin = 1 job proposal send
-              </p>
-            </div>
 
             {/* CTA Buttons */}
             <div className="space-y-3">

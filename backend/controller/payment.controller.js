@@ -1,24 +1,17 @@
 import Stripe from 'stripe';
-import { STRIPE_SECRET_KEY, FRONTEND_URL } from '../config/env.js';
+import { STRIPE_SECRET_KEY, FRONTEND_URL, QSTASH_TOKEN, APP_URL } from '../config/env.js';
 import User from '../models/user.model.js';
 import Payment from '../models/payment.model.js';
+import Product from '../models/product.model.js';
+import workflowClient from '../config/upstash.js';
 
 const stripe = new Stripe(STRIPE_SECRET_KEY);
 
 const COINS_PER_SUBSCRIPTION = 30000;
 
-// Price mapping for plans (in cents)
 const PLAN_PRICES = {
-    manual: {
-        amount: 5000, // $50.00
-        name: 'Manual Job Responding',
-        description: 'Manual job responding subscription with 30,000 U-Coins',
-    },
-    auto: {
-        amount: 5000, // $50.00 (or adjust as needed)
-        name: 'Auto Responder',
-        description: 'Auto responder subscription with 30,000 U-Coins',
-    },
+    manual: { amount: 2900, name: 'Manual Plan', description: 'Manual subscription plan' },
+    auto: { amount: 4900, name: 'Auto Plan', description: 'Automatic subscription plan' },
 };
 
 /**
@@ -27,7 +20,7 @@ const PLAN_PRICES = {
  */
 export const createCheckoutSession = async (req, res, next) => {
     try {
-        const { plan } = req.body;
+        const { plan, frequency = 'monthly' } = req.body;
         const userId = req.user?.id || req.user?._id;
 
         if (!userId) {
@@ -36,11 +29,35 @@ export const createCheckoutSession = async (req, res, next) => {
             throw error;
         }
 
-        if (!plan || !PLAN_PRICES[plan]) {
+        if (!plan || !['manual', 'auto'].includes(plan)) {
             const error = new Error('Invalid plan. Must be "manual" or "auto"');
             error.statusCode = 400;
             throw error;
         }
+
+        if (!['monthly', 'annually'].includes(frequency)) {
+            const error = new Error('Invalid frequency. Must be "monthly" or "annually"');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        // Fetch product pricing from DB
+        const product = await Product.findOne({ key: plan, isActive: true });
+        if (!product) {
+            const error = new Error(`Product "${plan}" not found or is inactive`);
+            error.statusCode = 404;
+            throw error;
+        }
+
+        const amount = frequency === 'annually' ? product.annualPrice : product.monthlyPrice;
+
+        if (!amount || amount <= 0) {
+            const error = new Error(`Pricing not configured for "${plan}" (${frequency}). Please contact support.`);
+            error.statusCode = 400;
+            throw error;
+        }
+
+        const periodLabel = frequency === 'annually' ? '/year' : '/month';
 
         const user = await User.findById(userId);
         if (!user) {
@@ -68,7 +85,7 @@ export const createCheckoutSession = async (req, res, next) => {
             });
         }
 
-        const planInfo = PLAN_PRICES[plan];
+        const planInfo = product;
 
         // Create Stripe Checkout session
         const session = await stripe.checkout.sessions.create({
@@ -78,10 +95,10 @@ export const createCheckoutSession = async (req, res, next) => {
                 price_data: {
                     currency: 'usd',
                     product_data: {
-                        name: planInfo.name,
-                        description: planInfo.description,
+                        name: `${planInfo.name} (${frequency})`,
+                        description: `${planInfo.name} — ${frequency} subscription`,
                     },
-                    unit_amount: planInfo.amount,
+                    unit_amount: amount,
                 },
                 quantity: 1,
             }],
@@ -91,6 +108,7 @@ export const createCheckoutSession = async (req, res, next) => {
             metadata: {
                 userId: userId.toString(),
                 plan: plan,
+                frequency: frequency,
             },
         });
 
@@ -99,7 +117,8 @@ export const createCheckoutSession = async (req, res, next) => {
             userId,
             stripeSessionId: session.id,
             plan,
-            amount: planInfo.amount,
+            frequency,
+            amount,
             status: 'pending',
         });
 
@@ -159,7 +178,12 @@ export const stripeWebhook = async (req, res) => {
  */
 async function handleCheckoutComplete(session) {
     try {
-        const { userId, plan } = session.metadata;
+        const { userId, plan, frequency = 'monthly' } = session.metadata;
+
+        // Calculate expiration based on frequency
+        const durationMs = frequency === 'annually'
+            ? 365 * 24 * 60 * 60 * 1000  // 365 days
+            : 30 * 24 * 60 * 60 * 1000;  // 30 days
 
         // Update payment record
         const payment = await Payment.findOneAndUpdate(
@@ -177,24 +201,38 @@ async function handleCheckoutComplete(session) {
             return;
         }
 
-        // Update user subscription and add coins
+        // Update user subscription and coin balance atomically
         await User.findByIdAndUpdate(userId, {
             'subscription.plan': plan,
+            'subscription.frequency': frequency,
             'subscription.status': 'active',
             'subscription.subscribedAt': new Date(),
-            'subscription.expiresAt': new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+            'subscription.expiresAt': new Date(Date.now() + durationMs),
             $inc: { coins: COINS_PER_SUBSCRIPTION },
             $push: {
                 coinHistory: {
                     amount: COINS_PER_SUBSCRIPTION,
                     type: 'credit',
-                    reason: `Subscription to ${plan} plan - ${COINS_PER_SUBSCRIPTION} coins awarded`,
+                    reason: `Subscription payment (${plan} - ${frequency})`,
                     createdAt: new Date(),
                 },
             },
         });
 
-        console.log(`Payment completed for user ${userId}, plan: ${plan}, coins awarded: ${COINS_PER_SUBSCRIPTION}`);
+        // Trigger Upstash subscription expiry reminder workflow
+        try {
+            const appUrl = APP_URL || `http://localhost:${process.env.PORT || 5500}`;
+            await workflowClient.trigger({
+                url: `${appUrl}/api/v1/workflows/subscription`,
+                body: { userId: userId.toString() },
+            });
+            console.log(`Subscription reminder workflow triggered for user ${userId}`);
+        } catch (wfError) {
+            // Don't fail the payment if workflow trigger fails
+            console.error('Failed to trigger subscription workflow:', wfError.message);
+        }
+
+        console.log(`Payment completed for user ${userId}, plan: ${plan}, frequency: ${frequency}`);
     } catch (error) {
         console.error('Error handling checkout completion:', error);
     }
@@ -249,27 +287,25 @@ export const verifySession = async (req, res, next) => {
                 // Refresh payment record
                 const updatedPayment = await Payment.findOne({ stripeSessionId: sessionId });
                 
-                const user = await User.findById(userId).select('coins subscription');
+                const user = await User.findById(userId).select('subscription');
 
                 return res.status(200).json({
                     success: true,
                     data: {
                         payment: updatedPayment,
                         subscription: user.subscription,
-                        coins: user.coins,
                     },
                 });
             }
         }
 
-        const user = await User.findById(userId).select('coins subscription');
+        const user = await User.findById(userId).select('subscription');
 
         res.status(200).json({
             success: true,
             data: {
                 payment,
                 subscription: user?.subscription,
-                coins: user?.coins,
             },
         });
 
@@ -316,8 +352,40 @@ export const getMyPayments = async (req, res, next) => {
  * GET /api/v1/payments/revenue-stats  (Admin)
  * Get revenue statistics for admin dashboard
  */
+/**
+ * GET /api/v1/payments/coin-balance
+ * Get current user's coin balance and history
+ */
+export const getCoinBalance = async (req, res, next) => {
+    try {
+        const userId = req.user?.id || req.user?._id;
+
+        const user = await User.findById(userId).select('coins coinHistory subscription');
+        if (!user) {
+            const error = new Error('User not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                coins: user.coins,
+                coinHistory: user.coinHistory,
+                subscription: user.subscription,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const getRevenueStats = async (req, res, next) => {
     try {
+        const { subPage = 1, subLimit = 2, payPage = 1, payLimit = 2 } = req.query;
+        const subSkip = (parseInt(subPage) - 1) * parseInt(subLimit);
+        const paySkip = (parseInt(payPage) - 1) * parseInt(payLimit);
+
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -335,11 +403,28 @@ export const getRevenueStats = async (req, res, next) => {
             { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } },
         ]);
 
-        const currentRevenue = (currentMonthPayments[0]?.total || 0) / 100; // Convert cents to dollars
+        const currentRevenue = (currentMonthPayments[0]?.total || 0) / 100;
         const lastRevenue = (lastMonthPayments[0]?.total || 0) / 100;
         const revenueChange = lastRevenue > 0
             ? (((currentRevenue - lastRevenue) / lastRevenue) * 100).toFixed(1)
             : currentRevenue > 0 ? '100' : '0';
+
+        // Revenue by frequency (monthly vs annually subscriptions)
+        const frequencyRevenue = await Payment.aggregate([
+            { $match: { status: 'completed' } },
+            {
+                $group: {
+                    _id: '$frequency',
+                    total: { $sum: '$amount' },
+                    count: { $sum: 1 },
+                },
+            },
+        ]);
+
+        const monthlyFreqData = frequencyRevenue.find((f) => f._id === 'monthly') || { total: 0, count: 0 };
+        const annualFreqData = frequencyRevenue.find((f) => f._id === 'annually') || { total: 0, count: 0 };
+        const monthlySubscriptionRevenue = monthlyFreqData.total / 100;
+        const annualSubscriptionRevenue = annualFreqData.total / 100;
 
         // Active subscriptions
         const activeSubscriptions = await User.countDocuments({ 'subscription.status': 'active' });
@@ -363,8 +448,8 @@ export const getRevenueStats = async (req, res, next) => {
             { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } },
         ]);
 
-        // Subscription breakdown by plan
-        const planBreakdown = await Payment.aggregate([
+        // Subscription breakdown by plan (with pagination)
+        const planBreakdownAll = await Payment.aggregate([
             { $match: { status: 'completed' } },
             {
                 $group: {
@@ -384,12 +469,16 @@ export const getRevenueStats = async (req, res, next) => {
                 },
             },
         ]);
+        const totalPlanBreakdown = planBreakdownAll.length;
+        const planBreakdown = planBreakdownAll.slice(subSkip, subSkip + parseInt(subLimit));
 
-        // Recent payments (last 10)
+        // Recent payments (with pagination)
+        const totalRecentPayments = await Payment.countDocuments({ status: 'completed' });
         const recentPayments = await Payment.find({ status: 'completed' })
             .populate('userId', 'name email')
             .sort({ createdAt: -1 })
-            .limit(10);
+            .skip(paySkip)
+            .limit(parseInt(payLimit));
 
         // Cancelled payments count
         const cancelledPayments = await Payment.countDocuments({ status: 'cancelled' });
@@ -402,7 +491,11 @@ export const getRevenueStats = async (req, res, next) => {
             success: true,
             data: {
                 metrics: {
-                    monthlyRevenue: `$${currentRevenue.toFixed(2)}`,
+                    monthlyRevenue: `$${monthlySubscriptionRevenue.toFixed(2)}`,
+                    monthlyRevenueCount: monthlyFreqData.count,
+                    annualRevenue: `$${annualSubscriptionRevenue.toFixed(2)}`,
+                    annualRevenueCount: annualFreqData.count,
+                    calendarMonthRevenue: `$${currentRevenue.toFixed(2)}`,
                     revenueChange: `${revenueChange}%`,
                     newSubscriptions,
                     subChange: `${subChange}%`,
@@ -412,7 +505,19 @@ export const getRevenueStats = async (req, res, next) => {
                     totalTransactions: totalRevenue[0]?.count || 0,
                 },
                 planBreakdown,
+                planBreakdownPagination: {
+                    total: totalPlanBreakdown,
+                    page: parseInt(subPage),
+                    limit: parseInt(subLimit),
+                    pages: Math.ceil(totalPlanBreakdown / parseInt(subLimit)),
+                },
                 recentPayments,
+                recentPaymentsPagination: {
+                    total: totalRecentPayments,
+                    page: parseInt(payPage),
+                    limit: parseInt(payLimit),
+                    pages: Math.ceil(totalRecentPayments / parseInt(payLimit)),
+                },
             },
         });
 
@@ -421,30 +526,3 @@ export const getRevenueStats = async (req, res, next) => {
     }
 };
 
-/**
- * GET /api/v1/payments/coin-balance
- * Get current user's coin balance
- */
-export const getCoinBalance = async (req, res, next) => {
-    try {
-        const userId = req.user?.id || req.user?._id;
-        const user = await User.findById(userId).select('coins coinHistory subscription');
-
-        if (!user) {
-            const error = new Error('User not found');
-            error.statusCode = 404;
-            throw error;
-        }
-
-        res.status(200).json({
-            success: true,
-            data: {
-                coins: user.coins,
-                subscription: user.subscription,
-                recentHistory: (user.coinHistory || []).slice(-20).reverse(),
-            },
-        });
-    } catch (error) {
-        next(error);
-    }
-};

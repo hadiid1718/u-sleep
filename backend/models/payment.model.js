@@ -20,6 +20,11 @@ const paymentSchema = new mongoose.Schema({
         enum: ['manual', 'auto'],
         required: true,
     },
+    frequency: {
+        type: String,
+        enum: ['monthly', 'annually'],
+        default: 'monthly',
+    },
     amount: {
         type: Number,
         required: true,

@@ -40,13 +40,6 @@ export const StatsCards = ({ dashboardJobs, user }) => {
       gradient: 'from-red-500/10 to-red-600/5',
       border: 'border-red-500/20',
       textColor: 'text-red-400'
-    },
-    {
-      value: user?.coins || 0,
-      label: 'U-coins Left',
-      gradient: 'from-orange-500/10 to-orange-600/5',
-      border: 'border-orange-500/20',
-      textColor: 'text-orange-400'
     }
   ];
 

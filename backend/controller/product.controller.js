@@ -38,7 +38,7 @@ export const getProductById = async (req, res, next) => {
 // POST /api/v1/products — Admin: Create a new product
 export const createProduct = async (req, res, next) => {
   try {
-    const { key, name, price, features, isPopular, isActive, order, description } = req.body;
+    const { key, name, price, monthlyPrice, annualPrice, annualDiscount, tag, features, isPopular, isActive, order, description } = req.body;
 
     if (!key || !name || !price) {
       const error = new Error("Key, name, and price are required");
@@ -57,7 +57,11 @@ export const createProduct = async (req, res, next) => {
     const product = await Product.create({
       key,
       name,
-      price,
+      tag: tag || "",
+      monthlyPrice: monthlyPrice ?? 0,
+      annualPrice: annualPrice ?? 0,
+      annualDiscount: annualDiscount ?? 20,
+      price: price || `$${monthlyPrice}/month`,
       features: features || [],
       isPopular: isPopular || false,
       isActive: isActive !== undefined ? isActive : true,
@@ -74,7 +78,7 @@ export const createProduct = async (req, res, next) => {
 // PUT /api/v1/products/:id — Admin: Update a product
 export const updateProduct = async (req, res, next) => {
   try {
-    const { key, name, price, features, isPopular, isActive, order, description } = req.body;
+    const { key, name, price, monthlyPrice, annualPrice, annualDiscount, tag, features, isPopular, isActive, order, description } = req.body;
 
     const product = await Product.findById(req.params.id);
     if (!product) {
@@ -95,6 +99,10 @@ export const updateProduct = async (req, res, next) => {
 
     if (key !== undefined) product.key = key;
     if (name !== undefined) product.name = name;
+    if (tag !== undefined) product.tag = tag;
+    if (monthlyPrice !== undefined) product.monthlyPrice = monthlyPrice;
+    if (annualPrice !== undefined) product.annualPrice = annualPrice;
+    if (annualDiscount !== undefined) product.annualDiscount = annualDiscount;
     if (price !== undefined) product.price = price;
     if (features !== undefined) product.features = features;
     if (isPopular !== undefined) product.isPopular = isPopular;
@@ -141,6 +149,10 @@ export const seedProducts = async (req, res, next) => {
       {
         key: "manual",
         name: "Manual job responding",
+        tag: "Starter",
+        monthlyPrice: 5000,
+        annualPrice: 5030,
+        annualDiscount: 20,
         price: "$50/month",
         features: [
           "Job hunting and job filtering",
@@ -154,7 +166,11 @@ export const seedProducts = async (req, res, next) => {
       {
         key: "auto",
         name: "Auto responder",
-        price: "$0.5/response",
+        tag: "Pro",
+        monthlyPrice: 125,
+        annualPrice: 6050,
+        annualDiscount: 20,
+        price: "$1.25/response",
         features: [
           "Everything from manual",
           "Auto upload to Upwork daily",

@@ -20,6 +20,10 @@ const ProductManagementSection = () => {
   const [formData, setFormData] = useState({
     key: "",
     name: "",
+    tag: "",
+    monthlyPrice: 0,
+    annualPrice: 0,
+    annualDiscount: 20,
     price: "",
     features: [""],
     isPopular: false,
@@ -78,6 +82,10 @@ const ProductManagementSection = () => {
     setFormData({
       key: "",
       name: "",
+      tag: "",
+      monthlyPrice: 0,
+      annualPrice: 0,
+      annualDiscount: 20,
       price: "",
       features: [""],
       isPopular: false,
@@ -101,6 +109,10 @@ const ProductManagementSection = () => {
     setFormData({
       key: original.key || "",
       name: original.name || "",
+      tag: original.tag || "",
+      monthlyPrice: original.monthlyPrice ?? 0,
+      annualPrice: original.annualPrice ?? 0,
+      annualDiscount: original.annualDiscount ?? 20,
       price: original.price || "",
       features: original.features?.length ? [...original.features] : [""],
       isPopular: original.isPopular || false,
@@ -192,12 +204,15 @@ const ProductManagementSection = () => {
   const popularCount = products.filter((p) => p.isPopular).length;
 
   // Table data
-  const tableHeaders = ["Name", "Key", "Price", "Features", "Popular", "Status"];
+  const tableHeaders = ["Name", "Key", "Tag", "Monthly", "Annual", "Discount", "Features", "Popular", "Status"];
   const tableData = paginatedProducts.map((p) => ({
     _id: p._id,
     Name: p.name,
     Key: p.key,
-    Price: p.price,
+    Tag: p.tag || "—",
+    Monthly: `$${((p.monthlyPrice || 0) / 100).toFixed(2)}`,
+    Annual: `$${((p.annualPrice || 0) / 100).toFixed(2)}`,
+    Discount: `${p.annualDiscount ?? 20}%`,
     Features: `${p.features?.length || 0} features`,
     Popular: p.isPopular ? "Yes" : "No",
     Status: p.isActive ? "Active" : "Inactive",
@@ -340,13 +355,71 @@ const ProductManagementSection = () => {
 
           {/* Price */}
           <div>
-            <label className="block text-gray-300 text-sm mb-1">Price</label>
+            <label className="block text-gray-300 text-sm mb-1">Tag (e.g. Starter, Pro)</label>
+            <input
+              type="text"
+              value={formData.tag}
+              onChange={(e) => setFormData({ ...formData, tag: e.target.value })}
+              placeholder="e.g. Starter, Pro, Enterprise"
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-lime-400"
+            />
+          </div>
+
+          {/* Pricing */}
+          <div>
+            <label className="block text-gray-300 text-sm mb-1">Monthly Price (cents)</label>
+            <input
+              type="number"
+              value={formData.monthlyPrice}
+              onChange={(e) => {
+                const monthly = parseInt(e.target.value) || 0;
+                const discount = formData.annualDiscount || 0;
+                const calculatedAnnual = Math.round(monthly * 12 * (1 - discount / 100));
+                setFormData({ ...formData, monthlyPrice: monthly, annualPrice: calculatedAnnual });
+              }}
+              required
+              min="0"
+              placeholder="e.g. 5000 = $50"
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-lime-400"
+            />
+            <p className="text-gray-500 text-xs mt-0.5">= ${(formData.monthlyPrice / 100).toFixed(2)}/month</p>
+          </div>
+
+          <div>
+            <label className="block text-gray-300 text-sm mb-1">Annual Discount (%)</label>
+            <input
+              type="number"
+              value={formData.annualDiscount}
+              onChange={(e) => {
+                const discount = parseInt(e.target.value) || 0;
+                const monthly = formData.monthlyPrice || 0;
+                const calculatedAnnual = Math.round(monthly * 12 * (1 - discount / 100));
+                setFormData({ ...formData, annualDiscount: discount, annualPrice: calculatedAnnual });
+              }}
+              min="0"
+              max="100"
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-lime-400"
+            />
+          </div>
+
+          <div>
+            <label className="block text-gray-300 text-sm mb-1">Annual Price (cents) — auto-calculated</label>
+            <input
+              type="number"
+              value={formData.annualPrice}
+              readOnly
+              className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-gray-300 text-sm cursor-not-allowed"
+            />
+            <p className="text-gray-500 text-xs mt-0.5">= ${(formData.annualPrice / 100).toFixed(2)}/year (saved {formData.annualDiscount}%)</p>
+          </div>
+
+          <div>
+            <label className="block text-gray-300 text-sm mb-1">Display Price (legacy, optional)</label>
             <input
               type="text"
               value={formData.price}
               onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-              required
-              placeholder="e.g. $50/month or $0.5/response"
+              placeholder="e.g. $50/month"
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-lime-400"
             />
           </div>

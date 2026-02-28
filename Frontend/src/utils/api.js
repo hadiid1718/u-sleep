@@ -778,10 +778,10 @@ export const reviewVideoAPI = {
 
 export const paymentAPI = {
   /** Create a Stripe checkout session */
-  createCheckoutSession: (plan) =>
+  createCheckoutSession: (plan, frequency = 'monthly') =>
     apiRequest('/payments/create-checkout-session', {
       method: 'POST',
-      body: JSON.stringify({ plan }),
+      body: JSON.stringify({ plan, frequency }),
     }),
 
   /** Verify a checkout session (after payment) */
@@ -796,11 +796,17 @@ export const paymentAPI = {
     return apiRequest(`/payments/my-payments?${params.toString()}`);
   },
 
+  /** Get revenue stats (admin) */
+  getRevenueStats: ({ subPage = 1, subLimit = 2, payPage = 1, payLimit = 2 } = {}) => {
+    const params = new URLSearchParams();
+    params.append('subPage', subPage);
+    params.append('subLimit', subLimit);
+    params.append('payPage', payPage);
+    params.append('payLimit', payLimit);
+    return apiRequest(`/payments/revenue-stats?${params.toString()}`);
+  },
+
   /** Get current user's coin balance */
   getCoinBalance: () =>
     apiRequest('/payments/coin-balance'),
-
-  /** Get revenue stats (admin) */
-  getRevenueStats: () =>
-    apiRequest('/payments/revenue-stats'),
 };

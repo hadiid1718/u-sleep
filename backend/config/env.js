@@ -41,6 +41,9 @@ export const {
     QSTASH_URL,
     QSTASH_TOKEN,
 
+    // App URL (for workflow triggers)
+    APP_URL,
+
     // Nodemailer (SMTP)
     EMAIL_HOST,
     EMAIL_PORT,

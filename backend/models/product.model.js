@@ -13,9 +13,32 @@ const productSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    tag: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    // Pricing
+    monthlyPrice: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    annualPrice: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    annualDiscount: {
+      type: Number,
+      default: 20,
+      min: 0,
+      max: 100,
+    },
+    // Legacy field kept for backward compatibility
     price: {
       type: String,
-      required: true,
+      default: "",
     },
     features: {
       type: [String],
