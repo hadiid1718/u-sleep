@@ -6,6 +6,7 @@ import { DashboardView } from '../components/user/Dashboard/DashboardView';
 import { PromptsView } from '../components/user/prompts/PromptsView';
 import  NotificationsView  from '../components/user/notifications/NotificationsView';
 import  SettingsView  from '../components/user/settings/SettingsView';
+import SubscriptionView from '../components/user/subscription/SubscriptionView';
 
 const Dashboard = () => {
   const { 
@@ -118,6 +119,8 @@ const Dashboard = () => {
             user={user}
           />
         );
+      case 'subscription':
+        return <SubscriptionView />;
       default:
         return <DashboardView {...props} />;
     }

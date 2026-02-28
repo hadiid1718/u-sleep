@@ -72,6 +72,14 @@ function readSource(relativePath) {
   return fs.readFileSync(path.join(__dirname, relativePath), 'utf8');
 }
 
+function readFrontend(relativePath) {
+  return fs.readFileSync(path.join(__dirname, '..', 'Frontend', relativePath), 'utf8');
+}
+
+function frontendFileExists(relativePath) {
+  return fs.existsSync(path.join(__dirname, '..', 'Frontend', relativePath));
+}
+
 function fileExists(relativePath) {
   return fs.existsSync(path.join(__dirname, relativePath));
 }
@@ -107,6 +115,7 @@ const models = [
   'models/product.model.js',
   'models/comparison.model.js',
   'models/reviewVideo.model.js',
+  'models/payment.model.js',
 ];
 
 models.forEach(f => {
@@ -124,6 +133,7 @@ const controllers = [
   'controller/product.controller.js',
   'controller/comparison.controller.js',
   'controller/reviewVideo.controller.js',
+  'controller/payment.controller.js',
 ];
 
 controllers.forEach(f => {
@@ -141,6 +151,7 @@ const routes = [
   'routes/product.router.js',
   'routes/comparison.router.js',
   'routes/reviewVideo.router.js',
+  'routes/payment.router.js',
 ];
 
 routes.forEach(f => {
@@ -162,7 +173,7 @@ const packageJson = JSON.parse(readSource('package.json'));
 
 const requiredDeps = [
   'express', 'mongoose', 'jsonwebtoken', 'bcryptjs',
-  'cors', 'dotenv', 'cookie-parser', '@arcjet/node',
+  'cors', 'dotenv', 'cookie-parser', '@arcjet/node', 'stripe',
 ];
 
 requiredDeps.forEach(dep => {
@@ -220,15 +231,19 @@ test('Uses Arcjet rate-limit/bot middleware', () => {
   assertIncludes(appContent, 'arcjetMiddleware', 'Arcjet middleware not applied');
 });
 
-test('Registers all 8 route modules', () => {
-  assertIncludesAll(appContent, ['authRouter', 'userRouter', 'demoRouter', 'jobRouter', 'proposalRouter', 'productRouter', 'comparisonRouter', 'reviewVideoRouter'], 'Router missing: ');
+test('Registers all 9 route modules', () => {
+  assertIncludesAll(appContent, ['authRouter', 'userRouter', 'demoRouter', 'jobRouter', 'proposalRouter', 'productRouter', 'comparisonRouter', 'reviewVideoRouter', 'paymentRouter'], 'Router missing: ');
 });
 
 test('Mounts routes under /api/v1 namespace', () => {
   assertIncludesAll(appContent, [
     '/api/v1/auth', '/api/v1/users', '/api/v1/demo', '/api/v1/jobs', '/api/v1/proposals',
-    '/api/v1/products', '/api/v1/comparisons', '/api/v1/review-video',
+    '/api/v1/products', '/api/v1/comparisons', '/api/v1/review-video', '/api/v1/payments',
   ], 'Route mount missing: ');
+});
+
+test('Stripe webhook raw body middleware is before express.json()', () => {
+  assertIncludesAll(appContent, ["express.raw({ type: 'application/json' })", '/api/v1/payments/webhook'], 'Stripe webhook raw body: ');
 });
 
 test('Applies global error middleware last', () => {
@@ -295,6 +310,10 @@ test('Exports feature flags', () => {
   assertIncludesAll(envContent, [
     'USE_BACKGROUND_JOBS', 'JOB_CACHE_TTL', 'JOB_CACHE_ENABLED', 'PROPOSAL_GENERATION_TIMEOUT',
   ], 'Feature flag: ');
+});
+
+test('Exports Stripe keys', () => {
+  assertIncludesAll(envContent, ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET'], 'Stripe env: ');
 });
 
 suite('4. Configuration — arcjet.js');
@@ -386,6 +405,33 @@ test('Has upworkProfileUrl', () => {
 
 test('Has isFlagged, flagReason, flaggedAt for account moderation', () => {
   assertIncludesAll(userModel, ['isFlagged', 'flagReason', 'flaggedAt'], 'Flag fields: ');
+});
+
+test('Has subscription object with plan, stripeCustomerId, status, dates', () => {
+  assertIncludesAll(userModel, [
+    'subscription', 'stripeCustomerId', 'stripeSubscriptionId',
+    'subscribedAt', 'expiresAt',
+  ], 'Subscription fields: ');
+});
+
+test('Subscription plan enum has none, manual, auto', () => {
+  assertIncludesAll(userModel, ["'none'", "'manual'", "'auto'"], 'Subscription plan enum: ');
+});
+
+test('Subscription status enum has none, active, cancelled, past_due, trialing', () => {
+  assertIncludesAll(userModel, ["'active'", "'cancelled'", "'past_due'", "'trialing'"], 'Subscription status enum: ');
+});
+
+test('Has coins field (Number, default 0)', () => {
+  assertIncludesAll(userModel, ['coins', 'Number', 'default: 0'], 'Coins field: ');
+});
+
+test('Has coinHistory array with amount, type (credit/debit), reason', () => {
+  assertIncludesAll(userModel, ['coinHistory', 'amount', "'credit'", "'debit'", 'reason'], 'CoinHistory: ');
+});
+
+test('coinHistory entries reference optional jobId and proposalId', () => {
+  assertIncludesAll(userModel, ["ref: 'Job'", "ref: 'Proposal'"], 'CoinHistory refs: ');
 });
 
 test('Has stats object with all counters', () => {
@@ -1975,6 +2021,300 @@ test('DELETE /:id is protected (delete)', () => {
 });
 
 // ═════════════════════════════════════════════
+//  30. PAYMENT — Model
+// ═════════════════════════════════════════════
+suite('30. Payment — Model');
+
+const paymentModel = readSource('models/payment.model.js');
+
+test('Has userId ref to User model (required)', () => {
+  assertIncludesAll(paymentModel, ['userId', "ref: 'User'", 'required'], 'userId: ');
+});
+
+test('Has stripeSessionId (required, unique)', () => {
+  assertIncludesAll(paymentModel, ['stripeSessionId', 'required', 'unique'], 'stripeSessionId: ');
+});
+
+test('Has stripePaymentIntentId field', () => {
+  assertIncludes(paymentModel, 'stripePaymentIntentId', 'stripePaymentIntentId missing');
+});
+
+test('Has plan enum (manual, auto)', () => {
+  assertIncludesAll(paymentModel, ['plan', "'manual'", "'auto'"], 'plan enum: ');
+});
+
+test('Has amount field (required, Number)', () => {
+  assertIncludesAll(paymentModel, ['amount', 'Number', 'required'], 'amount: ');
+});
+
+test('Has currency field (default usd)', () => {
+  assertIncludesAll(paymentModel, ['currency', 'usd'], 'currency: ');
+});
+
+test('Has status enum (pending, completed, failed, refunded, cancelled)', () => {
+  assertIncludesAll(paymentModel, [
+    "'pending'", "'completed'", "'failed'", "'refunded'", "'cancelled'",
+  ], 'status enum: ');
+});
+
+test('Has coinsAwarded field (default 0)', () => {
+  assertIncludesAll(paymentModel, ['coinsAwarded', 'default: 0'], 'coinsAwarded: ');
+});
+
+test('Has metadata field (Mixed type)', () => {
+  assertIncludesAll(paymentModel, ['metadata', 'Mixed'], 'metadata: ');
+});
+
+test('Has timestamps enabled', () => {
+  assertIncludes(paymentModel, 'timestamps', 'timestamps missing');
+});
+
+test('Exports Payment model', () => {
+  assertIncludes(paymentModel, 'Payment', 'Payment model export missing');
+});
+
+// ═════════════════════════════════════════════
+//  31. PAYMENT — Controller
+// ═════════════════════════════════════════════
+suite('31. Payment — Controller');
+
+const paymentController = readSource('controller/payment.controller.js');
+
+test('Imports Stripe and initializes with STRIPE_SECRET_KEY', () => {
+  assertIncludesAll(paymentController, ['import Stripe', 'STRIPE_SECRET_KEY', 'new Stripe'], 'Stripe init: ');
+});
+
+test('Imports User and Payment models', () => {
+  assertIncludesAll(paymentController, [
+    "import User from '../models/user.model.js'",
+    "import Payment from '../models/payment.model.js'",
+  ], 'Model imports: ');
+});
+
+test('Defines COINS_PER_SUBSCRIPTION constant (30000)', () => {
+  assertIncludesAll(paymentController, ['COINS_PER_SUBSCRIPTION', '30000'], 'Coins constant: ');
+});
+
+test('Defines PLAN_PRICES mapping for manual and auto plans', () => {
+  assertIncludesAll(paymentController, ['PLAN_PRICES', 'manual', 'auto', 'amount', 'name', 'description'], 'Plan prices: ');
+});
+
+test('Exports createCheckoutSession with plan validation', () => {
+  assertIncludesAll(paymentController, [
+    'export const createCheckoutSession', 'Invalid plan', '"manual" or "auto"',
+  ], 'createCheckoutSession: ');
+});
+
+test('createCheckoutSession creates or retrieves Stripe customer', () => {
+  assertIncludesAll(paymentController, [
+    'stripe.customers.create', 'stripeCustomerId',
+  ], 'Stripe customer: ');
+});
+
+test('createCheckoutSession creates Stripe Checkout session', () => {
+  assertIncludesAll(paymentController, [
+    'stripe.checkout.sessions.create', 'payment_method_types', 'line_items',
+    'success_url', 'cancel_url', 'metadata',
+  ], 'Checkout session: ');
+});
+
+test('createCheckoutSession creates pending Payment record', () => {
+  assertIncludesAll(paymentController, ["Payment.create", "'pending'"], 'Pending payment: ');
+});
+
+test('createCheckoutSession returns session URL and ID', () => {
+  assertIncludesAll(paymentController, ['session.url', 'sessionId'], 'Session response: ');
+});
+
+test('Exports stripeWebhook handler', () => {
+  assertIncludesAll(paymentController, [
+    'export const stripeWebhook', 'stripe-signature', 'stripe.webhooks.constructEvent',
+  ], 'stripeWebhook: ');
+});
+
+test('stripeWebhook handles checkout.session.completed event', () => {
+  assertIncludesAll(paymentController, [
+    'checkout.session.completed', 'handleCheckoutComplete',
+  ], 'Checkout completed: ');
+});
+
+test('stripeWebhook handles checkout.session.expired event', () => {
+  assertIncludesAll(paymentController, [
+    'checkout.session.expired', 'handleCheckoutExpired',
+  ], 'Checkout expired: ');
+});
+
+test('handleCheckoutComplete updates payment status and awards coins', () => {
+  assertIncludesAll(paymentController, [
+    'handleCheckoutComplete', "status: 'completed'", 'coinsAwarded', 'COINS_PER_SUBSCRIPTION',
+  ], 'Checkout complete handler: ');
+});
+
+test('handleCheckoutComplete updates user subscription and coin balance', () => {
+  assertIncludesAll(paymentController, [
+    "'subscription.plan'", "'subscription.status'", "'subscription.subscribedAt'",
+    "'subscription.expiresAt'", '$inc', 'coins: COINS_PER_SUBSCRIPTION',
+  ], 'User subscription update: ');
+});
+
+test('handleCheckoutComplete pushes to coinHistory', () => {
+  assertIncludesAll(paymentController, [
+    '$push', 'coinHistory', "type: 'credit'", 'reason',
+  ], 'CoinHistory push: ');
+});
+
+test('handleCheckoutExpired marks payment as cancelled', () => {
+  assertIncludesAll(paymentController, [
+    'handleCheckoutExpired', "status: 'cancelled'",
+  ], 'Expired handler: ');
+});
+
+test('Exports verifySession with Stripe fallback check', () => {
+  assertIncludesAll(paymentController, [
+    'export const verifySession', 'stripe.checkout.sessions.retrieve', 'payment_status',
+  ], 'verifySession: ');
+});
+
+test('Exports getMyPayments with pagination', () => {
+  assertIncludesAll(paymentController, [
+    'export const getMyPayments', 'page', 'limit', 'skip', 'countDocuments',
+  ], 'getMyPayments: ');
+});
+
+test('Exports getRevenueStats with aggregation pipeline', () => {
+  assertIncludesAll(paymentController, [
+    'export const getRevenueStats', 'aggregate', '$match', '$group', '$sum',
+  ], 'getRevenueStats: ');
+});
+
+test('getRevenueStats calculates monthly revenue and change percentage', () => {
+  assertIncludesAll(paymentController, [
+    'currentRevenue', 'lastRevenue', 'revenueChange',
+  ], 'Revenue calculation: ');
+});
+
+test('getRevenueStats includes plan breakdown and churn rate', () => {
+  assertIncludesAll(paymentController, [
+    'planBreakdown', 'churnRate', 'cancelledPayments',
+  ], 'Revenue metrics: ');
+});
+
+test('getRevenueStats includes recent payments with user populate', () => {
+  assertIncludesAll(paymentController, [
+    'recentPayments', 'populate', 'name', 'email',
+  ], 'Recent payments: ');
+});
+
+test('Exports getCoinBalance for current user', () => {
+  assertIncludesAll(paymentController, [
+    'export const getCoinBalance', 'coins', 'coinHistory', 'subscription',
+  ], 'getCoinBalance: ');
+});
+
+test('All payment controller functions use try/catch with next(error)', () => {
+  assertIncludes(paymentController, 'next(error)', 'next(error) missing');
+  const nextCount = (paymentController.match(/next\(error\)/g) || []).length;
+  assert(nextCount >= 4, `Expected ≥4 next(error) calls, found ${nextCount}`);
+});
+
+// ═════════════════════════════════════════════
+//  32. PAYMENT — Routes
+// ═════════════════════════════════════════════
+suite('32. Payment — Routes');
+
+const paymentRouterContent = readSource('routes/payment.router.js');
+
+test('Imports authorize middleware', () => {
+  assertIncludes(paymentRouterContent, 'authorize', 'authorize import missing');
+});
+
+test('Imports all payment controller functions', () => {
+  assertIncludesAll(paymentRouterContent, [
+    'createCheckoutSession', 'stripeWebhook', 'verifySession',
+    'getMyPayments', 'getRevenueStats', 'getCoinBalance',
+  ], 'Controller import: ');
+});
+
+test('POST /create-checkout-session is protected', () => {
+  assertIncludesAll(paymentRouterContent, [
+    'create-checkout-session', 'authorize', 'createCheckoutSession',
+  ], 'POST /create-checkout-session: ');
+});
+
+test('GET /verify-session/:sessionId is protected', () => {
+  assertIncludesAll(paymentRouterContent, [
+    'verify-session/:sessionId', 'authorize', 'verifySession',
+  ], 'GET /verify-session: ');
+});
+
+test('GET /my-payments is protected', () => {
+  assertIncludesAll(paymentRouterContent, [
+    'my-payments', 'authorize', 'getMyPayments',
+  ], 'GET /my-payments: ');
+});
+
+test('GET /coin-balance is protected', () => {
+  assertIncludesAll(paymentRouterContent, [
+    'coin-balance', 'authorize', 'getCoinBalance',
+  ], 'GET /coin-balance: ');
+});
+
+test('GET /revenue-stats is protected (admin)', () => {
+  assertIncludesAll(paymentRouterContent, [
+    'revenue-stats', 'authorize', 'getRevenueStats',
+  ], 'GET /revenue-stats: ');
+});
+
+test('POST /webhook has no auth (Stripe sends directly)', () => {
+  assertIncludesAll(paymentRouterContent, [
+    'webhook', 'stripeWebhook',
+  ], 'POST /webhook: ');
+});
+
+// ═════════════════════════════════════════════
+//  33. PAYMENT — Integration & Security
+// ═════════════════════════════════════════════
+suite('33. Payment — Integration & Security');
+
+test('app.js imports paymentRouter', () => {
+  assertIncludes(appContent, "import paymentRouter from './routes/payment.router.js'", 'paymentRouter import missing');
+});
+
+test('app.js mounts /api/v1/payments', () => {
+  assertIncludes(appContent, '/api/v1/payments', 'payments route mount missing');
+});
+
+test('Stripe webhook raw body is configured before express.json()', () => {
+  const rawIdx = appContent.indexOf('express.raw(');
+  const jsonIdx = appContent.indexOf('app.use(express.json()');
+  assert(rawIdx > -1, 'express.raw not found in app.js');
+  assert(jsonIdx > -1, 'express.json() not found in app.js');
+  assert(rawIdx < jsonIdx, 'express.raw must come before express.json');
+});
+
+test('Payment controller authenticates user before checkout', () => {
+  assertIncludesAll(paymentController, [
+    'req.user?.id', 'User not authenticated', '401',
+  ], 'Auth check: ');
+});
+
+test('Payment records link to userId for ownership', () => {
+  assertIncludesAll(paymentModel, ['userId', 'ObjectId', "ref: 'User'"], 'Payment userId ref: ');
+});
+
+test('Coin balance is updated atomically with $inc', () => {
+  assertIncludesAll(paymentController, ['$inc', 'coins: COINS_PER_SUBSCRIPTION'], 'Atomic coin update: ');
+});
+
+test('Subscription expiry is set to 30 days', () => {
+  assertIncludes(paymentController, '30 * 24 * 60 * 60 * 1000', '30-day expiry missing');
+});
+
+test('User model subscription has stripeCustomerId for Stripe integration', () => {
+  assertIncludes(userModel, 'stripeCustomerId', 'stripeCustomerId missing from user model');
+});
+
+// ═════════════════════════════════════════════
 //  23. ANALYTICS — Real-time Endpoints
 // ═════════════════════════════════════════════
 suite('23. Analytics — Real-time Endpoints');
@@ -2015,6 +2355,385 @@ test('Proposal routes register both analytics endpoints', () => {
   assertIncludesAll(proposalRouter, [
     'top-templates', 'category-performance', 'getTopTemplates', 'getJobCategoryPerformance',
   ], 'Analytics routes: ');
+});
+
+// ═════════════════════════════════════════════
+//  34. FRONTEND — Subscription Tab (File Structure)
+// ═════════════════════════════════════════════
+suite('34. Frontend — Subscription Tab Structure');
+
+test('SubscriptionView.jsx exists', () => {
+  assert(frontendFileExists('src/components/user/subscription/SubscriptionView.jsx'), 'SubscriptionView.jsx missing');
+});
+
+test('Dashboard.jsx exists', () => {
+  assert(frontendFileExists('src/pages/Dashboard.jsx'), 'Dashboard.jsx missing');
+});
+
+test('Sidebar.jsx exists', () => {
+  assert(frontendFileExists('src/components/user/layout/Sidebar.jsx'), 'Sidebar.jsx missing');
+});
+
+test('InteractiveCard.jsx exists (shared UI)', () => {
+  assert(frontendFileExists('src/components/user/ui/InteractiveCard.jsx'), 'InteractiveCard.jsx missing');
+});
+
+test('api.js utility exists with paymentAPI', () => {
+  assert(frontendFileExists('src/utils/api.js'), 'api.js missing');
+});
+
+test('Context.jsx exists with coin balance state', () => {
+  assert(frontendFileExists('src/context/Context.jsx'), 'Context.jsx missing');
+});
+
+// ═════════════════════════════════════════════
+//  35. FRONTEND — SubscriptionView Component
+// ═════════════════════════════════════════════
+suite('35. Frontend — SubscriptionView Component');
+
+const subscriptionView = readFrontend('src/components/user/subscription/SubscriptionView.jsx');
+
+test('Imports React hooks (useState, useEffect, useContext, useCallback, useMemo)', () => {
+  assertIncludesAll(subscriptionView, ['useState', 'useEffect', 'useContext', 'useCallback', 'useMemo'], 'React hooks: ');
+});
+
+test('Imports AppContext for user/coin data', () => {
+  assertIncludesAll(subscriptionView, ['AppContext', 'useContext(AppContext)'], 'AppContext: ');
+});
+
+test('Imports paymentAPI from utils', () => {
+  assertIncludes(subscriptionView, "import { paymentAPI }", 'paymentAPI import missing');
+});
+
+test('Imports InteractiveCard shared component', () => {
+  assertIncludes(subscriptionView, "import { InteractiveCard }", 'InteractiveCard import missing');
+});
+
+test('Exports SubscriptionView as default', () => {
+  assertIncludes(subscriptionView, 'export default SubscriptionView', 'Default export missing');
+});
+
+test('Has formatDate helper function', () => {
+  assertIncludesAll(subscriptionView, ['formatDate', 'toLocaleDateString'], 'formatDate: ');
+});
+
+test('Has daysLeft helper function', () => {
+  assertIncludesAll(subscriptionView, ['daysLeft', 'Math.max', 'Math.ceil'], 'daysLeft: ');
+});
+
+test('Defines statusColors mapping for all subscription statuses', () => {
+  assertIncludesAll(subscriptionView, [
+    'statusColors', 'active', 'cancelled', 'past_due', 'trialing', 'none',
+  ], 'statusColors: ');
+});
+
+test('Defines paymentStatusColors mapping', () => {
+  assertIncludesAll(subscriptionView, [
+    'paymentStatusColors', 'completed', 'pending', 'failed', 'cancelled', 'refunded',
+  ], 'paymentStatusColors: ');
+});
+
+test('Shows current plan card with Crown icon', () => {
+  assertIncludesAll(subscriptionView, ['Current Plan', 'Crown'], 'Plan card: ');
+});
+
+test('Shows subscription status card with Zap icon', () => {
+  assertIncludesAll(subscriptionView, ['Status', 'Zap'], 'Status card: ');
+});
+
+test('Shows U-Coins balance card with refresh button', () => {
+  assertIncludesAll(subscriptionView, ['U-Coins', 'Coins', 'RefreshCw', 'handleRefreshCoins'], 'Coins card: ');
+});
+
+test('Shows expiry/days-left card with Clock icon', () => {
+  assertIncludesAll(subscriptionView, ['Expires', 'Clock', 'days left'], 'Expiry card: ');
+});
+
+test('Renders product cards with name, price, features', () => {
+  assertIncludesAll(subscriptionView, [
+    'product.name', 'product.price', 'product.features',
+  ], 'Product cards: ');
+});
+
+test('Product cards show Popular and Current badges', () => {
+  assertIncludesAll(subscriptionView, ['Popular', 'Current', 'isPopular', 'isCurrentPlan'], 'Badges: ');
+});
+
+test('Subscribe/Renew button triggers handleCheckout', () => {
+  assertIncludesAll(subscriptionView, ['handleCheckout', 'Subscribe', 'Renew'], 'Checkout button: ');
+});
+
+test('Shows coin history section with credit/debit entries', () => {
+  assertIncludesAll(subscriptionView, [
+    'Recent Coin Activity', 'recentCoinHistory', "type === 'credit'",
+  ], 'Coin history: ');
+});
+
+test('Shows payment history table with date, plan, amount, coins, status', () => {
+  assertIncludesAll(subscriptionView, [
+    'Payment History', 'Date', 'Plan', 'Amount', 'Coins', 'Status',
+  ], 'Payment table: ');
+});
+
+test('Payment amounts display in dollars (cents conversion)', () => {
+  assertIncludes(subscriptionView, 'p.amount / 100', 'Cents-to-dollars conversion missing');
+});
+
+test('Handles error state with AlertCircle display', () => {
+  assertIncludesAll(subscriptionView, ['AlertCircle', 'error', 'text-red'], 'Error display: ');
+});
+
+test('Handles loading state with Loader2 spinner for each section', () => {
+  assertIncludesAll(subscriptionView, ['Loader2', 'loading.coin', 'loading.payments', 'loading.products'], 'Loading states: ');
+});
+
+test('Handles empty states gracefully', () => {
+  assertIncludesAll(subscriptionView, [
+    'No plans available', 'No coin activity yet', 'No payments yet',
+  ], 'Empty states: ');
+});
+
+// ═════════════════════════════════════════════
+//  36. FRONTEND — Subscription Speed & Optimization
+// ═════════════════════════════════════════════
+suite('36. Frontend — Subscription Speed & Optimization');
+
+test('Fetches all data in parallel with Promise.allSettled (not sequential)', () => {
+  assertIncludesAll(subscriptionView, ['Promise.allSettled', 'getCoinBalance', 'getMyPayments'], 'Parallel fetch: ');
+  // Ensure all 3 calls are inside the same Promise.allSettled array
+  const settledIdx = subscriptionView.indexOf('Promise.allSettled');
+  const settledBlock = subscriptionView.substring(settledIdx, settledIdx + 400);
+  assertIncludesAll(settledBlock, ['getCoinBalance', 'getMyPayments', '/products'], 'All 3 in Promise.allSettled: ');
+});
+
+test('Uses independent loading states per section (not full-page block)', () => {
+  assertIncludes(subscriptionView, '{ coin: true, payments: true, products: true }', 'Independent loading states missing');
+});
+
+test('handleCheckout is memoized with useCallback', () => {
+  assertIncludes(subscriptionView, 'useCallback(async (planKey)', 'handleCheckout useCallback missing');
+});
+
+test('handleRefreshCoins is memoized with useCallback', () => {
+  assertIncludes(subscriptionView, 'handleRefreshCoins = useCallback', 'handleRefreshCoins useCallback missing');
+});
+
+test('recentCoinHistory is memoized with useMemo', () => {
+  assertIncludesAll(subscriptionView, [
+    'recentCoinHistory = useMemo', 'coinData',
+  ], 'useMemo for coinHistory: ');
+});
+
+test('Cleanup flag prevents state updates on unmounted component', () => {
+  assertIncludesAll(subscriptionView, [
+    'let cancelled = false',
+    'if (cancelled) return',
+    'cancelled = true',
+  ], 'Cleanup flag: ');
+});
+
+test('Coin history is limited to 5 entries (not full array render)', () => {
+  assertIncludes(subscriptionView, '.slice(0, 5)', 'Coin history slice(0,5) missing');
+});
+
+test('Payment history fetches only 5 records per page (not all)', () => {
+  assertIncludes(subscriptionView, 'limit: 5', 'Payment limit:5 missing');
+});
+
+test('Does not import or bundle entire Stripe SDK on frontend', () => {
+  const noStripeImport = !subscriptionView.includes("import Stripe from 'stripe'");
+  assert(noStripeImport, 'Stripe SDK should NOT be imported on frontend — use API redirect');
+});
+
+test('Uses API redirect for checkout (not client-side Stripe)', () => {
+  assertIncludesAll(subscriptionView, [
+    'createCheckoutSession', 'window.location.href',
+  ], 'Server-side checkout: ');
+});
+
+// ═════════════════════════════════════════════
+//  37. FRONTEND — Sidebar & Dashboard Wiring
+// ═════════════════════════════════════════════
+suite('37. Frontend — Sidebar & Dashboard Wiring');
+
+const sidebarContent = readFrontend('src/components/user/layout/Sidebar.jsx');
+const dashboardPage = readFrontend('src/pages/Dashboard.jsx');
+
+test('Sidebar imports CreditCard icon for subscription tab', () => {
+  assertIncludes(sidebarContent, 'CreditCard', 'CreditCard icon import missing');
+});
+
+test('Sidebar has subscription menu item', () => {
+  assertIncludesAll(sidebarContent, ["id: 'subscription'", "label: 'Subscription'"], 'Subscription menu item: ');
+});
+
+test('Sidebar lists 5 menu items (dashboard, subscription, prompts, notifications, settings)', () => {
+  assertIncludesAll(sidebarContent, [
+    "'dashboard'", "'subscription'", "'prompts'", "'notifications'", "'settings'",
+  ], 'Menu items: ');
+});
+
+test('Dashboard.jsx imports SubscriptionView', () => {
+  assertIncludes(dashboardPage, "import SubscriptionView from '../components/user/subscription/SubscriptionView'", 'SubscriptionView import missing');
+});
+
+test('Dashboard renderContent handles subscription case', () => {
+  assertIncludesAll(dashboardPage, ["case 'subscription'", '<SubscriptionView'], 'Subscription case: ');
+});
+
+test('SubscriptionView renders without props (self-contained via context)', () => {
+  assertIncludes(dashboardPage, '<SubscriptionView />', 'SubscriptionView should be self-contained (no props)');
+});
+
+// ═════════════════════════════════════════════
+//  38. FRONTEND — PaymentAPI & Context Integration
+// ═════════════════════════════════════════════
+suite('38. Frontend — PaymentAPI & Context Integration');
+
+const apiUtils = readFrontend('src/utils/api.js');
+const contextFile = readFrontend('src/context/Context.jsx');
+
+test('api.js exports paymentAPI object', () => {
+  assertIncludes(apiUtils, 'export const paymentAPI', 'paymentAPI export missing');
+});
+
+test('paymentAPI has createCheckoutSession method', () => {
+  assertIncludesAll(apiUtils, ['createCheckoutSession', 'create-checkout-session', 'POST'], 'createCheckoutSession: ');
+});
+
+test('paymentAPI has verifySession method', () => {
+  assertIncludesAll(apiUtils, ['verifySession', 'verify-session'], 'verifySession: ');
+});
+
+test('paymentAPI has getMyPayments with pagination params', () => {
+  assertIncludesAll(apiUtils, ['getMyPayments', 'page', 'limit', 'my-payments'], 'getMyPayments: ');
+});
+
+test('paymentAPI has getCoinBalance method', () => {
+  assertIncludesAll(apiUtils, ['getCoinBalance', 'coin-balance'], 'getCoinBalance: ');
+});
+
+test('paymentAPI has getRevenueStats method (admin)', () => {
+  assertIncludesAll(apiUtils, ['getRevenueStats', 'revenue-stats'], 'getRevenueStats: ');
+});
+
+test('Context imports paymentAPI', () => {
+  assertIncludes(contextFile, 'paymentAPI', 'paymentAPI not imported in Context');
+});
+
+test('Context provides coinBalance state', () => {
+  assertIncludesAll(contextFile, ['coinBalance', 'setCoinBalance'], 'coinBalance state: ');
+});
+
+test('Context provides fetchCoinBalance function', () => {
+  assertIncludesAll(contextFile, ['fetchCoinBalance', 'getCoinBalance'], 'fetchCoinBalance: ');
+});
+
+test('Context updates user object when coin balance changes', () => {
+  assertIncludesAll(contextFile, [
+    'updatedUser', 'coins', "localStorage.setItem('user'",
+  ], 'User coin sync: ');
+});
+
+// ═════════════════════════════════════════════
+//  39. APP — Speed & Optimization Checks
+// ═════════════════════════════════════════════
+suite('39. App — Speed & Optimization Checks');
+
+// Backend optimizations
+test('Job insertMany uses ordered:false for parallel inserts', () => {
+  assertIncludes(jobController, 'ordered: false', 'ordered:false missing (parallel inserts)');
+});
+
+test('Upwork service uses bulkWrite with upsert for efficient caching', () => {
+  assertIncludesAll(upworkService, ['bulkWrite', 'upsert'], 'Bulk upsert: ');
+});
+
+test('AI service uses AbortController timeout to prevent hanging requests', () => {
+  const abortCount = (aiService.match(/AbortController/g) || []).length;
+  assert(abortCount >= 4, `Expected ≥4 AbortController instances, found ${abortCount}`);
+});
+
+test('Job search is non-blocking (fires background, returns immediately)', () => {
+  assertIncludesAll(jobController, ['.then(', '.catch('], 'Non-blocking pattern: ');
+});
+
+test('Proposal generation is non-blocking (background async)', () => {
+  assertIncludesAll(proposalController, ['generateProposalAsync(', '.catch('], 'Non-blocking generation: ');
+});
+
+test('Pagination implemented in getFilteredJobs (skip/limit/pages)', () => {
+  assertIncludesAll(jobController, ['skip', 'limit', 'pages'], 'Job pagination: ');
+});
+
+test('Pagination implemented in getUserProposals', () => {
+  assertIncludesAll(proposalController, ['skip', 'limit', 'pages'], 'Proposal pagination: ');
+});
+
+test('Pagination implemented in getMyPayments', () => {
+  assertIncludesAll(paymentController, ['skip', 'limit', 'countDocuments'], 'Payment pagination: ');
+});
+
+test('getAllDemos limits max page size to 100', () => {
+  assertIncludes(demoController, 'Math.min(Math.max(', 'Page size limit missing');
+});
+
+test('TTL index on job cacheExpiry for auto-cleanup', () => {
+  const jobModel = readSource('models/job.model.js');
+  assertIncludes(jobModel, 'expireAfterSeconds: 0', 'TTL index missing');
+});
+
+test('Compound indexes on Proposal for query performance', () => {
+  const proposalModel = readSource('models/proposal.model.js');
+  assertIncludesAll(proposalModel, [
+    'userId: 1, jobId: 1',
+    'userId: 1, status: 1',
+  ], 'Compound indexes: ');
+});
+
+test('AI service timeout is configurable via PROPOSAL_GENERATION_TIMEOUT', () => {
+  assertIncludesAll(aiService, ['PROPOSAL_GENERATION_TIMEOUT', 'this.timeout'], 'Configurable timeout: ');
+});
+
+test('Upwork service caching is configurable (JOB_CACHE_TTL / JOB_CACHE_ENABLED)', () => {
+  assertIncludesAll(upworkService, ['cacheTTL', 'cacheEnabled'], 'Cache config: ');
+});
+
+// Frontend optimizations
+test('SubscriptionView component is lazy-loaded via tab switch (not route)', () => {
+  // It's only rendered when case === 'subscription', not imported at route level
+  assertIncludes(dashboardPage, "case 'subscription'", 'Lazy tab rendering');
+  // Not in main.jsx router — it's a tab, not a route
+  const mainJsx = readFrontend('src/main.jsx');
+  const noSubscriptionRoute = !mainJsx.includes('SubscriptionView');
+  assert(noSubscriptionRoute, 'SubscriptionView should NOT be a route — it is a dashboard tab');
+});
+
+test('Frontend uses fetch redirect for Stripe (zero SDK overhead)', () => {
+  // Check that stripe is NOT in frontend package.json as a dependency
+  const frontendPkg = JSON.parse(readFrontend('package.json'));
+  const noStripeDep = !frontendPkg.dependencies?.stripe && !frontendPkg.dependencies?.['@stripe/stripe-js'];
+  assert(noStripeDep, 'Stripe SDK should not be a frontend dependency — use server-side redirect');
+});
+
+test('Backend Stripe webhook uses raw body (not double-parsed JSON)', () => {
+  assertIncludes(appContent, "express.raw({ type: 'application/json' })", 'Raw body for webhook missing');
+});
+
+test('Context auto-clears errors after 5 seconds (no memory leaks)', () => {
+  assertIncludesAll(contextFile, ['setTimeout', 'clearTimeout', '5000'], 'Error auto-clear: ');
+});
+
+test('Backend file sizes are reasonable (controllers < 30KB each)', () => {
+  const maxSize = 30 * 1024; // 30KB
+  for (const ctrl of controllers) {
+    const content = readSource(ctrl);
+    assert(content.length < maxSize, `${ctrl} is ${(content.length / 1024).toFixed(1)}KB — should be < 30KB`);
+  }
+});
+
+test('Frontend SubscriptionView file size is reasonable (< 20KB)', () => {
+  assert(subscriptionView.length < 20 * 1024, `SubscriptionView is ${(subscriptionView.length / 1024).toFixed(1)}KB — should be < 20KB`);
 });
 
 // ═════════════════════════════════════════════

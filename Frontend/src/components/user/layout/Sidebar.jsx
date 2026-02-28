@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Heart, MessageSquare, Bell, Settings, ChevronLeft, LogOut } from 'lucide-react';
+import { Home, Heart, MessageSquare, Bell, Settings, ChevronLeft, LogOut, CreditCard } from 'lucide-react';
 
 export const Sidebar = ({ 
   user, 
@@ -13,6 +13,7 @@ export const Sidebar = ({
 }) => {
   const menuItems = [
     { id: 'dashboard', icon: Home, label: 'Dashboard' },
+    { id: 'subscription', icon: CreditCard, label: 'Subscription' },
     { id: 'prompts', icon: MessageSquare, label: 'Prompts' },
     { id: 'notifications', icon: Bell, label: 'Notifications' },
     { id: 'settings', icon: Settings, label: 'Settings' }
