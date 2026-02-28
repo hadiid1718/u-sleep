@@ -79,6 +79,35 @@ const userSchema = new mongoose.Schema({
         default: null,
     },
 
+    // Subscription & Coins
+    subscription: {
+        plan: {
+            type: String,
+            enum: ['none', 'manual', 'auto'],
+            default: 'none',
+        },
+        stripeCustomerId: { type: String, default: null },
+        stripeSubscriptionId: { type: String, default: null },
+        status: {
+            type: String,
+            enum: ['none', 'active', 'cancelled', 'past_due', 'trialing'],
+            default: 'none',
+        },
+        subscribedAt: { type: Date, default: null },
+        expiresAt: { type: Date, default: null },
+    },
+
+    coins: { type: Number, default: 0 },
+
+    coinHistory: [{
+        amount: { type: Number, required: true },
+        type: { type: String, enum: ['credit', 'debit'], required: true },
+        reason: { type: String, required: true },
+        jobId: { type: mongoose.Schema.Types.ObjectId, ref: 'Job', default: null },
+        proposalId: { type: mongoose.Schema.Types.ObjectId, ref: 'Proposal', default: null },
+        createdAt: { type: Date, default: Date.now },
+    }],
+
     // Statistics
     stats: {
         jobsViewed: { type: Number, default: 0 },

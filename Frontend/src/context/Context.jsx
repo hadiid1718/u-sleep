@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect } from "react";
-import { jobAPI, proposalAPI } from "../utils/api";
+import { jobAPI, proposalAPI, paymentAPI } from "../utils/api";
 
 export const AppContext = createContext(null);
 
@@ -288,6 +288,38 @@ export const ContextProvider = ({ children }) => {
     }
   };
 
+  /* =========================
+     Coin Balance
+  ========================== */
+  const [coinBalance, setCoinBalance] = useState(user?.coins || 0);
+
+  const fetchCoinBalance = async () => {
+    try {
+      const result = await paymentAPI.getCoinBalance();
+      if (result.success) {
+        const coins = result.data?.data?.coins || 0;
+        setCoinBalance(coins);
+        // Also update user object
+        if (user) {
+          const updatedUser = { ...user, coins };
+          setUser(updatedUser);
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+        }
+        return result;
+      }
+      return result;
+    } catch (err) {
+      return { success: false, error: { message: err.message } };
+    }
+  };
+
+  // Update coin balance when user changes
+  useEffect(() => {
+    if (user) {
+      setCoinBalance(user.coins || 0);
+    }
+  }, [user]);
+
   return (
     <AppContext.Provider
       value={{
@@ -337,6 +369,11 @@ export const ContextProvider = ({ children }) => {
         pollProposal,
         fetchUserProposals,
         fetchProposalStats,
+
+        /* Coins */
+        coinBalance,
+        setCoinBalance,
+        fetchCoinBalance,
       }}
     >
       {children}

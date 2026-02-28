@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, Loader2, AlertCircle } from 'lucide-react';
+import { CheckCircle, Loader2, AlertCircle, Coins } from 'lucide-react';
+import { paymentAPI } from '../../utils/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
@@ -11,10 +12,6 @@ const PricingSection = () => {
   const [userInfo, setUserInfo] = useState({ userId: null, email: null });
   const [products, setProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(true);
-
-  // Configuration
-  const API_URL = 'http://localhost:8080/api/payment'; // Change for production
-  const STRIPE_PUBLIC_KEY = 'pk_test_51PWImTD7s4U8RST425yk4TL9dvDzSxRLXqmEBOs0JuT5OWLUIePMb2tPKnszgZxhLMR4JzJA2kEltFQ7Ga2fRVEj00PucfJxOl';
 
   // Fetch products from backend
   useEffect(() => {
@@ -85,52 +82,23 @@ const PricingSection = () => {
       return;
     }
 
-    if (!userInfo.email) {
-      setError('Email is required to proceed with checkout');
-      return;
-    }
-
     setLoading(true);
     setError(null);
     setSuccess(null);
 
     try {
-      console.log('Creating checkout session for plan:', selectedPlan);
-      console.log('Calling API:', `${API_URL}/create-checkout-session`);
-      
-      // Call backend to create checkout session
-      const response = await fetch(`${API_URL}/create-checkout-session`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          plan: selectedPlan,
-          userId: userInfo.userId,
-          email: userInfo.email
-        }),
-      });
+      const result = await paymentAPI.createCheckoutSession(selectedPlan);
 
-      console.log('Response status:', response.status);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Server error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('Checkout session created:', data);
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to create checkout session');
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to create checkout session');
       }
 
       setSuccess('Redirecting to checkout...');
 
       // Redirect to Stripe Checkout
-      if (data.url) {
+      if (result.data?.url) {
         setTimeout(() => {
-          window.location.href = data.url;
+          window.location.href = result.data.url;
         }, 500);
       } else {
         throw new Error('No checkout URL provided');
@@ -138,16 +106,7 @@ const PricingSection = () => {
 
     } catch (err) {
       console.error('Checkout error:', err);
-      
-      let errorMessage = 'Failed to start checkout. Please try again.';
-      
-      if (err.message.includes('Failed to fetch')) {
-        errorMessage = 'Cannot connect to server. Make sure your backend is running on ' + API_URL;
-      } else {
-        errorMessage = err.message;
-      }
-      
-      setError(errorMessage);
+      setError(err.message || 'Failed to start checkout. Please try again.');
       setLoading(false);
     }
   };
@@ -157,39 +116,12 @@ const PricingSection = () => {
       setError('Please login first');
       return;
     }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const token = localStorage.getItem('authToken');
-      
-      const response = await fetch(`${API_URL}/create-portal-session`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ userId: userInfo.userId }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to access subscription portal');
-      }
-
-      window.location.href = data.url;
-
-    } catch (err) {
-      console.error('Portal error:', err);
-      setError(err.message || 'Failed to access subscription portal');
-      setLoading(false);
-    }
+    // Navigate to user dashboard settings
+    window.location.href = '/user/dashboard';
   };
 
   return (
-    <section className="bg-black py-20 px-6">
+    <section id="pricing" className="bg-black py-20 px-6">
       <div className="max-w-5xl mx-auto">
         <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-16">
           We have <span className="text-lime-400">{products.length} product{products.length !== 1 ? 's' : ''}</span>
@@ -313,7 +245,8 @@ const PricingSection = () => {
               </div>
               
               <div className="bg-gray-800 p-3 rounded text-gray-400 text-sm">
-                <p>{PLANS[selectedPlan].price.includes('/month') ? 'Recurring monthly charge' : 'Pay per response - Buy credits as needed'}</p>
+                <p>One-time payment • You&apos;ll receive <span className="text-orange-400 font-bold">30,000 U-Coins</span></p>
+                <p className="mt-1 text-xs text-gray-500">1 coin = 1 job proposal send</p>
               </div>
             </div>
 

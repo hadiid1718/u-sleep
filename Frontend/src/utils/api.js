@@ -771,3 +771,36 @@ export const reviewVideoAPI = {
   delete: (id) =>
     apiRequest(`/review-video/${id}`, { method: 'DELETE' }),
 };
+
+// =====================================================
+// PAYMENT API ENDPOINTS
+// =====================================================
+
+export const paymentAPI = {
+  /** Create a Stripe checkout session */
+  createCheckoutSession: (plan) =>
+    apiRequest('/payments/create-checkout-session', {
+      method: 'POST',
+      body: JSON.stringify({ plan }),
+    }),
+
+  /** Verify a checkout session (after payment) */
+  verifySession: (sessionId) =>
+    apiRequest(`/payments/verify-session/${sessionId}`),
+
+  /** Get current user's payment history */
+  getMyPayments: ({ page = 1, limit = 10 } = {}) => {
+    const params = new URLSearchParams();
+    params.append('page', page);
+    params.append('limit', limit);
+    return apiRequest(`/payments/my-payments?${params.toString()}`);
+  },
+
+  /** Get current user's coin balance */
+  getCoinBalance: () =>
+    apiRequest('/payments/coin-balance'),
+
+  /** Get revenue stats (admin) */
+  getRevenueStats: () =>
+    apiRequest('/payments/revenue-stats'),
+};

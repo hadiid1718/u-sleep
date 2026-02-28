@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { Copy, Send } from 'lucide-react';
+import { Copy, Send, Coins } from 'lucide-react';
 import { AppContext } from '../../context/Context';
 import { proposalAPI } from '../../utils/api';
 
@@ -7,7 +7,7 @@ const GeneratedResponse = ({ onLike, onDislike, onUpgrade, responseText, job }) 
   const [copied, setCopied] = useState(false);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
-  const { currentProposal } = useContext(AppContext);
+  const { currentProposal, coinBalance, setCoinBalance, user, setUser } = useContext(AppContext);
 
   const defaultResponse = `Hi, what specific features or functionalities do you envision for your real-time video communication platform? Have you identified any particular challenges or requirements for integrating AI captions?
 
@@ -37,11 +37,30 @@ What time are you available tomorrow for a quick call?`;
       alert('No proposal to send. Generate a proposal first.');
       return;
     }
+
+    // Check coin balance before sending
+    if (coinBalance < 1) {
+      alert('Insufficient U-Coins. You need at least 1 coin to send a proposal. Please subscribe to get more coins.');
+      return;
+    }
+
     setSending(true);
     try {
       const result = await proposalAPI.sendProposal(proposalId);
       if (result.success) {
         setSent(true);
+        // Update coin balance from response
+        if (result.data?.coinsRemaining !== undefined) {
+          setCoinBalance(result.data.coinsRemaining);
+          if (user) {
+            const updatedUser = { ...user, coins: result.data.coinsRemaining };
+            setUser(updatedUser);
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+          }
+        } else {
+          // Decrement locally as fallback
+          setCoinBalance(prev => Math.max(0, prev - 1));
+        }
       } else {
         alert(result.error?.message || 'Failed to send proposal');
       }
@@ -66,18 +85,30 @@ What time are you available tomorrow for a quick call?`;
           </button>
           <button 
             onClick={handleSend}
-            disabled={sending || sent}
+            disabled={sending || sent || coinBalance < 1}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-lg transition font-bold ${
               sent 
                 ? 'bg-green-600 text-white cursor-default' 
                 : sending 
                   ? 'bg-gray-600 text-gray-300 cursor-wait' 
-                  : 'bg-lime-400 text-gray-900 hover:bg-lime-500'
+                  : coinBalance < 1
+                    ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                    : 'bg-lime-400 text-gray-900 hover:bg-lime-500'
             }`}
           >
             <Send size={18} />
-            {sent ? 'Sent!' : sending ? 'Sending...' : 'Send'}
+            {sent ? 'Sent! (-1 coin)' : sending ? 'Sending...' : 'Send'}
           </button>
+        </div>
+        {/* Coin Balance Indicator */}
+        <div className="flex items-center gap-2 mt-2">
+          <Coins size={16} className="text-orange-400" />
+          <span className={`text-sm font-medium ${coinBalance < 1 ? 'text-red-400' : 'text-orange-400'}`}>
+            {coinBalance.toLocaleString()} U-Coins remaining
+          </span>
+          {coinBalance < 1 && (
+            <span className="text-red-400 text-xs">(Subscribe to get coins)</span>
+          )}
         </div>
       </div>
       

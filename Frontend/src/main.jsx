@@ -12,6 +12,8 @@ import UserDashboard from './pages/Dashboard.jsx'
 import AdminDashboard from './pages/AdminDashboard.jsx'
 import RequireJobs from './components/jobs/RequireJobs.jsx'
 import AdminSignIn from './pages/AdminSignIn.jsx'
+import PaymentSuccess from './pages/PaymentSuccess.jsx'
+import PaymentCancel from './pages/PaymentCancel.jsx'
 const router = createBrowserRouter([
   {
     path: "/",
@@ -44,6 +46,14 @@ const router = createBrowserRouter([
       {
         path: "/job-result",
         element: <RequireJobs><JobSelectionPage /></RequireJobs>
+      },
+      {
+        path: "/payment/success",
+        element: <PaymentSuccess />
+      },
+      {
+        path: "/payment/cancel",
+        element: <PaymentCancel />
       },
       {
         path: "/admin/sign-in",
