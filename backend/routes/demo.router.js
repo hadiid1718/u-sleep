@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import {
-    getAvailableDates,
-    getAvailableTimes,
-    scheduleDemo,
-    getAllDemos,
-    getDemoById,
-    updateDemoStatus,
-    cancelDemo
+  getAvailableDates,
+  getAvailableTimes,
+  scheduleDemo,
+  getAllDemos,
+  getDemoById,
+  updateDemoStatus,
+  cancelDemo,
 } from '../controller/demo.controller.js';
 
 const demoRouter = Router();

@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router } from 'express';
 import {
   getComparisons,
   getAllComparisons,
@@ -6,19 +6,19 @@ import {
   updateComparison,
   deleteComparison,
   seedComparisons,
-} from "../controller/comparison.controller.js";
-import authorize from "../middleware/auth.middleware.js";
+} from '../controller/comparison.controller.js';
+import authorize from '../middleware/auth.middleware.js';
 
 const comparisonRouter = Router();
 
 // Public
-comparisonRouter.get("/", getComparisons);
+comparisonRouter.get('/', getComparisons);
 
 // Admin only
-comparisonRouter.get("/all", authorize, getAllComparisons);
-comparisonRouter.post("/", authorize, createComparison);
-comparisonRouter.post("/seed", authorize, seedComparisons);
-comparisonRouter.put("/:id", authorize, updateComparison);
-comparisonRouter.delete("/:id", authorize, deleteComparison);
+comparisonRouter.get('/all', authorize, getAllComparisons);
+comparisonRouter.post('/', authorize, createComparison);
+comparisonRouter.post('/seed', authorize, seedComparisons);
+comparisonRouter.put('/:id', authorize, updateComparison);
+comparisonRouter.delete('/:id', authorize, deleteComparison);
 
 export default comparisonRouter;

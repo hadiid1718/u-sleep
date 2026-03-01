@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import {
-    searchJobs,
-    getFilteredJobs,
-    getJobDetail,
-    markJobAsMatched,
-    markJobAsRejected,
-    searchJobsWithAIAnalysis,
+  searchJobs,
+  getFilteredJobs,
+  getJobDetail,
+  markJobAsMatched,
+  markJobAsRejected,
+  searchJobsWithAIAnalysis,
 } from '../controller/job.controller.js';
 import authorize from '../middleware/auth.middleware.js';
 

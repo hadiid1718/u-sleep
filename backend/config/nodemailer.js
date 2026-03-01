@@ -1,5 +1,11 @@
-import nodemailer from "nodemailer";
-import { EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM } from "./env.js";
+import nodemailer from 'nodemailer';
+import {
+  EMAIL_HOST,
+  EMAIL_PORT,
+  EMAIL_USER,
+  EMAIL_PASS,
+  EMAIL_FROM,
+} from './env.js';
 
 /**
  * Nodemailer transporter configuration

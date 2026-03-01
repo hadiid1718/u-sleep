@@ -22,7 +22,7 @@ const colors = {
 
 let passedTests = 0;
 let failedTests = 0;
-let skippedTests = 0;
+const _skippedTests = 0;
 const failedDetails = [];
 const suiteResults = {};
 let currentSuite = '';
@@ -50,7 +50,11 @@ function test(description, fn) {
     suiteResults[currentSuite].failed++;
     log(`  ✗ ${description}`, 'red');
     log(`    → ${error.message}`, 'yellow');
-    failedDetails.push({ suite: currentSuite, test: description, error: error.message });
+    failedDetails.push({
+      suite: currentSuite,
+      test: description,
+      error: error.message,
+    });
   }
 }
 
@@ -59,7 +63,8 @@ function assert(condition, message) {
 }
 
 function assertIncludes(content, search, message) {
-  if (!content.includes(search)) throw new Error(message || `Expected content to include "${search}"`);
+  if (!content.includes(search))
+    throw new Error(message || `Expected content to include "${search}"`);
 }
 
 function assertIncludesAll(content, searches, prefix = '') {
@@ -73,7 +78,10 @@ function readSource(relativePath) {
 }
 
 function readFrontend(relativePath) {
-  return fs.readFileSync(path.join(__dirname, '..', 'Frontend', relativePath), 'utf8');
+  return fs.readFileSync(
+    path.join(__dirname, '..', 'Frontend', relativePath),
+    'utf8'
+  );
 }
 
 function frontendFileExists(relativePath) {
@@ -172,8 +180,15 @@ suite('2. Dependencies & package.json');
 const packageJson = JSON.parse(readSource('package.json'));
 
 const requiredDeps = [
-  'express', 'mongoose', 'jsonwebtoken', 'bcryptjs',
-  'cors', 'dotenv', 'cookie-parser', '@arcjet/node', 'stripe',
+  'express',
+  'mongoose',
+  'jsonwebtoken',
+  'bcryptjs',
+  'cors',
+  'dotenv',
+  'cookie-parser',
+  '@arcjet/node',
+  'stripe',
 ];
 
 requiredDeps.forEach(dep => {
@@ -191,16 +206,28 @@ test('package.json has "start" script', () => {
 });
 
 test('package.json has "test" script pointing to test.js', () => {
-  assert(packageJson.scripts?.test?.includes('test.js'), 'test script misconfigured');
+  assert(
+    packageJson.scripts?.test?.includes('test.js'),
+    'test script misconfigured'
+  );
 });
 
 test('package.json has "dev" script with nodemon', () => {
-  assert(packageJson.scripts?.dev?.includes('nodemon'), 'dev script missing nodemon');
-  assert(packageJson.devDependencies?.nodemon, 'nodemon not in devDependencies');
+  assert(
+    packageJson.scripts?.dev?.includes('nodemon'),
+    'dev script missing nodemon'
+  );
+  assert(
+    packageJson.devDependencies?.nodemon,
+    'nodemon not in devDependencies'
+  );
 });
 
 test('ESLint is configured as devDependency', () => {
-  assert(packageJson.devDependencies?.eslint, 'eslint missing from devDependencies');
+  assert(
+    packageJson.devDependencies?.eslint,
+    'eslint missing from devDependencies'
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -215,12 +242,20 @@ test('Initializes Express application', () => {
 });
 
 test('Configures CORS with origin, credentials, methods, headers', () => {
-  assertIncludesAll(appContent, ['cors(', 'origin', 'credentials', 'methods', 'allowedHeaders'], 'CORS: ');
+  assertIncludesAll(
+    appContent,
+    ['cors(', 'origin', 'credentials', 'methods', 'allowedHeaders'],
+    'CORS: '
+  );
 });
 
 test('Parses JSON and URL-encoded bodies', () => {
   assertIncludes(appContent, 'express.json()', 'express.json() missing');
-  assertIncludes(appContent, 'express.urlencoded', 'express.urlencoded missing');
+  assertIncludes(
+    appContent,
+    'express.urlencoded',
+    'express.urlencoded missing'
+  );
 });
 
 test('Uses cookie-parser middleware', () => {
@@ -228,26 +263,63 @@ test('Uses cookie-parser middleware', () => {
 });
 
 test('Uses Arcjet rate-limit/bot middleware', () => {
-  assertIncludes(appContent, 'arcjetMiddleware', 'Arcjet middleware not applied');
+  assertIncludes(
+    appContent,
+    'arcjetMiddleware',
+    'Arcjet middleware not applied'
+  );
 });
 
 test('Registers all 9 route modules', () => {
-  assertIncludesAll(appContent, ['authRouter', 'userRouter', 'demoRouter', 'jobRouter', 'proposalRouter', 'productRouter', 'comparisonRouter', 'reviewVideoRouter', 'paymentRouter'], 'Router missing: ');
+  assertIncludesAll(
+    appContent,
+    [
+      'authRouter',
+      'userRouter',
+      'demoRouter',
+      'jobRouter',
+      'proposalRouter',
+      'productRouter',
+      'comparisonRouter',
+      'reviewVideoRouter',
+      'paymentRouter',
+    ],
+    'Router missing: '
+  );
 });
 
 test('Mounts routes under /api/v1 namespace', () => {
-  assertIncludesAll(appContent, [
-    '/api/v1/auth', '/api/v1/users', '/api/v1/demo', '/api/v1/jobs', '/api/v1/proposals',
-    '/api/v1/products', '/api/v1/comparisons', '/api/v1/review-video', '/api/v1/payments',
-  ], 'Route mount missing: ');
+  assertIncludesAll(
+    appContent,
+    [
+      '/api/v1/auth',
+      '/api/v1/users',
+      '/api/v1/demo',
+      '/api/v1/jobs',
+      '/api/v1/proposals',
+      '/api/v1/products',
+      '/api/v1/comparisons',
+      '/api/v1/review-video',
+      '/api/v1/payments',
+    ],
+    'Route mount missing: '
+  );
 });
 
 test('Stripe webhook raw body middleware is before express.json()', () => {
-  assertIncludesAll(appContent, ["express.raw({ type: 'application/json' })", '/api/v1/payments/webhook'], 'Stripe webhook raw body: ');
+  assertIncludesAll(
+    appContent,
+    ["express.raw({ type: 'application/json' })", '/api/v1/payments/webhook'],
+    'Stripe webhook raw body: '
+  );
 });
 
 test('Applies global error middleware last', () => {
-  assertIncludes(appContent, 'app.use(errorMiddleware)', 'Error middleware not applied globally');
+  assertIncludes(
+    appContent,
+    'app.use(errorMiddleware)',
+    'Error middleware not applied globally'
+  );
 });
 
 test('Starts server with app.listen on PORT', () => {
@@ -255,11 +327,19 @@ test('Starts server with app.listen on PORT', () => {
 });
 
 test('Connects to database on startup', () => {
-  assertIncludes(appContent, 'await connectToDatabase()', 'connectToDatabase() not called on startup');
+  assertIncludes(
+    appContent,
+    'await connectToDatabase()',
+    'connectToDatabase() not called on startup'
+  );
 });
 
 test('Creates default admin on startup', () => {
-  assertIncludes(appContent, 'await createDefaultAdmin()', 'createDefaultAdmin() not called on startup');
+  assertIncludes(
+    appContent,
+    'await createDefaultAdmin()',
+    'createDefaultAdmin() not called on startup'
+  );
 });
 
 test('Exports app as default', () => {
@@ -279,13 +359,26 @@ test('Loads dotenv with environment-specific file', () => {
 });
 
 test('Exports core environment variables', () => {
-  assertIncludesAll(envContent, [
-    'PORT', 'FRONTEND_URL', 'NODE_ENV', 'DB_URI', 'JWT_SECRET', 'JWT_EXPIRES_IN',
-  ], 'Env var missing: ');
+  assertIncludesAll(
+    envContent,
+    [
+      'PORT',
+      'FRONTEND_URL',
+      'NODE_ENV',
+      'DB_URI',
+      'JWT_SECRET',
+      'JWT_EXPIRES_IN',
+    ],
+    'Env var missing: '
+  );
 });
 
 test('Exports admin credentials', () => {
-  assertIncludesAll(envContent, ['ADMIN_USERNAME', 'ADMIN_PASSWORD'], 'Admin env: ');
+  assertIncludesAll(
+    envContent,
+    ['ADMIN_USERNAME', 'ADMIN_PASSWORD'],
+    'Admin env: '
+  );
 });
 
 test('Exports Arcjet config', () => {
@@ -293,27 +386,53 @@ test('Exports Arcjet config', () => {
 });
 
 test('Exports Upwork API credentials', () => {
-  assertIncludesAll(envContent, [
-    'UPWORK_API_KEY', 'UPWORK_API_SECRET', 'UPWORK_CLIENT_ID',
-    'UPWORK_CLIENT_SECRET', 'UPWORK_ACCESS_TOKEN', 'UPWORK_REFRESH_TOKEN',
-  ], 'Upwork env: ');
+  assertIncludesAll(
+    envContent,
+    [
+      'UPWORK_API_KEY',
+      'UPWORK_API_SECRET',
+      'UPWORK_CLIENT_ID',
+      'UPWORK_CLIENT_SECRET',
+      'UPWORK_ACCESS_TOKEN',
+      'UPWORK_REFRESH_TOKEN',
+    ],
+    'Upwork env: '
+  );
 });
 
 test('Exports AI service keys', () => {
-  assertIncludesAll(envContent, [
-    'OPENAI_API_KEY', 'OPENAI_MODEL', 'OPENAI_ORG_ID',
-    'GOOGLE_GEMINI_API_KEY', 'GOOGLE_GEMINI_MODEL',
-  ], 'AI env: ');
+  assertIncludesAll(
+    envContent,
+    [
+      'OPENAI_API_KEY',
+      'OPENAI_MODEL',
+      'OPENAI_ORG_ID',
+      'GOOGLE_GEMINI_API_KEY',
+      'GOOGLE_GEMINI_MODEL',
+    ],
+    'AI env: '
+  );
 });
 
 test('Exports feature flags', () => {
-  assertIncludesAll(envContent, [
-    'USE_BACKGROUND_JOBS', 'JOB_CACHE_TTL', 'JOB_CACHE_ENABLED', 'PROPOSAL_GENERATION_TIMEOUT',
-  ], 'Feature flag: ');
+  assertIncludesAll(
+    envContent,
+    [
+      'USE_BACKGROUND_JOBS',
+      'JOB_CACHE_TTL',
+      'JOB_CACHE_ENABLED',
+      'PROPOSAL_GENERATION_TIMEOUT',
+    ],
+    'Feature flag: '
+  );
 });
 
 test('Exports Stripe keys', () => {
-  assertIncludesAll(envContent, ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET'], 'Stripe env: ');
+  assertIncludesAll(
+    envContent,
+    ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET'],
+    'Stripe env: '
+  );
 });
 
 suite('4. Configuration — arcjet.js');
@@ -321,7 +440,11 @@ suite('4. Configuration — arcjet.js');
 const arcjetContent = readSource('config/arcjet.js');
 
 test('Imports and configures @arcjet/node', () => {
-  assertIncludesAll(arcjetContent, ['arcjet', 'shield', 'detectBot', 'tokenBucket'], 'Arcjet import: ');
+  assertIncludesAll(
+    arcjetContent,
+    ['arcjet', 'shield', 'detectBot', 'tokenBucket'],
+    'Arcjet import: '
+  );
 });
 
 test('Shield protection is LIVE', () => {
@@ -330,11 +453,19 @@ test('Shield protection is LIVE', () => {
 });
 
 test('Bot detection allows search engine crawlers', () => {
-  assertIncludes(arcjetContent, 'CATEGORY:SEARCH_ENGINE', 'Search engine bots not allowed');
+  assertIncludes(
+    arcjetContent,
+    'CATEGORY:SEARCH_ENGINE',
+    'Search engine bots not allowed'
+  );
 });
 
 test('Token bucket rate limiting is configured', () => {
-  assertIncludesAll(arcjetContent, ['refillRate', 'interval', 'capacity'], 'Rate limit: ');
+  assertIncludesAll(
+    arcjetContent,
+    ['refillRate', 'interval', 'capacity'],
+    'Rate limit: '
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -345,7 +476,11 @@ suite('5. Database — mongodb.js');
 const mongoContent = readSource('database/mongodb.js');
 
 test('Uses mongoose.connect with DB_URI', () => {
-  assertIncludes(mongoContent, 'mongoose.connect(DB_URI)', 'mongoose.connect(DB_URI) missing');
+  assertIncludes(
+    mongoContent,
+    'mongoose.connect(DB_URI)',
+    'mongoose.connect(DB_URI) missing'
+  );
 });
 
 test('Validates DB_URI presence before connecting', () => {
@@ -353,7 +488,11 @@ test('Validates DB_URI presence before connecting', () => {
 });
 
 test('Handles connection errors with process.exit(1)', () => {
-  assertIncludes(mongoContent, 'process.exit(1)', 'process.exit(1) missing on DB error');
+  assertIncludes(
+    mongoContent,
+    'process.exit(1)',
+    'process.exit(1) missing on DB error'
+  );
 });
 
 test('Logs connected environment', () => {
@@ -368,11 +507,19 @@ suite('6. Models — User');
 const userModel = readSource('models/user.model.js');
 
 test('Has name field with min/max length validation', () => {
-  assertIncludesAll(userModel, ['name', 'minlength', 'maxlength', 'required', 'trim'], 'User name: ');
+  assertIncludesAll(
+    userModel,
+    ['name', 'minlength', 'maxlength', 'required', 'trim'],
+    'User name: '
+  );
 });
 
 test('Has email field with unique, lowercase, trim', () => {
-  assertIncludesAll(userModel, ['email', 'unique', 'lowercase', 'trim'], 'User email: ');
+  assertIncludesAll(
+    userModel,
+    ['email', 'unique', 'lowercase', 'trim'],
+    'User email: '
+  );
 });
 
 test('Has password field with minlength 6', () => {
@@ -380,7 +527,11 @@ test('Has password field with minlength 6', () => {
 });
 
 test('Has jobPreferences with keywords, rateType, hourlyRate, fixedRate', () => {
-  assertIncludesAll(userModel, ['jobPreferences', 'keywords', 'rateType', 'hourlyRate', 'fixedRate'], 'jobPreferences: ');
+  assertIncludesAll(
+    userModel,
+    ['jobPreferences', 'keywords', 'rateType', 'hourlyRate', 'fixedRate'],
+    'jobPreferences: '
+  );
 });
 
 test('rateType enum has hourly and fixed', () => {
@@ -388,7 +539,11 @@ test('rateType enum has hourly and fixed', () => {
 });
 
 test('Has hourlyRateRange and fixedRateRange with min/max', () => {
-  assertIncludesAll(userModel, ['hourlyRateRange', 'fixedRateRange'], 'Rate ranges: ');
+  assertIncludesAll(
+    userModel,
+    ['hourlyRateRange', 'fixedRateRange'],
+    'Rate ranges: '
+  );
 });
 
 test('Has userRole enum (freelancer, agency)', () => {
@@ -404,40 +559,79 @@ test('Has upworkProfileUrl', () => {
 });
 
 test('Has isFlagged, flagReason, flaggedAt for account moderation', () => {
-  assertIncludesAll(userModel, ['isFlagged', 'flagReason', 'flaggedAt'], 'Flag fields: ');
+  assertIncludesAll(
+    userModel,
+    ['isFlagged', 'flagReason', 'flaggedAt'],
+    'Flag fields: '
+  );
 });
 
 test('Has subscription object with plan, stripeCustomerId, status, dates', () => {
-  assertIncludesAll(userModel, [
-    'subscription', 'stripeCustomerId', 'stripeSubscriptionId',
-    'subscribedAt', 'expiresAt',
-  ], 'Subscription fields: ');
+  assertIncludesAll(
+    userModel,
+    [
+      'subscription',
+      'stripeCustomerId',
+      'stripeSubscriptionId',
+      'subscribedAt',
+      'expiresAt',
+    ],
+    'Subscription fields: '
+  );
 });
 
 test('Subscription plan enum has none, manual, auto', () => {
-  assertIncludesAll(userModel, ["'none'", "'manual'", "'auto'"], 'Subscription plan enum: ');
+  assertIncludesAll(
+    userModel,
+    ["'none'", "'manual'", "'auto'"],
+    'Subscription plan enum: '
+  );
 });
 
 test('Subscription status enum has none, active, cancelled, past_due, trialing', () => {
-  assertIncludesAll(userModel, ["'active'", "'cancelled'", "'past_due'", "'trialing'"], 'Subscription status enum: ');
+  assertIncludesAll(
+    userModel,
+    ["'active'", "'cancelled'", "'past_due'", "'trialing'"],
+    'Subscription status enum: '
+  );
 });
 
 test('Has coins field (Number, default 0)', () => {
-  assertIncludesAll(userModel, ['coins', 'Number', 'default: 0'], 'Coins field: ');
+  assertIncludesAll(
+    userModel,
+    ['coins', 'Number', 'default: 0'],
+    'Coins field: '
+  );
 });
 
 test('Has coinHistory array with amount, type (credit/debit), reason', () => {
-  assertIncludesAll(userModel, ['coinHistory', 'amount', "'credit'", "'debit'", 'reason'], 'CoinHistory: ');
+  assertIncludesAll(
+    userModel,
+    ['coinHistory', 'amount', "'credit'", "'debit'", 'reason'],
+    'CoinHistory: '
+  );
 });
 
 test('coinHistory entries reference optional jobId and proposalId', () => {
-  assertIncludesAll(userModel, ["ref: 'Job'", "ref: 'Proposal'"], 'CoinHistory refs: ');
+  assertIncludesAll(
+    userModel,
+    ["ref: 'Job'", "ref: 'Proposal'"],
+    'CoinHistory refs: '
+  );
 });
 
 test('Has stats object with all counters', () => {
-  assertIncludesAll(userModel, [
-    'jobsViewed', 'jobsMatched', 'proposalsSent', 'proposalsAccepted', 'proposalsRejected',
-  ], 'Stats: ');
+  assertIncludesAll(
+    userModel,
+    [
+      'jobsViewed',
+      'jobsMatched',
+      'proposalsSent',
+      'proposalsAccepted',
+      'proposalsRejected',
+    ],
+    'Stats: '
+  );
 });
 
 test('Has timestamps enabled', () => {
@@ -449,7 +643,11 @@ suite('6. Models — Admin');
 const adminModel = readSource('models/admin.model.js');
 
 test('Has username (required, unique, trim, minlength)', () => {
-  assertIncludesAll(adminModel, ['username', 'required', 'unique', 'trim', 'minlength'], 'Admin username: ');
+  assertIncludesAll(
+    adminModel,
+    ['username', 'required', 'unique', 'trim', 'minlength'],
+    'Admin username: '
+  );
 });
 
 test('Has password with select: false for security', () => {
@@ -457,7 +655,11 @@ test('Has password with select: false for security', () => {
 });
 
 test('Has role enum (admin, super_admin)', () => {
-  assertIncludesAll(adminModel, ["'admin'", "'super_admin'"], 'Admin role enum: ');
+  assertIncludesAll(
+    adminModel,
+    ["'admin'", "'super_admin'"],
+    'Admin role enum: '
+  );
 });
 
 test('Has isActive boolean', () => {
@@ -477,19 +679,35 @@ test('Has email with regex validation', () => {
 });
 
 test('Has optional name, company, phone', () => {
-  assertIncludesAll(demoModel, ['name', 'company', 'phone'], 'Demo optional fields: ');
+  assertIncludesAll(
+    demoModel,
+    ['name', 'company', 'phone'],
+    'Demo optional fields: '
+  );
 });
 
 test('Has demoDate (required)', () => {
-  assertIncludesAll(demoModel, ['demoDate', 'Date', 'required'], 'Demo demoDate: ');
+  assertIncludesAll(
+    demoModel,
+    ['demoDate', 'Date', 'required'],
+    'Demo demoDate: '
+  );
 });
 
 test('Has timeSlot with 9 enum values (09:00 AM – 05:00 PM)', () => {
-  assertIncludesAll(demoModel, ['timeSlot', 'enum', '09:00 AM', '05:00 PM'], 'Demo timeSlot: ');
+  assertIncludesAll(
+    demoModel,
+    ['timeSlot', 'enum', '09:00 AM', '05:00 PM'],
+    'Demo timeSlot: '
+  );
 });
 
 test('Has status enum (scheduled, completed, cancelled, no-show)', () => {
-  assertIncludesAll(demoModel, ["'scheduled'", "'completed'", "'cancelled'", "'no-show'"], 'Demo status: ');
+  assertIncludesAll(
+    demoModel,
+    ["'scheduled'", "'completed'", "'cancelled'", "'no-show'"],
+    'Demo status: '
+  );
 });
 
 test('Has notes field with maxlength', () => {
@@ -501,7 +719,11 @@ suite('6. Models — Job');
 const jobModel = readSource('models/job.model.js');
 
 test('Has upworkJobId (required, unique, indexed)', () => {
-  assertIncludesAll(jobModel, ['upworkJobId', 'required', 'unique', 'index'], 'Job upworkJobId: ');
+  assertIncludesAll(
+    jobModel,
+    ['upworkJobId', 'required', 'unique', 'index'],
+    'Job upworkJobId: '
+  );
 });
 
 test('Has title and description (required)', () => {
@@ -509,7 +731,11 @@ test('Has title and description (required)', () => {
 });
 
 test('Has skills array, proposalsCount, duration, workloadHoursPerWeek', () => {
-  assertIncludesAll(jobModel, ['skills', 'proposalsCount', 'duration', 'workloadHoursPerWeek'], 'Job details: ');
+  assertIncludesAll(
+    jobModel,
+    ['skills', 'proposalsCount', 'duration', 'workloadHoursPerWeek'],
+    'Job details: '
+  );
 });
 
 test('Has budgetType enum (fixed, hourly)', () => {
@@ -525,11 +751,26 @@ test('Has hourlyRate with min/max', () => {
 });
 
 test('Has clientInfo with rating, paymentVerified, totalHires, country', () => {
-  assertIncludesAll(jobModel, ['clientInfo', 'rating', 'paymentVerified', 'totalHires', 'country'], 'clientInfo: ');
+  assertIncludesAll(
+    jobModel,
+    ['clientInfo', 'rating', 'paymentVerified', 'totalHires', 'country'],
+    'clientInfo: '
+  );
 });
 
 test('Has aiAnalysis with matchScore, recommendation, greenFlags, redFlags, reasoning', () => {
-  assertIncludesAll(jobModel, ['aiAnalysis', 'matchScore', 'recommendation', 'greenFlags', 'redFlags', 'reasoning'], 'aiAnalysis: ');
+  assertIncludesAll(
+    jobModel,
+    [
+      'aiAnalysis',
+      'matchScore',
+      'recommendation',
+      'greenFlags',
+      'redFlags',
+      'reasoning',
+    ],
+    'aiAnalysis: '
+  );
 });
 
 test('Has userId ref to User model', () => {
@@ -537,11 +778,19 @@ test('Has userId ref to User model', () => {
 });
 
 test('Has matchStatus enum (pending, matched, rejected, archived)', () => {
-  assertIncludesAll(jobModel, ["'pending'", "'matched'", "'rejected'", "'archived'"], 'matchStatus enum: ');
+  assertIncludesAll(
+    jobModel,
+    ["'pending'", "'matched'", "'rejected'", "'archived'"],
+    'matchStatus enum: '
+  );
 });
 
 test('Has cache fields (isCached, cacheExpiry, isActive)', () => {
-  assertIncludesAll(jobModel, ['isCached', 'cacheExpiry', 'isActive'], 'Cache fields: ');
+  assertIncludesAll(
+    jobModel,
+    ['isCached', 'cacheExpiry', 'isActive'],
+    'Cache fields: '
+  );
 });
 
 test('Has TTL index on cacheExpiry', () => {
@@ -553,7 +802,11 @@ suite('6. Models — Proposal');
 const proposalModel = readSource('models/proposal.model.js');
 
 test('Has userId and jobId refs (required, indexed)', () => {
-  assertIncludesAll(proposalModel, ['userId', 'jobId', "ref: 'User'", "ref: 'Job'", 'required', 'index'], 'Proposal refs: ');
+  assertIncludesAll(
+    proposalModel,
+    ['userId', 'jobId', "ref: 'User'", "ref: 'Job'", 'required', 'index'],
+    'Proposal refs: '
+  );
 });
 
 test('Has upworkJobId (required)', () => {
@@ -561,45 +814,87 @@ test('Has upworkJobId (required)', () => {
 });
 
 test('Has content (required) and contentType enum', () => {
-  assertIncludesAll(proposalModel, ['content', 'contentType', "'original'", "'upgraded_with_case_study'"], 'Proposal content: ');
+  assertIncludesAll(
+    proposalModel,
+    ['content', 'contentType', "'original'", "'upgraded_with_case_study'"],
+    'Proposal content: '
+  );
 });
 
 test('Has caseStudy nested object (title, description, results)', () => {
-  assertIncludesAll(proposalModel, ['caseStudy', 'title', 'description', 'results'], 'caseStudy: ');
+  assertIncludesAll(
+    proposalModel,
+    ['caseStudy', 'title', 'description', 'results'],
+    'caseStudy: '
+  );
 });
 
 test('Has status with full workflow enum (7 statuses)', () => {
-  assertIncludesAll(proposalModel, [
-    "'draft'", "'sent'", "'received'", "'viewed'", "'accepted'", "'rejected'", "'withdrawn'",
-  ], 'Proposal status enum: ');
+  assertIncludesAll(
+    proposalModel,
+    [
+      "'draft'",
+      "'sent'",
+      "'received'",
+      "'viewed'",
+      "'accepted'",
+      "'rejected'",
+      "'withdrawn'",
+    ],
+    'Proposal status enum: '
+  );
 });
 
 test('Has statusHistory array with timestamp and notes', () => {
-  assertIncludesAll(proposalModel, ['statusHistory', 'timestamp', 'notes'], 'statusHistory: ');
+  assertIncludesAll(
+    proposalModel,
+    ['statusHistory', 'timestamp', 'notes'],
+    'statusHistory: '
+  );
 });
 
 test('Has bid fields (bidAmount, estimatedDuration, deliveryDate)', () => {
-  assertIncludesAll(proposalModel, ['bidAmount', 'estimatedDuration', 'deliveryDate'], 'Bid fields: ');
+  assertIncludesAll(
+    proposalModel,
+    ['bidAmount', 'estimatedDuration', 'deliveryDate'],
+    'Bid fields: '
+  );
 });
 
 test('Has AI generation metadata (aiService, aiModel, generatedAt)', () => {
-  assertIncludesAll(proposalModel, ['aiService', 'aiModel', 'generatedAt'], 'AI metadata: ');
+  assertIncludesAll(
+    proposalModel,
+    ['aiService', 'aiModel', 'generatedAt'],
+    'AI metadata: '
+  );
 });
 
 test('aiService enum includes openai and gemini', () => {
-  assertIncludesAll(proposalModel, ["'openai'", "'gemini'"], 'aiService enum: ');
+  assertIncludesAll(
+    proposalModel,
+    ["'openai'", "'gemini'"],
+    'aiService enum: '
+  );
 });
 
 test('Has userRating (1-5) and userFeedback', () => {
-  assertIncludesAll(proposalModel, ['userRating', 'userFeedback', 'min: 1', 'max: 5'], 'User rating: ');
+  assertIncludesAll(
+    proposalModel,
+    ['userRating', 'userFeedback', 'min: 1', 'max: 5'],
+    'User rating: '
+  );
 });
 
 test('Has compound indexes for performance', () => {
-  assertIncludesAll(proposalModel, [
-    'userId: 1, jobId: 1',
-    'userId: 1, status: 1',
-    'upworkJobId: 1, userId: 1',
-  ], 'Proposal index: ');
+  assertIncludesAll(
+    proposalModel,
+    [
+      'userId: 1, jobId: 1',
+      'userId: 1, status: 1',
+      'upworkJobId: 1, userId: 1',
+    ],
+    'Proposal index: '
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -610,23 +905,43 @@ suite('7. Middleware — auth.middleware.js');
 const authMiddleware = readSource('middleware/auth.middleware.js');
 
 test('Extracts Bearer token from Authorization header', () => {
-  assertIncludesAll(authMiddleware, ['authorization', 'Bearer', 'split'], 'Token extraction: ');
+  assertIncludesAll(
+    authMiddleware,
+    ['authorization', 'Bearer', 'split'],
+    'Token extraction: '
+  );
 });
 
 test('Verifies JWT with jwt.verify and JWT_SECRET', () => {
-  assertIncludesAll(authMiddleware, ['jwt.verify', 'JWT_SECRET'], 'JWT verify: ');
+  assertIncludesAll(
+    authMiddleware,
+    ['jwt.verify', 'JWT_SECRET'],
+    'JWT verify: '
+  );
 });
 
 test('Handles admin tokens (decoded.adminId → req.admin)', () => {
-  assertIncludesAll(authMiddleware, ['decoded.adminId', 'req.admin', 'req.adminId'], 'Admin token: ');
+  assertIncludesAll(
+    authMiddleware,
+    ['decoded.adminId', 'req.admin', 'req.adminId'],
+    'Admin token: '
+  );
 });
 
 test('Handles user tokens (decoded.userId → req.user)', () => {
-  assertIncludesAll(authMiddleware, ['decoded.userId', 'req.user'], 'User token: ');
+  assertIncludesAll(
+    authMiddleware,
+    ['decoded.userId', 'req.user'],
+    'User token: '
+  );
 });
 
 test('Looks up Admin/User in DB and excludes password', () => {
-  assertIncludesAll(authMiddleware, ["select('-password')", 'Admin.findById', 'User.findById'], 'DB lookup: ');
+  assertIncludesAll(
+    authMiddleware,
+    ["select('-password')", 'Admin.findById', 'User.findById'],
+    'DB lookup: '
+  );
 });
 
 test('Returns 401 for missing or invalid tokens', () => {
@@ -638,15 +953,27 @@ suite('7. Middleware — error.middleware.js');
 const errorMiddleware = readSource('middleware/error.middleware.js');
 
 test('Handles CastError (404 Resource Not Found)', () => {
-  assertIncludesAll(errorMiddleware, ['CastError', '404', 'Resource Not Found'], 'CastError: ');
+  assertIncludesAll(
+    errorMiddleware,
+    ['CastError', '404', 'Resource Not Found'],
+    'CastError: '
+  );
 });
 
 test('Handles MongoDB duplicate key error (11000)', () => {
-  assertIncludesAll(errorMiddleware, ['11000', 'Duplicate field'], 'Duplicate key: ');
+  assertIncludesAll(
+    errorMiddleware,
+    ['11000', 'Duplicate field'],
+    'Duplicate key: '
+  );
 });
 
 test('Handles Mongoose ValidationError', () => {
-  assertIncludesAll(errorMiddleware, ['ValidationError', 'err.errors'], 'ValidationError: ');
+  assertIncludesAll(
+    errorMiddleware,
+    ['ValidationError', 'err.errors'],
+    'ValidationError: '
+  );
 });
 
 test('Defaults to 500 Server Error', () => {
@@ -666,11 +993,19 @@ test('Calls aj.protect with rate limit token', () => {
 });
 
 test('Returns 429 for rate limit exceeded', () => {
-  assertIncludesAll(arcjetMW, ['429', 'isRateLimit', 'Rate Limit'], '429 response: ');
+  assertIncludesAll(
+    arcjetMW,
+    ['429', 'isRateLimit', 'Rate Limit'],
+    '429 response: '
+  );
 });
 
 test('Returns 403 for bot detection', () => {
-  assertIncludesAll(arcjetMW, ['403', 'isBot', 'Bots are not allowed'], '403 bot response: ');
+  assertIncludesAll(
+    arcjetMW,
+    ['403', 'isBot', 'Bots are not allowed'],
+    '403 bot response: '
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -681,11 +1016,19 @@ suite('8. Controllers — auth.controller.js');
 const authController = readSource('controller/auth.controller.js');
 
 test('Exports createDefaultAdmin function', () => {
-  assertIncludes(authController, 'export const createDefaultAdmin', 'createDefaultAdmin not exported');
+  assertIncludes(
+    authController,
+    'export const createDefaultAdmin',
+    'createDefaultAdmin not exported'
+  );
 });
 
 test('createDefaultAdmin checks for existing admin before creating', () => {
-  assertIncludesAll(authController, ['Admin.findOne', 'ADMIN_USERNAME', 'ADMIN_PASSWORD'], 'Default admin: ');
+  assertIncludesAll(
+    authController,
+    ['Admin.findOne', 'ADMIN_USERNAME', 'ADMIN_PASSWORD'],
+    'Default admin: '
+  );
 });
 
 test('createDefaultAdmin creates super_admin role', () => {
@@ -693,11 +1036,19 @@ test('createDefaultAdmin creates super_admin role', () => {
 });
 
 test('Exports adminLogin function', () => {
-  assertIncludes(authController, 'export const adminLogin', 'adminLogin not exported');
+  assertIncludes(
+    authController,
+    'export const adminLogin',
+    'adminLogin not exported'
+  );
 });
 
 test('adminLogin validates username and password presence', () => {
-  assertIncludes(authController, '!username || !password', 'Input validation missing');
+  assertIncludes(
+    authController,
+    '!username || !password',
+    'Input validation missing'
+  );
 });
 
 test('adminLogin checks isActive status', () => {
@@ -705,29 +1056,57 @@ test('adminLogin checks isActive status', () => {
 });
 
 test('adminLogin uses select("+password") for password field', () => {
-  assertIncludes(authController, 'select("+password")', 'select("+password") missing');
+  assertIncludes(
+    authController,
+    'select("+password")',
+    'select("+password") missing'
+  );
 });
 
 test('adminLogin signs JWT with adminId and role', () => {
-  assertIncludesAll(authController, ['adminId: admin._id', 'role: admin.role'], 'Admin JWT payload: ');
+  assertIncludesAll(
+    authController,
+    ['adminId: admin._id', 'role: admin.role'],
+    'Admin JWT payload: '
+  );
 });
 
 test('Exports getAdminProfile function', () => {
-  assertIncludes(authController, 'export const getAdminProfile', 'getAdminProfile not exported');
+  assertIncludes(
+    authController,
+    'export const getAdminProfile',
+    'getAdminProfile not exported'
+  );
 });
 
 test('getAdminProfile reads adminId from req.admin or req.adminId', () => {
-  assertIncludesAll(authController, ['req.admin?._id', 'req.adminId'], 'Admin profile auth: ');
+  assertIncludesAll(
+    authController,
+    ['req.admin?._id', 'req.adminId'],
+    'Admin profile auth: '
+  );
 });
 
 test('Exports signUp with MongoDB transaction session', () => {
-  assertIncludesAll(authController, [
-    'export const signUp', 'startSession', 'startTransaction', 'commitTransaction', 'abortTransaction',
-  ], 'signUp transaction: ');
+  assertIncludesAll(
+    authController,
+    [
+      'export const signUp',
+      'startSession',
+      'startTransaction',
+      'commitTransaction',
+      'abortTransaction',
+    ],
+    'signUp transaction: '
+  );
 });
 
 test('signUp checks for existing user by email', () => {
-  assertIncludes(authController, 'User.findOne({ email })', 'Existing user check missing');
+  assertIncludes(
+    authController,
+    'User.findOne({ email })',
+    'Existing user check missing'
+  );
 });
 
 test('signUp returns 409 for duplicate email', () => {
@@ -735,15 +1114,27 @@ test('signUp returns 409 for duplicate email', () => {
 });
 
 test('signUp hashes password with bcrypt (genSalt + hash)', () => {
-  assertIncludesAll(authController, ['bcrypt.genSalt', 'bcrypt.hash'], 'Password hashing: ');
+  assertIncludesAll(
+    authController,
+    ['bcrypt.genSalt', 'bcrypt.hash'],
+    'Password hashing: '
+  );
 });
 
 test('signUp signs JWT with userId', () => {
-  assertIncludes(authController, 'userId: newUsers[0]._id', 'signUp JWT userId missing');
+  assertIncludes(
+    authController,
+    'userId: newUsers[0]._id',
+    'signUp JWT userId missing'
+  );
 });
 
 test('signUp returns 201 with token and user data', () => {
-  assertIncludesAll(authController, ['201', 'token', 'user: newUsers[0]'], 'signUp response: ');
+  assertIncludesAll(
+    authController,
+    ['201', 'token', 'user: newUsers[0]'],
+    'signUp response: '
+  );
 });
 
 test('Exports signIn function', () => {
@@ -763,7 +1154,11 @@ test('signIn returns 401 for invalid password', () => {
 });
 
 test('Exports signOut function (clears cookie)', () => {
-  assertIncludesAll(authController, ['export const signOut', 'clearCookie'], 'signOut: ');
+  assertIncludesAll(
+    authController,
+    ['export const signOut', 'clearCookie'],
+    'signOut: '
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -774,27 +1169,51 @@ suite('9. Controllers — user.controller.js');
 const userController = readSource('controller/user.controller.js');
 
 test('Exports getUsers (all users, password excluded)', () => {
-  assertIncludesAll(userController, ['export const getUsers', 'User.find(', 'select("-password")'], 'getUsers: ');
+  assertIncludesAll(
+    userController,
+    ['export const getUsers', 'User.find(', 'select("-password")'],
+    'getUsers: '
+  );
 });
 
 test('Exports getUser (single user by ID)', () => {
-  assertIncludesAll(userController, ['export const getUser', 'User.findById', 'req.params.id'], 'getUser: ');
+  assertIncludesAll(
+    userController,
+    ['export const getUser', 'User.findById', 'req.params.id'],
+    'getUser: '
+  );
 });
 
 test('Exports updateUser with runValidators', () => {
-  assertIncludesAll(userController, ['export const updateUser', 'findByIdAndUpdate', 'runValidators'], 'updateUser: ');
+  assertIncludesAll(
+    userController,
+    ['export const updateUser', 'findByIdAndUpdate', 'runValidators'],
+    'updateUser: '
+  );
 });
 
 test('Exports deleteUser', () => {
-  assertIncludesAll(userController, ['export const deleteUser', 'findByIdAndDelete'], 'deleteUser: ');
+  assertIncludesAll(
+    userController,
+    ['export const deleteUser', 'findByIdAndDelete'],
+    'deleteUser: '
+  );
 });
 
 test('Exports flagUser with isFlagged boolean validation', () => {
-  assertIncludesAll(userController, ['export const flagUser', 'isFlagged', 'flagReason', 'flaggedAt'], 'flagUser: ');
+  assertIncludesAll(
+    userController,
+    ['export const flagUser', 'isFlagged', 'flagReason', 'flaggedAt'],
+    'flagUser: '
+  );
 });
 
 test('flagUser validates isFlagged is boolean', () => {
-  assertIncludes(userController, "typeof isFlagged !== 'boolean'", 'isFlagged type check missing');
+  assertIncludes(
+    userController,
+    "typeof isFlagged !== 'boolean'",
+    'isFlagged type check missing'
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -805,33 +1224,59 @@ suite('10. Controllers — demo.controller.js');
 const demoController = readSource('controller/demo.controller.js');
 
 test('Exports getAvailableDates (excludes weekends, next 30 days)', () => {
-  assertIncludesAll(demoController, ['export const getAvailableDates', 'getDay()', '!== 0', '!== 6'], 'getAvailableDates: ');
+  assertIncludesAll(
+    demoController,
+    ['export const getAvailableDates', 'getDay()', '!== 0', '!== 6'],
+    'getAvailableDates: '
+  );
 });
 
 test('Exports getAvailableTimes with date validation', () => {
-  assertIncludesAll(demoController, ['export const getAvailableTimes', 'Invalid date format', '400'], 'getAvailableTimes: ');
+  assertIncludesAll(
+    demoController,
+    ['export const getAvailableTimes', 'Invalid date format', '400'],
+    'getAvailableTimes: '
+  );
 });
 
 test('getAvailableTimes checks booked slots against 9 default time slots', () => {
-  assertIncludesAll(demoController, ['09:00 AM', '05:00 PM', 'bookedSlots'], 'Time slots: ');
+  assertIncludesAll(
+    demoController,
+    ['09:00 AM', '05:00 PM', 'bookedSlots'],
+    'Time slots: '
+  );
 });
 
 test('Exports scheduleDemo with email, demoDate, timeSlot validation', () => {
-  assertIncludesAll(demoController, [
-    'export const scheduleDemo', '!email || !demoDate || !timeSlot',
-  ], 'scheduleDemo validation: ');
+  assertIncludesAll(
+    demoController,
+    ['export const scheduleDemo', '!email || !demoDate || !timeSlot'],
+    'scheduleDemo validation: '
+  );
 });
 
 test('scheduleDemo validates email format with regex', () => {
-  assertIncludes(demoController, 'emailRegex', 'Email regex validation missing');
+  assertIncludes(
+    demoController,
+    'emailRegex',
+    'Email regex validation missing'
+  );
 });
 
 test('scheduleDemo checks for time slot conflicts (409)', () => {
-  assertIncludesAll(demoController, ['existingDemo', '409', 'already booked'], 'Slot conflict: ');
+  assertIncludesAll(
+    demoController,
+    ['existingDemo', '409', 'already booked'],
+    'Slot conflict: '
+  );
 });
 
 test('scheduleDemo checks for user duplicate booking', () => {
-  assertIncludes(demoController, 'userExistingDemo', 'User duplicate booking check missing');
+  assertIncludes(
+    demoController,
+    'userExistingDemo',
+    'User duplicate booking check missing'
+  );
 });
 
 test('scheduleDemo returns 201 on success', () => {
@@ -839,23 +1284,35 @@ test('scheduleDemo returns 201 on success', () => {
 });
 
 test('Exports getAllDemos with pagination, filtering, sorting', () => {
-  assertIncludesAll(demoController, [
-    'export const getAllDemos', 'skip', 'limit', 'sort', 'countDocuments',
-  ], 'getAllDemos: ');
+  assertIncludesAll(
+    demoController,
+    ['export const getAllDemos', 'skip', 'limit', 'sort', 'countDocuments'],
+    'getAllDemos: '
+  );
 });
 
 test('Exports getDemoById', () => {
-  assertIncludesAll(demoController, ['export const getDemoById', 'Demo.findById'], 'getDemoById: ');
+  assertIncludesAll(
+    demoController,
+    ['export const getDemoById', 'Demo.findById'],
+    'getDemoById: '
+  );
 });
 
 test('Exports updateDemoStatus with valid status check', () => {
-  assertIncludesAll(demoController, [
-    'export const updateDemoStatus', 'validStatuses', 'runValidators',
-  ], 'updateDemoStatus: ');
+  assertIncludesAll(
+    demoController,
+    ['export const updateDemoStatus', 'validStatuses', 'runValidators'],
+    'updateDemoStatus: '
+  );
 });
 
 test('Exports cancelDemo', () => {
-  assertIncludesAll(demoController, ['export const cancelDemo', "'cancelled'"], 'cancelDemo: ');
+  assertIncludesAll(
+    demoController,
+    ['export const cancelDemo', "'cancelled'"],
+    'cancelDemo: '
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -866,81 +1323,137 @@ suite('11. Controllers — job.controller.js');
 const jobController = readSource('controller/job.controller.js');
 
 test('Exports searchJobs (non-blocking, returns immediately)', () => {
-  assertIncludesAll(jobController, [
-    'export const searchJobs', 'upworkService.searchJobs', 'pending',
-  ], 'searchJobs: ');
+  assertIncludesAll(
+    jobController,
+    ['export const searchJobs', 'upworkService.searchJobs', 'pending'],
+    'searchJobs: '
+  );
 });
 
 test('searchJobs validates authentication and keywords', () => {
-  assertIncludesAll(jobController, [
-    'User not authenticated', 'At least one keyword is required',
-  ], 'searchJobs validation: ');
+  assertIncludesAll(
+    jobController,
+    ['User not authenticated', 'At least one keyword is required'],
+    'searchJobs validation: '
+  );
 });
 
 test('searchJobs applies bad job filters and rate matching', () => {
-  assertIncludesAll(jobController, [
-    'applyBadJobFilters', 'applyRateMatching', 'badJobCriteria',
-  ], 'searchJobs filters: ');
+  assertIncludesAll(
+    jobController,
+    ['applyBadJobFilters', 'applyRateMatching', 'badJobCriteria'],
+    'searchJobs filters: '
+  );
 });
 
 test('searchJobs saves jobs to DB with insertMany (ignores duplicates)', () => {
-  assertIncludesAll(jobController, ['insertMany', 'ordered: false', '11000'], 'searchJobs DB: ');
+  assertIncludesAll(
+    jobController,
+    ['insertMany', 'ordered: false', '11000'],
+    'searchJobs DB: '
+  );
 });
 
 test('Exports getFilteredJobs with pagination', () => {
-  assertIncludesAll(jobController, [
-    'export const getFilteredJobs', 'page', 'limit', 'skip', 'countDocuments',
-  ], 'getFilteredJobs: ');
+  assertIncludesAll(
+    jobController,
+    ['export const getFilteredJobs', 'page', 'limit', 'skip', 'countDocuments'],
+    'getFilteredJobs: '
+  );
 });
 
 test('Exports getJobDetail with ownership verification', () => {
-  assertIncludesAll(jobController, [
-    'export const getJobDetail', 'job.userId', 'Unauthorized', '403',
-  ], 'getJobDetail: ');
+  assertIncludesAll(
+    jobController,
+    ['export const getJobDetail', 'job.userId', 'Unauthorized', '403'],
+    'getJobDetail: '
+  );
 });
 
 test('Exports markJobAsMatched (updates user stats)', () => {
-  assertIncludesAll(jobController, [
-    'export const markJobAsMatched', "'matched'", 'stats.jobsMatched',
-  ], 'markJobAsMatched: ');
+  assertIncludesAll(
+    jobController,
+    ['export const markJobAsMatched', "'matched'", 'stats.jobsMatched'],
+    'markJobAsMatched: '
+  );
 });
 
 test('Exports markJobAsRejected with rejection reason', () => {
-  assertIncludesAll(jobController, [
-    'export const markJobAsRejected', "'rejected'", 'rejectionReason',
-  ], 'markJobAsRejected: ');
+  assertIncludesAll(
+    jobController,
+    ['export const markJobAsRejected', "'rejected'", 'rejectionReason'],
+    'markJobAsRejected: '
+  );
 });
 
 test('Exports searchJobsWithAIAnalysis with scoring', () => {
-  assertIncludesAll(jobController, [
-    'export const searchJobsWithAIAnalysis', 'calculateMatchScore', 'matchScore',
-  ], 'searchJobsWithAIAnalysis: ');
+  assertIncludesAll(
+    jobController,
+    [
+      'export const searchJobsWithAIAnalysis',
+      'calculateMatchScore',
+      'matchScore',
+    ],
+    'searchJobsWithAIAnalysis: '
+  );
 });
 
 test('calculateMatchScore awards points for budget, client quality, clarity, competition', () => {
-  assertIncludesAll(jobController, [
-    'score = 50', 'score += 30', 'paymentVerified', 'description.length', 'proposalsCount',
-  ], 'Match score logic: ');
+  assertIncludesAll(
+    jobController,
+    [
+      'score = 50',
+      'score += 30',
+      'paymentVerified',
+      'description.length',
+      'proposalsCount',
+    ],
+    'Match score logic: '
+  );
 });
 
 test('extractGreenFlags identifies positive signals', () => {
-  assertIncludesAll(jobController, [
-    'Payment Verified', 'Top Rated', 'Low Competition', 'Clear Requirements', 'Experienced Buyer',
-  ], 'Green flags: ');
+  assertIncludesAll(
+    jobController,
+    [
+      'Payment Verified',
+      'Top Rated',
+      'Low Competition',
+      'Clear Requirements',
+      'Experienced Buyer',
+    ],
+    'Green flags: '
+  );
 });
 
 test('extractRedFlags identifies warning signals', () => {
-  assertIncludesAll(jobController, [
-    'Payment Not Verified', 'Low Rating', 'High Competition', 'Vague Description', 'New Client',
-  ], 'Red flags: ');
+  assertIncludesAll(
+    jobController,
+    [
+      'Payment Not Verified',
+      'Low Rating',
+      'High Competition',
+      'Vague Description',
+      'New Client',
+    ],
+    'Red flags: '
+  );
 });
 
 test('generateReasoning produces score-based explanation', () => {
-  assertIncludes(jobController, 'generateReasoning', 'generateReasoning missing');
+  assertIncludes(
+    jobController,
+    'generateReasoning',
+    'generateReasoning missing'
+  );
 });
 
 test('searchJobsWithAIAnalysis updates user stats (jobsViewed)', () => {
-  assertIncludes(jobController, "'stats.jobsViewed'", 'jobsViewed stat update missing');
+  assertIncludes(
+    jobController,
+    "'stats.jobsViewed'",
+    'jobsViewed stat update missing'
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -951,115 +1464,183 @@ suite('12. Controllers — proposal.controller.js');
 const proposalController = readSource('controller/proposal.controller.js');
 
 test('Exports generateProposal (non-blocking with async background)', () => {
-  assertIncludesAll(proposalController, [
-    'export const generateProposal', 'generateProposalAsync', 'generating',
-  ], 'generateProposal: ');
+  assertIncludesAll(
+    proposalController,
+    ['export const generateProposal', 'generateProposalAsync', 'generating'],
+    'generateProposal: '
+  );
 });
 
 test('generateProposal checks for existing proposal before creating', () => {
-  assertIncludes(proposalController, 'Proposal.findOne({ jobId, userId })', 'Existing proposal check missing');
+  assertIncludes(
+    proposalController,
+    'Proposal.findOne({ jobId, userId })',
+    'Existing proposal check missing'
+  );
 });
 
 test('generateProposal creates draft proposal first', () => {
-  assertIncludesAll(proposalController, ['Proposal.create', "'draft'"], 'Draft creation: ');
+  assertIncludesAll(
+    proposalController,
+    ['Proposal.create', "'draft'"],
+    'Draft creation: '
+  );
 });
 
 test('generateProposalAsync calls aiService and updates proposal', () => {
-  assertIncludesAll(proposalController, [
-    'aiService.generateProposal', 'generatedAt', 'contentType',
-  ], 'Async generation: ');
+  assertIncludesAll(
+    proposalController,
+    ['aiService.generateProposal', 'generatedAt', 'contentType'],
+    'Async generation: '
+  );
 });
 
 test('generateProposalAsync handles errors gracefully', () => {
-  assertIncludesAll(proposalController, [
-    'Error generating proposal', 'Proposal generation failed',
-  ], 'Generation error handling: ');
+  assertIncludesAll(
+    proposalController,
+    ['Error generating proposal', 'Proposal generation failed'],
+    'Generation error handling: '
+  );
 });
 
 test('Exports getProposal with ownership check', () => {
-  assertIncludesAll(proposalController, [
-    'export const getProposal', 'populate', 'Unauthorized', '403',
-  ], 'getProposal: ');
+  assertIncludesAll(
+    proposalController,
+    ['export const getProposal', 'populate', 'Unauthorized', '403'],
+    'getProposal: '
+  );
 });
 
 test('Exports getUserProposals with pagination, filtering, stats', () => {
-  assertIncludesAll(proposalController, [
-    'export const getUserProposals', 'page', 'limit', 'skip', 'countDocuments', 'stats',
-  ], 'getUserProposals: ');
+  assertIncludesAll(
+    proposalController,
+    [
+      'export const getUserProposals',
+      'page',
+      'limit',
+      'skip',
+      'countDocuments',
+      'stats',
+    ],
+    'getUserProposals: '
+  );
 });
 
 test('Exports sendProposal with bid details and status history', () => {
-  assertIncludesAll(proposalController, [
-    'export const sendProposal', 'bidAmount', 'estimatedDuration', 'statusHistory',
-  ], 'sendProposal: ');
+  assertIncludesAll(
+    proposalController,
+    [
+      'export const sendProposal',
+      'bidAmount',
+      'estimatedDuration',
+      'statusHistory',
+    ],
+    'sendProposal: '
+  );
 });
 
 test('sendProposal validates content is not empty', () => {
-  assertIncludes(proposalController, 'Proposal content is empty', 'Empty content check missing');
+  assertIncludes(
+    proposalController,
+    'Proposal content is empty',
+    'Empty content check missing'
+  );
 });
 
 test('sendProposal increments proposalsSent stat', () => {
-  assertIncludes(proposalController, "'stats.proposalsSent'", 'proposalsSent stat missing');
+  assertIncludes(
+    proposalController,
+    "'stats.proposalsSent'",
+    'proposalsSent stat missing'
+  );
 });
 
 test('Exports updateProposalStatus with valid status enum check', () => {
-  assertIncludesAll(proposalController, [
-    'export const updateProposalStatus', 'validStatuses', 'Invalid status',
-  ], 'updateProposalStatus: ');
+  assertIncludesAll(
+    proposalController,
+    ['export const updateProposalStatus', 'validStatuses', 'Invalid status'],
+    'updateProposalStatus: '
+  );
 });
 
 test('updateProposalStatus tracks status changes and updates stats', () => {
-  assertIncludesAll(proposalController, [
-    'oldStatus', 'statusHistory', 'proposalsAccepted', 'proposalsRejected',
-  ], 'Status tracking: ');
+  assertIncludesAll(
+    proposalController,
+    ['oldStatus', 'statusHistory', 'proposalsAccepted', 'proposalsRejected'],
+    'Status tracking: '
+  );
 });
 
 test('Exports upgradeProposal with case study validation', () => {
-  assertIncludesAll(proposalController, [
-    'export const upgradeProposal', 'Case study is required',
-  ], 'upgradeProposal: ');
+  assertIncludesAll(
+    proposalController,
+    ['export const upgradeProposal', 'Case study is required'],
+    'upgradeProposal: '
+  );
 });
 
 test('upgradeProposal validates existing content', () => {
-  assertIncludes(proposalController, 'No proposal content to upgrade', 'Content check missing');
+  assertIncludes(
+    proposalController,
+    'No proposal content to upgrade',
+    'Content check missing'
+  );
 });
 
 test('upgradeProposalAsync calls aiService.upgradeProposalWithCaseStudy', () => {
-  assertIncludes(proposalController, 'aiService.upgradeProposalWithCaseStudy', 'AI upgrade call missing');
+  assertIncludes(
+    proposalController,
+    'aiService.upgradeProposalWithCaseStudy',
+    'AI upgrade call missing'
+  );
 });
 
 test('Exports copyProposal with ownership check', () => {
-  assertIncludesAll(proposalController, ['export const copyProposal', 'Unauthorized'], 'copyProposal: ');
+  assertIncludesAll(
+    proposalController,
+    ['export const copyProposal', 'Unauthorized'],
+    'copyProposal: '
+  );
 });
 
 test('Exports rateProposal with rating validation (1-5)', () => {
-  assertIncludesAll(proposalController, [
-    'export const rateProposal', 'rating < 1', 'rating > 5',
-  ], 'rateProposal: ');
+  assertIncludesAll(
+    proposalController,
+    ['export const rateProposal', 'rating < 1', 'rating > 5'],
+    'rateProposal: '
+  );
 });
 
 test('Exports deleteProposal with ownership check', () => {
-  assertIncludesAll(proposalController, [
-    'export const deleteProposal', 'findByIdAndDelete', 'Unauthorized',
-  ], 'deleteProposal: ');
+  assertIncludesAll(
+    proposalController,
+    ['export const deleteProposal', 'findByIdAndDelete', 'Unauthorized'],
+    'deleteProposal: '
+  );
 });
 
 test('Exports getProposalStats with acceptance rate calculation', () => {
-  assertIncludesAll(proposalController, [
-    'export const getProposalStats', 'acceptanceRate',
-  ], 'getProposalStats: ');
+  assertIncludesAll(
+    proposalController,
+    ['export const getProposalStats', 'acceptanceRate'],
+    'getProposalStats: '
+  );
 });
 
 test('Exports getTopTemplates with aggregation pipeline', () => {
-  assertIncludesAll(proposalController, [
-    'export const getTopTemplates', 'aggregate', 'lookup', 'group', 'rate',
-  ], 'getTopTemplates: ');
+  assertIncludesAll(
+    proposalController,
+    ['export const getTopTemplates', 'aggregate', 'lookup', 'group', 'rate'],
+    'getTopTemplates: '
+  );
 });
 
 test('Exports getJobCategoryPerformance with aggregation pipeline', () => {
-  assertIncludesAll(proposalController, [
-    'export const getJobCategoryPerformance', 'aggregate', 'category',
-  ], 'getJobCategoryPerformance: ');
+  assertIncludesAll(
+    proposalController,
+    ['export const getJobCategoryPerformance', 'aggregate', 'category'],
+    'getJobCategoryPerformance: '
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -1069,65 +1650,129 @@ suite('13. Routes — auth.router.js');
 
 const authRouter = readSource('routes/auth.router.js');
 
-test('POST /sign-up', () => assertIncludes(authRouter, '"/sign-up"', '/sign-up route missing'));
-test('POST /sign-in', () => assertIncludes(authRouter, '"/sign-in"', '/sign-in route missing'));
-test('POST /sign-out', () => assertIncludes(authRouter, '"/sign-out"', '/sign-out route missing'));
-test('POST /admin/login', () => assertIncludes(authRouter, '"/admin/login"', '/admin/login route missing'));
+test('POST /sign-up', () =>
+  assertIncludes(authRouter, '"/sign-up"', '/sign-up route missing'));
+test('POST /sign-in', () =>
+  assertIncludes(authRouter, '"/sign-in"', '/sign-in route missing'));
+test('POST /sign-out', () =>
+  assertIncludes(authRouter, '"/sign-out"', '/sign-out route missing'));
+test('POST /admin/login', () =>
+  assertIncludes(authRouter, '"/admin/login"', '/admin/login route missing'));
 test('GET /admin/profile (protected)', () => {
-  assertIncludesAll(authRouter, ['"/admin/profile"', 'authorize', 'getAdminProfile'], 'Admin profile route: ');
+  assertIncludesAll(
+    authRouter,
+    ['"/admin/profile"', 'authorize', 'getAdminProfile'],
+    'Admin profile route: '
+  );
 });
 
 suite('13. Routes — user.router.js');
 
 const userRouter = readSource('routes/user.router.js');
 
-test('GET / (list users)', () => assertIncludes(userRouter, 'getUsers', 'getUsers handler missing'));
+test('GET / (list users)', () =>
+  assertIncludes(userRouter, 'getUsers', 'getUsers handler missing'));
 test('GET /:id (protected)', () => {
-  assertIncludesAll(userRouter, ['getUser', 'authorize'], 'getUser protected route: ');
+  assertIncludesAll(
+    userRouter,
+    ['getUser', 'authorize'],
+    'getUser protected route: '
+  );
 });
 test('PUT /:id (protected update)', () => {
-  assertIncludesAll(userRouter, ['updateUser', 'authorize'], 'updateUser protected: ');
+  assertIncludesAll(
+    userRouter,
+    ['updateUser', 'authorize'],
+    'updateUser protected: '
+  );
 });
 test('PUT /:id/flag (protected flag)', () => {
-  assertIncludesAll(userRouter, ['flagUser', 'authorize', '/flag'], 'flagUser route: ');
+  assertIncludesAll(
+    userRouter,
+    ['flagUser', 'authorize', '/flag'],
+    'flagUser route: '
+  );
 });
 test('DELETE /:id (protected delete)', () => {
-  assertIncludesAll(userRouter, ['deleteUser', 'authorize'], 'deleteUser protected: ');
+  assertIncludesAll(
+    userRouter,
+    ['deleteUser', 'authorize'],
+    'deleteUser protected: '
+  );
 });
 
 suite('13. Routes — demo.router.js');
 
 const demoRouter = readSource('routes/demo.router.js');
 
-test('GET /available-dates (public)', () => assertIncludes(demoRouter, '/available-dates', 'available-dates route missing'));
-test('GET /available-times/:date (public)', () => assertIncludes(demoRouter, '/available-times/:date', 'available-times route missing'));
-test('POST /schedule (public)', () => assertIncludes(demoRouter, '/schedule', '/schedule route missing'));
-test('GET /all (admin — all demos)', () => assertIncludes(demoRouter, '/all', '/all route missing'));
-test('GET /:id (admin — single demo)', () => assertIncludes(demoRouter, 'getDemoById', 'getDemoById handler missing'));
-test('PUT /:id/status (admin — update status)', () => assertIncludes(demoRouter, '/status', '/status route missing'));
-test('DELETE /:id (admin — cancel demo)', () => assertIncludes(demoRouter, 'cancelDemo', 'cancelDemo handler missing'));
+test('GET /available-dates (public)', () =>
+  assertIncludes(
+    demoRouter,
+    '/available-dates',
+    'available-dates route missing'
+  ));
+test('GET /available-times/:date (public)', () =>
+  assertIncludes(
+    demoRouter,
+    '/available-times/:date',
+    'available-times route missing'
+  ));
+test('POST /schedule (public)', () =>
+  assertIncludes(demoRouter, '/schedule', '/schedule route missing'));
+test('GET /all (admin — all demos)', () =>
+  assertIncludes(demoRouter, '/all', '/all route missing'));
+test('GET /:id (admin — single demo)', () =>
+  assertIncludes(demoRouter, 'getDemoById', 'getDemoById handler missing'));
+test('PUT /:id/status (admin — update status)', () =>
+  assertIncludes(demoRouter, '/status', '/status route missing'));
+test('DELETE /:id (admin — cancel demo)', () =>
+  assertIncludes(demoRouter, 'cancelDemo', 'cancelDemo handler missing'));
 
 suite('13. Routes — job.router.js');
 
 const jobRouter = readSource('routes/job.router.js');
 
 test('POST /search (protected)', () => {
-  assertIncludesAll(jobRouter, ["'/search'", 'authorize', 'searchJobs'], 'POST /search: ');
+  assertIncludesAll(
+    jobRouter,
+    ["'/search'", 'authorize', 'searchJobs'],
+    'POST /search: '
+  );
 });
 test('POST /search-with-ai (protected)', () => {
-  assertIncludesAll(jobRouter, ["'/search-with-ai'", 'authorize', 'searchJobsWithAIAnalysis'], 'POST /search-with-ai: ');
+  assertIncludesAll(
+    jobRouter,
+    ["'/search-with-ai'", 'authorize', 'searchJobsWithAIAnalysis'],
+    'POST /search-with-ai: '
+  );
 });
 test('GET /filtered (protected)', () => {
-  assertIncludesAll(jobRouter, ["'/filtered'", 'authorize', 'getFilteredJobs'], 'GET /filtered: ');
+  assertIncludesAll(
+    jobRouter,
+    ["'/filtered'", 'authorize', 'getFilteredJobs'],
+    'GET /filtered: '
+  );
 });
 test('GET /:jobId (protected)', () => {
-  assertIncludesAll(jobRouter, ["'/:jobId'", 'authorize', 'getJobDetail'], 'GET /:jobId: ');
+  assertIncludesAll(
+    jobRouter,
+    ["'/:jobId'", 'authorize', 'getJobDetail'],
+    'GET /:jobId: '
+  );
 });
 test('PUT /:jobId/match (protected)', () => {
-  assertIncludesAll(jobRouter, ["'/:jobId/match'", 'authorize', 'markJobAsMatched'], 'PUT /match: ');
+  assertIncludesAll(
+    jobRouter,
+    ["'/:jobId/match'", 'authorize', 'markJobAsMatched'],
+    'PUT /match: '
+  );
 });
 test('PUT /:jobId/reject (protected)', () => {
-  assertIncludesAll(jobRouter, ["'/:jobId/reject'", 'authorize', 'markJobAsRejected'], 'PUT /reject: ');
+  assertIncludesAll(
+    jobRouter,
+    ["'/:jobId/reject'", 'authorize', 'markJobAsRejected'],
+    'PUT /reject: '
+  );
 });
 
 suite('13. Routes — proposal.router.js');
@@ -1135,40 +1780,88 @@ suite('13. Routes — proposal.router.js');
 const proposalRouter = readSource('routes/proposal.router.js');
 
 test('GET /stats/summary (protected)', () => {
-  assertIncludesAll(proposalRouter, ["'/stats/summary'", 'authorize', 'getProposalStats'], 'GET /stats: ');
+  assertIncludesAll(
+    proposalRouter,
+    ["'/stats/summary'", 'authorize', 'getProposalStats'],
+    'GET /stats: '
+  );
 });
 test('GET / (protected — user proposals)', () => {
-  assertIncludesAll(proposalRouter, ['getUserProposals', 'authorize'], 'GET /: ');
+  assertIncludesAll(
+    proposalRouter,
+    ['getUserProposals', 'authorize'],
+    'GET /: '
+  );
 });
 test('POST /job/:jobId/generate (protected)', () => {
-  assertIncludesAll(proposalRouter, ["'/job/:jobId/generate'", 'authorize', 'generateProposal'], 'POST /generate: ');
+  assertIncludesAll(
+    proposalRouter,
+    ["'/job/:jobId/generate'", 'authorize', 'generateProposal'],
+    'POST /generate: '
+  );
 });
 test('GET /:proposalId (protected)', () => {
-  assertIncludesAll(proposalRouter, ['getProposal', 'authorize'], 'GET /:proposalId: ');
+  assertIncludesAll(
+    proposalRouter,
+    ['getProposal', 'authorize'],
+    'GET /:proposalId: '
+  );
 });
 test('POST /:proposalId/send (protected)', () => {
-  assertIncludesAll(proposalRouter, ['/send', 'authorize', 'sendProposal'], 'POST /send: ');
+  assertIncludesAll(
+    proposalRouter,
+    ['/send', 'authorize', 'sendProposal'],
+    'POST /send: '
+  );
 });
 test('PATCH /:proposalId/status (protected)', () => {
-  assertIncludesAll(proposalRouter, ['/status', 'authorize', 'updateProposalStatus'], 'PATCH /status: ');
+  assertIncludesAll(
+    proposalRouter,
+    ['/status', 'authorize', 'updateProposalStatus'],
+    'PATCH /status: '
+  );
 });
 test('POST /:proposalId/upgrade (protected)', () => {
-  assertIncludesAll(proposalRouter, ['/upgrade', 'authorize', 'upgradeProposal'], 'POST /upgrade: ');
+  assertIncludesAll(
+    proposalRouter,
+    ['/upgrade', 'authorize', 'upgradeProposal'],
+    'POST /upgrade: '
+  );
 });
 test('POST /:proposalId/copy (protected)', () => {
-  assertIncludesAll(proposalRouter, ['/copy', 'authorize', 'copyProposal'], 'POST /copy: ');
+  assertIncludesAll(
+    proposalRouter,
+    ['/copy', 'authorize', 'copyProposal'],
+    'POST /copy: '
+  );
 });
 test('POST /:proposalId/rate (protected)', () => {
-  assertIncludesAll(proposalRouter, ['/rate', 'authorize', 'rateProposal'], 'POST /rate: ');
+  assertIncludesAll(
+    proposalRouter,
+    ['/rate', 'authorize', 'rateProposal'],
+    'POST /rate: '
+  );
 });
 test('DELETE /:proposalId (protected)', () => {
-  assertIncludesAll(proposalRouter, ['deleteProposal', 'authorize'], 'DELETE /:proposalId: ');
+  assertIncludesAll(
+    proposalRouter,
+    ['deleteProposal', 'authorize'],
+    'DELETE /:proposalId: '
+  );
 });
 test('GET /stats/top-templates (protected)', () => {
-  assertIncludesAll(proposalRouter, ["'/stats/top-templates'", 'authorize', 'getTopTemplates'], 'GET /top-templates: ');
+  assertIncludesAll(
+    proposalRouter,
+    ["'/stats/top-templates'", 'authorize', 'getTopTemplates'],
+    'GET /top-templates: '
+  );
 });
 test('GET /stats/category-performance (protected)', () => {
-  assertIncludesAll(proposalRouter, ["'/stats/category-performance'", 'authorize', 'getJobCategoryPerformance'], 'GET /category-performance: ');
+  assertIncludesAll(
+    proposalRouter,
+    ["'/stats/category-performance'", 'authorize', 'getJobCategoryPerformance'],
+    'GET /category-performance: '
+  );
 });
 
 suite('13. Routes — product.router.js');
@@ -1209,23 +1902,43 @@ test('GET /latest is public (no authorize)', () => {
 });
 
 test('POST /upload is protected', () => {
-  assertIncludesAll(reviewVideoRouter, ["'/upload'", 'authorize', 'uploadReviewVideo'], 'POST /upload: ');
+  assertIncludesAll(
+    reviewVideoRouter,
+    ["'/upload'", 'authorize', 'uploadReviewVideo'],
+    'POST /upload: '
+  );
 });
 
 test('GET /all is protected', () => {
-  assertIncludesAll(reviewVideoRouter, ["'/all'", 'authorize', 'getAllReviewVideos'], 'GET /all: ');
+  assertIncludesAll(
+    reviewVideoRouter,
+    ["'/all'", 'authorize', 'getAllReviewVideos'],
+    'GET /all: '
+  );
 });
 
 test('PUT /:id is protected', () => {
-  assertIncludesAll(reviewVideoRouter, ["'/:id'", 'authorize', 'updateReviewVideo'], 'PUT /:id: ');
+  assertIncludesAll(
+    reviewVideoRouter,
+    ["'/:id'", 'authorize', 'updateReviewVideo'],
+    'PUT /:id: '
+  );
 });
 
 test('PATCH /:id/set-active is protected', () => {
-  assertIncludesAll(reviewVideoRouter, ["'/:id/set-active'", 'authorize', 'setActiveReviewVideo'], 'PATCH /set-active: ');
+  assertIncludesAll(
+    reviewVideoRouter,
+    ["'/:id/set-active'", 'authorize', 'setActiveReviewVideo'],
+    'PATCH /set-active: '
+  );
 });
 
 test('DELETE /:id is protected', () => {
-  assertIncludesAll(reviewVideoRouter, ['deleteReviewVideo', 'authorize'], 'DELETE /:id: ');
+  assertIncludesAll(
+    reviewVideoRouter,
+    ['deleteReviewVideo', 'authorize'],
+    'DELETE /:id: '
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -1240,60 +1953,119 @@ test('Uses UpworkService class pattern', () => {
 });
 
 test('Exports singleton instance', () => {
-  assertIncludes(upworkService, 'export default new UpworkService()', 'Singleton export missing');
+  assertIncludes(
+    upworkService,
+    'export default new UpworkService()',
+    'Singleton export missing'
+  );
 });
 
 test('Constructor initializes baseUrl, cacheTTL, cacheEnabled', () => {
-  assertIncludesAll(upworkService, ['this.baseUrl', 'this.cacheTTL', 'this.cacheEnabled'], 'Constructor: ');
+  assertIncludesAll(
+    upworkService,
+    ['this.baseUrl', 'this.cacheTTL', 'this.cacheEnabled'],
+    'Constructor: '
+  );
 });
 
 test('transformUpworkJob maps API response to Job schema format', () => {
-  assertIncludesAll(upworkService, [
-    'transformUpworkJob', 'upworkJobId', 'upworkUrl', 'clientInfo', 'cacheExpiry',
-  ], 'Transform: ');
+  assertIncludesAll(
+    upworkService,
+    [
+      'transformUpworkJob',
+      'upworkJobId',
+      'upworkUrl',
+      'clientInfo',
+      'cacheExpiry',
+    ],
+    'Transform: '
+  );
 });
 
 test('searchJobs checks cache first when enabled', () => {
-  assertIncludesAll(upworkService, ['this.cacheEnabled', 'getCachedJobs'], 'Cache check: ');
+  assertIncludesAll(
+    upworkService,
+    ['this.cacheEnabled', 'getCachedJobs'],
+    'Cache check: '
+  );
 });
 
 test('searchJobs calls Upwork API with Bearer token', () => {
-  assertIncludesAll(upworkService, ['Bearer', 'this.accessToken', 'fetch(url'], 'API call: ');
+  assertIncludesAll(
+    upworkService,
+    ['Bearer', 'this.accessToken', 'fetch(url'],
+    'API call: '
+  );
 });
 
 test('searchJobs falls back to cache on API error', () => {
-  assertIncludes(upworkService, 'await this.getCachedJobs(keywords)', 'Fallback to cache missing');
+  assertIncludes(
+    upworkService,
+    'await this.getCachedJobs(keywords)',
+    'Fallback to cache missing'
+  );
 });
 
 test('buildSearchQuery constructs URLSearchParams with all filter types', () => {
-  assertIncludesAll(upworkService, [
-    'buildSearchQuery', 'URLSearchParams', 'budget_min', 'budget_max', 'hourly_rate_min',
-  ], 'Query builder: ');
+  assertIncludesAll(
+    upworkService,
+    [
+      'buildSearchQuery',
+      'URLSearchParams',
+      'budget_min',
+      'budget_max',
+      'hourly_rate_min',
+    ],
+    'Query builder: '
+  );
 });
 
 test('getCachedJobs queries by keywords and cacheExpiry', () => {
-  assertIncludesAll(upworkService, ['getCachedJobs', 'cacheExpiry', '$gt'], 'getCachedJobs: ');
+  assertIncludesAll(
+    upworkService,
+    ['getCachedJobs', 'cacheExpiry', '$gt'],
+    'getCachedJobs: '
+  );
 });
 
 test('cacheJobs uses bulkWrite with upsert', () => {
-  assertIncludesAll(upworkService, ['cacheJobs', 'bulkWrite', 'upsert'], 'Bulk cache: ');
+  assertIncludesAll(
+    upworkService,
+    ['cacheJobs', 'bulkWrite', 'upsert'],
+    'Bulk cache: '
+  );
 });
 
 test('cleanExpiredCache deletes expired cached jobs', () => {
-  assertIncludesAll(upworkService, ['cleanExpiredCache', 'deleteMany', '$lt'], 'Cache cleanup: ');
+  assertIncludesAll(
+    upworkService,
+    ['cleanExpiredCache', 'deleteMany', '$lt'],
+    'Cache cleanup: '
+  );
 });
 
 test('applyBadJobFilters removes jobs matching bad criteria', () => {
-  assertIncludesAll(upworkService, [
-    'applyBadJobFilters', 'low budget', 'no verified payment', 'low rating',
-    'unclear description', 'too many proposals', 'unverified client',
-  ], 'Bad job filters: ');
+  assertIncludesAll(
+    upworkService,
+    [
+      'applyBadJobFilters',
+      'low budget',
+      'no verified payment',
+      'low rating',
+      'unclear description',
+      'too many proposals',
+      'unverified client',
+    ],
+    'Bad job filters: '
+  );
 });
 
 test('applyRateMatching filters by hourly or fixed rate', () => {
-  assertIncludesAll(upworkService, [
-    'applyRateMatching', 'hourly', 'fixed', 'hourlyRate', 'budget',
-  ], 'Rate matching: ');
+  assertIncludesAll(
+    upworkService,
+    ['applyRateMatching', 'hourly', 'fixed', 'hourlyRate', 'budget'],
+    'Rate matching: '
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -1308,75 +2080,126 @@ test('Uses AIProposalService class pattern', () => {
 });
 
 test('Exports singleton instance', () => {
-  assertIncludes(aiService, 'export default new AIProposalService()', 'Singleton export missing');
+  assertIncludes(
+    aiService,
+    'export default new AIProposalService()',
+    'Singleton export missing'
+  );
 });
 
 test('Constructor initializes both API keys and configurable timeout', () => {
-  assertIncludesAll(aiService, [
-    'this.openaiApiKey', 'this.geminiApiKey', 'this.timeout',
-    'this.openaiModel', 'this.geminiModel',
-  ], 'Constructor: ');
+  assertIncludesAll(
+    aiService,
+    [
+      'this.openaiApiKey',
+      'this.geminiApiKey',
+      'this.timeout',
+      'this.openaiModel',
+      'this.geminiModel',
+    ],
+    'Constructor: '
+  );
 });
 
 test('generateProposal dispatches to OpenAI or Gemini based on param', () => {
-  assertIncludesAll(aiService, [
-    'generateProposal', "aiService === 'gemini'", 'generateWithGemini', 'generateWithOpenAI',
-  ], 'AI dispatch: ');
+  assertIncludesAll(
+    aiService,
+    [
+      'generateProposal',
+      "aiService === 'gemini'",
+      'generateWithGemini',
+      'generateWithOpenAI',
+    ],
+    'AI dispatch: '
+  );
 });
 
 test('generateProposal validates job and user are provided', () => {
-  assertIncludes(aiService, 'Job and user details are required', 'Input validation missing');
+  assertIncludes(
+    aiService,
+    'Job and user details are required',
+    'Input validation missing'
+  );
 });
 
 test('generateWithOpenAI calls api.openai.com/v1/chat/completions', () => {
-  assertIncludesAll(aiService, [
-    'generateWithOpenAI', 'api.openai.com/v1/chat/completions',
-  ], 'OpenAI endpoint: ');
+  assertIncludesAll(
+    aiService,
+    ['generateWithOpenAI', 'api.openai.com/v1/chat/completions'],
+    'OpenAI endpoint: '
+  );
 });
 
 test('generateWithOpenAI configures temperature, max_tokens, top_p', () => {
-  assertIncludesAll(aiService, ['temperature', 'max_tokens', 'top_p'], 'OpenAI params: ');
+  assertIncludesAll(
+    aiService,
+    ['temperature', 'max_tokens', 'top_p'],
+    'OpenAI params: '
+  );
 });
 
 test('generateWithGemini calls generativelanguage.googleapis.com', () => {
-  assertIncludesAll(aiService, [
-    'generateWithGemini', 'generativelanguage.googleapis.com',
-  ], 'Gemini endpoint: ');
+  assertIncludesAll(
+    aiService,
+    ['generateWithGemini', 'generativelanguage.googleapis.com'],
+    'Gemini endpoint: '
+  );
 });
 
 test('generateWithGemini uses systemInstruction and generationConfig', () => {
-  assertIncludesAll(aiService, ['systemInstruction', 'generationConfig', 'maxOutputTokens'], 'Gemini config: ');
+  assertIncludesAll(
+    aiService,
+    ['systemInstruction', 'generationConfig', 'maxOutputTokens'],
+    'Gemini config: '
+  );
 });
 
 test('Both generators use AbortController for timeout protection', () => {
   const abortCount = (aiService.match(/AbortController/g) || []).length;
-  assert(abortCount >= 4, `Expected ≥4 AbortController instances, found ${abortCount}`);
+  assert(
+    abortCount >= 4,
+    `Expected ≥4 AbortController instances, found ${abortCount}`
+  );
 });
 
 test('Both generators handle AbortError specifically', () => {
-  assertIncludesAll(aiService, ['AbortError', 'generation timed out'], 'Timeout handling: ');
+  assertIncludesAll(
+    aiService,
+    ['AbortError', 'generation timed out'],
+    'Timeout handling: '
+  );
 });
 
 test('buildPrompt includes job details, freelancer profile, and instructions', () => {
-  assertIncludesAll(aiService, [
-    'buildPrompt', 'JOB DETAILS', 'FREELANCER PROFILE', 'INSTRUCTIONS',
-  ], 'Prompt builder: ');
+  assertIncludesAll(
+    aiService,
+    ['buildPrompt', 'JOB DETAILS', 'FREELANCER PROFILE', 'INSTRUCTIONS'],
+    'Prompt builder: '
+  );
 });
 
 test('buildPrompt optionally includes case study section', () => {
-  assertIncludes(aiService, 'CASE STUDY TO INCORPORATE', 'Case study section missing');
+  assertIncludes(
+    aiService,
+    'CASE STUDY TO INCORPORATE',
+    'Case study section missing'
+  );
 });
 
 test('upgradeProposalWithCaseStudy enhances existing proposals', () => {
-  assertIncludesAll(aiService, [
-    'upgradeProposalWithCaseStudy', 'upgradeWithOpenAI', 'upgradeWithGemini',
-  ], 'Upgrade method: ');
+  assertIncludesAll(
+    aiService,
+    ['upgradeProposalWithCaseStudy', 'upgradeWithOpenAI', 'upgradeWithGemini'],
+    'Upgrade method: '
+  );
 });
 
 test('upgradePrompt instructs AI to maintain structure and integrate case study', () => {
-  assertIncludesAll(aiService, [
-    'Keep the original structure', 'Naturally integrate the case study',
-  ], 'Upgrade prompt: ');
+  assertIncludesAll(
+    aiService,
+    ['Keep the original structure', 'Naturally integrate the case study'],
+    'Upgrade prompt: '
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -1385,41 +2208,80 @@ test('upgradePrompt instructs AI to maintain structure and integrate case study'
 suite('16. Production — Security');
 
 test('CORS restricts origin to FRONTEND_URL', () => {
-  assertIncludesAll(appContent, ['origin:FRONTEND_URL', 'credentials: true'], 'CORS security: ');
+  assertIncludesAll(
+    appContent,
+    ['origin:FRONTEND_URL', 'credentials: true'],
+    'CORS security: '
+  );
 });
 
 test('CORS allows only specific HTTP methods', () => {
-  assertIncludesAll(appContent, ["'GET'", "'POST'", "'PUT'", "'DELETE'", "'PATCH'"], 'CORS methods: ');
+  assertIncludesAll(
+    appContent,
+    ["'GET'", "'POST'", "'PUT'", "'DELETE'", "'PATCH'"],
+    'CORS methods: '
+  );
 });
 
 test('Passwords are never sent in API responses (select: false / select("-password"))', () => {
   assertIncludes(adminModel, 'select: false', 'Admin password select:false');
-  assertIncludes(userController, 'select("-password")', 'User password excluded');
-  assertIncludes(authMiddleware, "select('-password')", 'Middleware excludes password');
+  assertIncludes(
+    userController,
+    'select("-password")',
+    'User password excluded'
+  );
+  assertIncludes(
+    authMiddleware,
+    "select('-password')",
+    'Middleware excludes password'
+  );
 });
 
 test('JWT tokens use configurable expiration (JWT_EXPIRES_IN)', () => {
-  assertIncludes(authController, 'JWT_EXPIRES_IN', 'JWT expiration not configurable');
+  assertIncludes(
+    authController,
+    'JWT_EXPIRES_IN',
+    'JWT expiration not configurable'
+  );
 });
 
 test('Admin login checks account active status before auth', () => {
-  assertIncludes(authController, '!admin.isActive', 'Active status check missing');
+  assertIncludes(
+    authController,
+    '!admin.isActive',
+    'Active status check missing'
+  );
 });
 
 test('Arcjet provides bot protection and rate limiting in production', () => {
-  assertIncludesAll(arcjetContent, ['shield', 'detectBot', 'tokenBucket', '"LIVE"'], 'Arcjet protection: ');
+  assertIncludesAll(
+    arcjetContent,
+    ['shield', 'detectBot', 'tokenBucket', '"LIVE"'],
+    'Arcjet protection: '
+  );
 });
 
 test('All job/proposal routes require authorize middleware', () => {
   const jobRouteCount = (jobRouter.match(/authorize/g) || []).length;
   const proposalRouteCount = (proposalRouter.match(/authorize/g) || []).length;
-  assert(jobRouteCount >= 6, `Job routes authorize count: ${jobRouteCount} (expected ≥6)`);
-  assert(proposalRouteCount >= 9, `Proposal routes authorize count: ${proposalRouteCount} (expected ≥9)`);
+  assert(
+    jobRouteCount >= 6,
+    `Job routes authorize count: ${jobRouteCount} (expected ≥6)`
+  );
+  assert(
+    proposalRouteCount >= 9,
+    `Proposal routes authorize count: ${proposalRouteCount} (expected ≥9)`
+  );
 });
 
 test('Proposal operations verify user ownership before access', () => {
-  const ownershipChecks = (proposalController.match(/userId\.toString\(\) !== userId/g) || []).length;
-  assert(ownershipChecks >= 4, `Ownership checks: ${ownershipChecks} (expected ≥4)`);
+  const ownershipChecks = (
+    proposalController.match(/userId\.toString\(\) !== userId/g) || []
+  ).length;
+  assert(
+    ownershipChecks >= 4,
+    `Ownership checks: ${ownershipChecks} (expected ≥4)`
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -1437,25 +2299,49 @@ test('All controllers use try-catch with next(error) pattern', () => {
 });
 
 test('Error middleware handles CastError, DuplicateKey, ValidationError', () => {
-  assertIncludesAll(errorMiddleware, ['CastError', '11000', 'ValidationError'], 'Error types: ');
+  assertIncludesAll(
+    errorMiddleware,
+    ['CastError', '11000', 'ValidationError'],
+    'Error types: '
+  );
 });
 
 test('Error middleware returns JSON with success:false and error message', () => {
-  assertIncludesAll(errorMiddleware, ['success:false', 'error:error.message'], 'Error response: ');
+  assertIncludesAll(
+    errorMiddleware,
+    ['success:false', 'error:error.message'],
+    'Error response: '
+  );
 });
 
 test('Services handle API errors gracefully with fallbacks', () => {
-  assertIncludes(upworkService, 'Upwork API Error', 'Upwork error handling missing');
+  assertIncludes(
+    upworkService,
+    'Upwork API Error',
+    'Upwork error handling missing'
+  );
   assertIncludes(aiService, 'API Error', 'AI error handling missing');
 });
 
 test('Upwork service falls back to cache on API failure', () => {
-  assertIncludes(upworkService, 'await this.getCachedJobs(keywords)', 'Cache fallback missing');
+  assertIncludes(
+    upworkService,
+    'await this.getCachedJobs(keywords)',
+    'Cache fallback missing'
+  );
 });
 
 test('Background job errors are caught and logged (not crash server)', () => {
-  assertIncludes(jobController, 'Background job fetch error', 'Background error catching missing');
-  assertIncludes(proposalController, 'Background proposal generation error', 'Background proposal error missing');
+  assertIncludes(
+    jobController,
+    'Background job fetch error',
+    'Background error catching missing'
+  );
+  assertIncludes(
+    proposalController,
+    'Background proposal generation error',
+    'Background proposal error missing'
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -1464,15 +2350,19 @@ test('Background job errors are caught and logged (not crash server)', () => {
 suite('18. Production — Performance');
 
 test('Job search is non-blocking (returns immediately, processes in background)', () => {
-  assertIncludesAll(jobController, [
-    'upworkService.searchJobs(keywords, filters)', '.then(', '.catch(',
-  ], 'Non-blocking search: ');
+  assertIncludesAll(
+    jobController,
+    ['upworkService.searchJobs(keywords, filters)', '.then(', '.catch('],
+    'Non-blocking search: '
+  );
 });
 
 test('Proposal generation is non-blocking', () => {
-  assertIncludesAll(proposalController, [
-    'generateProposalAsync(', '.catch(',
-  ], 'Non-blocking generation: ');
+  assertIncludesAll(
+    proposalController,
+    ['generateProposalAsync(', '.catch('],
+    'Non-blocking generation: '
+  );
 });
 
 test('Job caching with configurable TTL and auto-expiry TTL index', () => {
@@ -1485,16 +2375,32 @@ test('Upwork service uses bulkWrite for efficient batch database operations', ()
 });
 
 test('Pagination implemented in getFilteredJobs and getUserProposals', () => {
-  assertIncludesAll(jobController, ['skip', 'limit', 'pages'], 'Job pagination: ');
-  assertIncludesAll(proposalController, ['skip', 'limit', 'pages'], 'Proposal pagination: ');
+  assertIncludesAll(
+    jobController,
+    ['skip', 'limit', 'pages'],
+    'Job pagination: '
+  );
+  assertIncludesAll(
+    proposalController,
+    ['skip', 'limit', 'pages'],
+    'Proposal pagination: '
+  );
 });
 
 test('AI service has configurable timeout (PROPOSAL_GENERATION_TIMEOUT)', () => {
-  assertIncludesAll(aiService, ['PROPOSAL_GENERATION_TIMEOUT', 'this.timeout', 'setTimeout'], 'AI timeout: ');
+  assertIncludesAll(
+    aiService,
+    ['PROPOSAL_GENERATION_TIMEOUT', 'this.timeout', 'setTimeout'],
+    'AI timeout: '
+  );
 });
 
 test('getAllDemos limits max page size to 100', () => {
-  assertIncludes(demoController, 'Math.min(Math.max(', 'Page size limit missing');
+  assertIncludes(
+    demoController,
+    'Math.min(Math.max(',
+    'Page size limit missing'
+  );
 });
 
 test('Job insertMany uses ordered:false for faster parallel inserts', () => {
@@ -1507,25 +2413,48 @@ test('Job insertMany uses ordered:false for faster parallel inserts', () => {
 suite('19. Production — Data Integrity');
 
 test('signUp uses MongoDB transaction (session, commit, abort)', () => {
-  assertIncludesAll(authController, [
-    'startSession', 'startTransaction', 'commitTransaction', 'abortTransaction',
-  ], 'Transaction: ');
+  assertIncludesAll(
+    authController,
+    [
+      'startSession',
+      'startTransaction',
+      'commitTransaction',
+      'abortTransaction',
+    ],
+    'Transaction: '
+  );
 });
 
 test('User email is unique and lowercase', () => {
-  assertIncludesAll(userModel, ['unique: true', 'lowercase: true'], 'Email uniqueness: ');
+  assertIncludesAll(
+    userModel,
+    ['unique: true', 'lowercase: true'],
+    'Email uniqueness: '
+  );
 });
 
 test('Admin username is unique', () => {
-  assertIncludes(adminModel, 'unique: true', 'Admin username uniqueness missing');
+  assertIncludes(
+    adminModel,
+    'unique: true',
+    'Admin username uniqueness missing'
+  );
 });
 
 test('Proposal has compound unique index (userId + jobId)', () => {
-  assertIncludes(proposalModel, '{ unique: true }', 'Compound unique index missing');
+  assertIncludes(
+    proposalModel,
+    '{ unique: true }',
+    'Compound unique index missing'
+  );
 });
 
 test('Job upworkJobId is unique with index', () => {
-  assertIncludesAll(jobModel, ['unique: true', 'index: true'], 'upworkJobId index: ');
+  assertIncludesAll(
+    jobModel,
+    ['unique: true', 'index: true'],
+    'upworkJobId index: '
+  );
 });
 
 test('All models enable timestamps', () => {
@@ -1536,14 +2465,24 @@ test('All models enable timestamps', () => {
 });
 
 test('Proposal status transitions tracked in statusHistory', () => {
-  assertIncludesAll(proposalController, [
-    'statusHistory.push', 'timestamp', 'notes',
-  ], 'Status history tracking: ');
+  assertIncludesAll(
+    proposalController,
+    ['statusHistory.push', 'timestamp', 'notes'],
+    'Status history tracking: '
+  );
 });
 
 test('User stats updated atomically with $inc', () => {
-  assertIncludesAll(jobController, ['$inc', 'stats.jobsMatched'], 'Atomic stats: ');
-  assertIncludesAll(proposalController, ['$inc', 'stats.proposalsSent'], 'Atomic proposal stats: ');
+  assertIncludesAll(
+    jobController,
+    ['$inc', 'stats.jobsMatched'],
+    'Atomic stats: '
+  );
+  assertIncludesAll(
+    proposalController,
+    ['$inc', 'stats.proposalsSent'],
+    'Atomic proposal stats: '
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -1552,44 +2491,79 @@ test('User stats updated atomically with $inc', () => {
 suite('20. Production — Integration');
 
 test('job.controller.js imports and uses upworkService', () => {
-  assertIncludesAll(jobController, [
-    "import upworkService from '../services/upwork.service.js'",
-    'upworkService.searchJobs', 'upworkService.applyBadJobFilters', 'upworkService.applyRateMatching',
-  ], 'Upwork integration: ');
+  assertIncludesAll(
+    jobController,
+    [
+      "import upworkService from '../services/upwork.service.js'",
+      'upworkService.searchJobs',
+      'upworkService.applyBadJobFilters',
+      'upworkService.applyRateMatching',
+    ],
+    'Upwork integration: '
+  );
 });
 
 test('job.controller.js imports and uses aiService', () => {
-  assertIncludes(jobController, "import aiService from '../services/ai.service.js'", 'AI service import missing');
+  assertIncludes(
+    jobController,
+    "import aiService from '../services/ai.service.js'",
+    'AI service import missing'
+  );
 });
 
 test('proposal.controller.js imports and uses aiService', () => {
-  assertIncludesAll(proposalController, [
-    "import aiService from '../services/ai.service.js'",
-    'aiService.generateProposal', 'aiService.upgradeProposalWithCaseStudy',
-  ], 'AI integration: ');
+  assertIncludesAll(
+    proposalController,
+    [
+      "import aiService from '../services/ai.service.js'",
+      'aiService.generateProposal',
+      'aiService.upgradeProposalWithCaseStudy',
+    ],
+    'AI integration: '
+  );
 });
 
 test('auth.middleware.js imports both User and Admin models', () => {
-  assertIncludesAll(authMiddleware, [
-    "import User from '../models/user.model.js'",
-    "import Admin from '../models/admin.model.js'",
-  ], 'Middleware model imports: ');
+  assertIncludesAll(
+    authMiddleware,
+    [
+      "import User from '../models/user.model.js'",
+      "import Admin from '../models/admin.model.js'",
+    ],
+    'Middleware model imports: '
+  );
 });
 
 test('app.js imports createDefaultAdmin from auth controller', () => {
-  assertIncludes(appContent, "import { createDefaultAdmin } from './controller/auth.controller.js'", 'createDefaultAdmin import missing');
+  assertIncludes(
+    appContent,
+    "import { createDefaultAdmin } from './controller/auth.controller.js'",
+    'createDefaultAdmin import missing'
+  );
 });
 
 test('app.js imports arcjetMiddleware', () => {
-  assertIncludes(appContent, "import arcjetMiddleware from './middleware/arcject.middleware.js'", 'Arcjet middleware import missing');
+  assertIncludes(
+    appContent,
+    "import arcjetMiddleware from './middleware/arcject.middleware.js'",
+    'Arcjet middleware import missing'
+  );
 });
 
 test('app.js imports reviewVideoRouter', () => {
-  assertIncludes(appContent, "import reviewVideoRouter from './routes/reviewVideo.router.js'", 'reviewVideoRouter import missing');
+  assertIncludes(
+    appContent,
+    "import reviewVideoRouter from './routes/reviewVideo.router.js'",
+    'reviewVideoRouter import missing'
+  );
 });
 
 test('app.js mounts /api/v1/review-video', () => {
-  assertIncludes(appContent, '/api/v1/review-video', 'review-video route mount missing');
+  assertIncludes(
+    appContent,
+    '/api/v1/review-video',
+    'review-video route mount missing'
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -1600,11 +2574,19 @@ suite('21. Review Video — Model');
 const reviewVideoModel = readSource('models/reviewVideo.model.js');
 
 test('Has title field (required, trim, maxlength)', () => {
-  assertIncludesAll(reviewVideoModel, ['title', 'required', 'trim', 'maxlength'], 'title: ');
+  assertIncludesAll(
+    reviewVideoModel,
+    ['title', 'required', 'trim', 'maxlength'],
+    'title: '
+  );
 });
 
 test('Has videoUrl field (required, trim)', () => {
-  assertIncludesAll(reviewVideoModel, ['videoUrl', 'required', 'trim'], 'videoUrl: ');
+  assertIncludesAll(
+    reviewVideoModel,
+    ['videoUrl', 'required', 'trim'],
+    'videoUrl: '
+  );
 });
 
 test('Has thumbnailUrl field (optional)', () => {
@@ -1612,11 +2594,19 @@ test('Has thumbnailUrl field (optional)', () => {
 });
 
 test('Has description field with maxlength', () => {
-  assertIncludesAll(reviewVideoModel, ['description', 'maxlength'], 'description: ');
+  assertIncludesAll(
+    reviewVideoModel,
+    ['description', 'maxlength'],
+    'description: '
+  );
 });
 
 test('Has reviewerName field (required)', () => {
-  assertIncludesAll(reviewVideoModel, ['reviewerName', 'required'], 'reviewerName: ');
+  assertIncludesAll(
+    reviewVideoModel,
+    ['reviewerName', 'required'],
+    'reviewerName: '
+  );
 });
 
 test('Has reviewerRole field', () => {
@@ -1624,11 +2614,19 @@ test('Has reviewerRole field', () => {
 });
 
 test('Has isActive boolean (default true)', () => {
-  assertIncludesAll(reviewVideoModel, ['isActive', 'Boolean', 'true'], 'isActive: ');
+  assertIncludesAll(
+    reviewVideoModel,
+    ['isActive', 'Boolean', 'true'],
+    'isActive: '
+  );
 });
 
 test('Has uploadedBy ref to Admin model', () => {
-  assertIncludesAll(reviewVideoModel, ['uploadedBy', 'ObjectId', 'Admin'], 'uploadedBy: ');
+  assertIncludesAll(
+    reviewVideoModel,
+    ['uploadedBy', 'ObjectId', 'Admin'],
+    'uploadedBy: '
+  );
 });
 
 test('Has timestamps enabled', () => {
@@ -1636,7 +2634,11 @@ test('Has timestamps enabled', () => {
 });
 
 test('Exports ReviewVideo model', () => {
-  assertIncludes(reviewVideoModel, 'ReviewVideo', 'ReviewVideo model export missing');
+  assertIncludes(
+    reviewVideoModel,
+    'ReviewVideo',
+    'ReviewVideo model export missing'
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -1644,50 +2646,72 @@ test('Exports ReviewVideo model', () => {
 // ═════════════════════════════════════════════
 suite('22. Review Video — Controller');
 
-const reviewVideoController = readSource('controller/reviewVideo.controller.js');
+const reviewVideoController = readSource(
+  'controller/reviewVideo.controller.js'
+);
 
 test('Imports ReviewVideo model', () => {
-  assertIncludes(reviewVideoController, "import ReviewVideo from", 'ReviewVideo import missing');
+  assertIncludes(
+    reviewVideoController,
+    'import ReviewVideo from',
+    'ReviewVideo import missing'
+  );
 });
 
 test('Exports uploadReviewVideo with validation', () => {
-  assertIncludesAll(reviewVideoController, [
-    'export const uploadReviewVideo', 'title', 'videoUrl', 'reviewerName',
-  ], 'uploadReviewVideo: ');
+  assertIncludesAll(
+    reviewVideoController,
+    ['export const uploadReviewVideo', 'title', 'videoUrl', 'reviewerName'],
+    'uploadReviewVideo: '
+  );
 });
 
 test('uploadReviewVideo deactivates all previous videos', () => {
-  assertIncludesAll(reviewVideoController, [
-    'updateMany', 'isActive: false',
-  ], 'Deactivation: ');
+  assertIncludesAll(
+    reviewVideoController,
+    ['updateMany', 'isActive: false'],
+    'Deactivation: '
+  );
 });
 
 test('uploadReviewVideo creates new video with isActive: true', () => {
-  assertIncludesAll(reviewVideoController, [
-    'ReviewVideo.create', 'isActive: true',
-  ], 'Create active: ');
+  assertIncludesAll(
+    reviewVideoController,
+    ['ReviewVideo.create', 'isActive: true'],
+    'Create active: '
+  );
 });
 
 test('Exports getLatestReviewVideo (public endpoint)', () => {
-  assertIncludesAll(reviewVideoController, [
-    'export const getLatestReviewVideo', 'findOne', 'isActive: true',
-  ], 'getLatestReviewVideo: ');
+  assertIncludesAll(
+    reviewVideoController,
+    ['export const getLatestReviewVideo', 'findOne', 'isActive: true'],
+    'getLatestReviewVideo: '
+  );
 });
 
 test('getLatestReviewVideo sorts by createdAt descending', () => {
-  assertIncludes(reviewVideoController, 'createdAt: -1', 'Sort by createdAt missing');
+  assertIncludes(
+    reviewVideoController,
+    'createdAt: -1',
+    'Sort by createdAt missing'
+  );
 });
 
 test('getLatestReviewVideo returns null gracefully when no video exists', () => {
-  assertIncludesAll(reviewVideoController, [
-    'data: null', 'No review video available',
-  ], 'Null handling: ');
+  assertIncludesAll(
+    reviewVideoController,
+    ['data: null', 'No review video available'],
+    'Null handling: '
+  );
 });
 
 test('Exports getAllReviewVideos with pagination', () => {
-  assertIncludesAll(reviewVideoController, [
-    'export const getAllReviewVideos', 'page', 'limit', 'skip', 'totalPages',
-  ], 'getAllReviewVideos: ');
+  assertIncludesAll(
+    reviewVideoController,
+    ['export const getAllReviewVideos', 'page', 'limit', 'skip', 'totalPages'],
+    'getAllReviewVideos: '
+  );
 });
 
 test('getAllReviewVideos populates uploadedBy', () => {
@@ -1695,31 +2719,43 @@ test('getAllReviewVideos populates uploadedBy', () => {
 });
 
 test('Exports deleteReviewVideo with fallback activation', () => {
-  assertIncludesAll(reviewVideoController, [
-    'export const deleteReviewVideo', 'findByIdAndDelete',
-  ], 'deleteReviewVideo: ');
+  assertIncludesAll(
+    reviewVideoController,
+    ['export const deleteReviewVideo', 'findByIdAndDelete'],
+    'deleteReviewVideo: '
+  );
 });
 
 test('deleteReviewVideo activates latest remaining when active is deleted', () => {
-  assertIncludesAll(reviewVideoController, [
-    'video.isActive', 'latestVideo',
-  ], 'Fallback activation: ');
+  assertIncludesAll(
+    reviewVideoController,
+    ['video.isActive', 'latestVideo'],
+    'Fallback activation: '
+  );
 });
 
 test('Exports updateReviewVideo', () => {
-  assertIncludesAll(reviewVideoController, [
-    'export const updateReviewVideo', 'findById', 'video.save()',
-  ], 'updateReviewVideo: ');
+  assertIncludesAll(
+    reviewVideoController,
+    ['export const updateReviewVideo', 'findById', 'video.save()'],
+    'updateReviewVideo: '
+  );
 });
 
 test('Exports setActiveReviewVideo', () => {
-  assertIncludesAll(reviewVideoController, [
-    'export const setActiveReviewVideo', 'updateMany', 'isActive: false',
-  ], 'setActiveReviewVideo: ');
+  assertIncludesAll(
+    reviewVideoController,
+    ['export const setActiveReviewVideo', 'updateMany', 'isActive: false'],
+    'setActiveReviewVideo: '
+  );
 });
 
 test('setActiveReviewVideo deactivates all then activates selected', () => {
-  assertIncludes(reviewVideoController, 'video.isActive = true', 'Activation logic missing');
+  assertIncludes(
+    reviewVideoController,
+    'video.isActive = true',
+    'Activation logic missing'
+  );
 });
 
 test('All controller functions use try/catch with next(error)', () => {
@@ -1734,11 +2770,19 @@ suite('24. Comparison — Model');
 const comparisonModel = readSource('models/comparison.model.js');
 
 test('Has feature field (required, trim)', () => {
-  assertIncludesAll(comparisonModel, ['feature', 'required', 'trim'], 'feature: ');
+  assertIncludesAll(
+    comparisonModel,
+    ['feature', 'required', 'trim'],
+    'feature: '
+  );
 });
 
 test('Has uSleep field (required, trim)', () => {
-  assertIncludesAll(comparisonModel, ['uSleep', 'required', 'trim'], 'uSleep: ');
+  assertIncludesAll(
+    comparisonModel,
+    ['uSleep', 'required', 'trim'],
+    'uSleep: '
+  );
 });
 
 test('Has human field (required, trim)', () => {
@@ -1746,11 +2790,19 @@ test('Has human field (required, trim)', () => {
 });
 
 test('Has order field with default 0', () => {
-  assertIncludesAll(comparisonModel, ['order', 'Number', 'default: 0'], 'order: ');
+  assertIncludesAll(
+    comparisonModel,
+    ['order', 'Number', 'default: 0'],
+    'order: '
+  );
 });
 
 test('Has isActive boolean (default true)', () => {
-  assertIncludesAll(comparisonModel, ['isActive', 'Boolean', 'true'], 'isActive: ');
+  assertIncludesAll(
+    comparisonModel,
+    ['isActive', 'Boolean', 'true'],
+    'isActive: '
+  );
 });
 
 test('Has timestamps enabled', () => {
@@ -1758,7 +2810,11 @@ test('Has timestamps enabled', () => {
 });
 
 test('Exports Comparison model', () => {
-  assertIncludes(comparisonModel, 'Comparison', 'Comparison model export missing');
+  assertIncludes(
+    comparisonModel,
+    'Comparison',
+    'Comparison model export missing'
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -1769,29 +2825,43 @@ suite('25. Comparison — Controller');
 const comparisonController = readSource('controller/comparison.controller.js');
 
 test('Imports Comparison model', () => {
-  assertIncludes(comparisonController, 'import Comparison from', 'Comparison import missing');
+  assertIncludes(
+    comparisonController,
+    'import Comparison from',
+    'Comparison import missing'
+  );
 });
 
 test('Exports getComparisons (public, active only)', () => {
-  assertIncludesAll(comparisonController, [
-    'export const getComparisons', 'isActive: true', 'sort',
-  ], 'getComparisons: ');
+  assertIncludesAll(
+    comparisonController,
+    ['export const getComparisons', 'isActive: true', 'sort'],
+    'getComparisons: '
+  );
 });
 
 test('Exports getAllComparisons (admin, all records)', () => {
-  assertIncludesAll(comparisonController, [
-    'export const getAllComparisons', 'Comparison.find()', 'sort',
-  ], 'getAllComparisons: ');
+  assertIncludesAll(
+    comparisonController,
+    ['export const getAllComparisons', 'Comparison.find()', 'sort'],
+    'getAllComparisons: '
+  );
 });
 
 test('Exports createComparison with validation', () => {
-  assertIncludesAll(comparisonController, [
-    'export const createComparison', 'feature', 'uSleep', 'human',
-  ], 'createComparison: ');
+  assertIncludesAll(
+    comparisonController,
+    ['export const createComparison', 'feature', 'uSleep', 'human'],
+    'createComparison: '
+  );
 });
 
 test('createComparison validates required fields', () => {
-  assertIncludes(comparisonController, '!feature || !uSleep || !human', 'Input validation missing');
+  assertIncludes(
+    comparisonController,
+    '!feature || !uSleep || !human',
+    'Input validation missing'
+  );
 });
 
 test('createComparison returns 201 on success', () => {
@@ -1799,31 +2869,43 @@ test('createComparison returns 201 on success', () => {
 });
 
 test('Exports updateComparison with runValidators', () => {
-  assertIncludesAll(comparisonController, [
-    'export const updateComparison', 'findByIdAndUpdate', 'runValidators',
-  ], 'updateComparison: ');
+  assertIncludesAll(
+    comparisonController,
+    ['export const updateComparison', 'findByIdAndUpdate', 'runValidators'],
+    'updateComparison: '
+  );
 });
 
 test('updateComparison returns 404 if not found', () => {
-  assertIncludes(comparisonController, 'Comparison not found', '404 handling missing');
+  assertIncludes(
+    comparisonController,
+    'Comparison not found',
+    '404 handling missing'
+  );
 });
 
 test('Exports deleteComparison', () => {
-  assertIncludesAll(comparisonController, [
-    'export const deleteComparison', 'findByIdAndDelete',
-  ], 'deleteComparison: ');
+  assertIncludesAll(
+    comparisonController,
+    ['export const deleteComparison', 'findByIdAndDelete'],
+    'deleteComparison: '
+  );
 });
 
 test('Exports seedComparisons with existing data check', () => {
-  assertIncludesAll(comparisonController, [
-    'export const seedComparisons', 'countDocuments', 'insertMany',
-  ], 'seedComparisons: ');
+  assertIncludesAll(
+    comparisonController,
+    ['export const seedComparisons', 'countDocuments', 'insertMany'],
+    'seedComparisons: '
+  );
 });
 
 test('seedComparisons includes default comparison data', () => {
-  assertIncludesAll(comparisonController, [
-    'Average revenue saved', 'Proposal writing', 'Cost per sale',
-  ], 'Default seed data: ');
+  assertIncludesAll(
+    comparisonController,
+    ['Average revenue saved', 'Proposal writing', 'Cost per sale'],
+    'Default seed data: '
+  );
 });
 
 test('All comparison controller functions use try/catch with next(error)', () => {
@@ -1838,27 +2920,51 @@ test('All comparison controller functions use try/catch with next(error)', () =>
 suite('26. Comparison — Routes');
 
 test('GET / is public (getComparisons)', () => {
-  assertIncludes(comparisonRouter, 'getComparisons', 'getComparisons handler missing');
+  assertIncludes(
+    comparisonRouter,
+    'getComparisons',
+    'getComparisons handler missing'
+  );
 });
 
 test('GET /all is protected (admin)', () => {
-  assertIncludesAll(comparisonRouter, ['/all', 'authorize', 'getAllComparisons'], 'GET /all: ');
+  assertIncludesAll(
+    comparisonRouter,
+    ['/all', 'authorize', 'getAllComparisons'],
+    'GET /all: '
+  );
 });
 
 test('POST / is protected (create)', () => {
-  assertIncludesAll(comparisonRouter, ['post', 'authorize', 'createComparison'], 'POST /: ');
+  assertIncludesAll(
+    comparisonRouter,
+    ['post', 'authorize', 'createComparison'],
+    'POST /: '
+  );
 });
 
 test('POST /seed is protected (seed)', () => {
-  assertIncludesAll(comparisonRouter, ['/seed', 'authorize', 'seedComparisons'], 'POST /seed: ');
+  assertIncludesAll(
+    comparisonRouter,
+    ['/seed', 'authorize', 'seedComparisons'],
+    'POST /seed: '
+  );
 });
 
 test('PUT /:id is protected (update)', () => {
-  assertIncludesAll(comparisonRouter, ['/:id', 'authorize', 'updateComparison'], 'PUT /:id: ');
+  assertIncludesAll(
+    comparisonRouter,
+    ['/:id', 'authorize', 'updateComparison'],
+    'PUT /:id: '
+  );
 });
 
 test('DELETE /:id is protected (delete)', () => {
-  assertIncludesAll(comparisonRouter, ['deleteComparison', 'authorize'], 'DELETE /:id: ');
+  assertIncludesAll(
+    comparisonRouter,
+    ['deleteComparison', 'authorize'],
+    'DELETE /:id: '
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -1869,7 +2975,11 @@ suite('27. Product — Model');
 const productModel = readSource('models/product.model.js');
 
 test('Has key field (required, unique, trim)', () => {
-  assertIncludesAll(productModel, ['key', 'required', 'unique', 'trim'], 'key: ');
+  assertIncludesAll(
+    productModel,
+    ['key', 'required', 'unique', 'trim'],
+    'key: '
+  );
 });
 
 test('Has name field (required, trim)', () => {
@@ -1885,11 +2995,19 @@ test('Has features array of strings', () => {
 });
 
 test('Has isPopular boolean (default false)', () => {
-  assertIncludesAll(productModel, ['isPopular', 'Boolean', 'false'], 'isPopular: ');
+  assertIncludesAll(
+    productModel,
+    ['isPopular', 'Boolean', 'false'],
+    'isPopular: '
+  );
 });
 
 test('Has isActive boolean (default true)', () => {
-  assertIncludesAll(productModel, ['isActive', 'Boolean', 'true'], 'isActive: ');
+  assertIncludesAll(
+    productModel,
+    ['isActive', 'Boolean', 'true'],
+    'isActive: '
+  );
 });
 
 test('Has order field with default 0', () => {
@@ -1916,41 +3034,59 @@ suite('28. Product — Controller');
 const productController = readSource('controller/product.controller.js');
 
 test('Imports Product model', () => {
-  assertIncludes(productController, 'import Product from', 'Product import missing');
+  assertIncludes(
+    productController,
+    'import Product from',
+    'Product import missing'
+  );
 });
 
 test('Exports getProducts (public, active only)', () => {
-  assertIncludesAll(productController, [
-    'export const getProducts', 'isActive: true', 'sort',
-  ], 'getProducts: ');
+  assertIncludesAll(
+    productController,
+    ['export const getProducts', 'isActive: true', 'sort'],
+    'getProducts: '
+  );
 });
 
 test('Exports getAllProducts (admin, all records)', () => {
-  assertIncludesAll(productController, [
-    'export const getAllProducts', 'Product.find()', 'sort',
-  ], 'getAllProducts: ');
+  assertIncludesAll(
+    productController,
+    ['export const getAllProducts', 'Product.find()', 'sort'],
+    'getAllProducts: '
+  );
 });
 
 test('Exports getProductById with 404 handling', () => {
-  assertIncludesAll(productController, [
-    'export const getProductById', 'Product.findById', 'Product not found',
-  ], 'getProductById: ');
+  assertIncludesAll(
+    productController,
+    ['export const getProductById', 'Product.findById', 'Product not found'],
+    'getProductById: '
+  );
 });
 
 test('Exports createProduct with validation', () => {
-  assertIncludesAll(productController, [
-    'export const createProduct', 'key', 'name', 'price',
-  ], 'createProduct: ');
+  assertIncludesAll(
+    productController,
+    ['export const createProduct', 'key', 'name', 'price'],
+    'createProduct: '
+  );
 });
 
 test('createProduct validates required fields (key, name, price)', () => {
-  assertIncludes(productController, '!key || !name || !price', 'Input validation missing');
+  assertIncludes(
+    productController,
+    '!key || !name || !price',
+    'Input validation missing'
+  );
 });
 
 test('createProduct checks for duplicate key (409)', () => {
-  assertIncludesAll(productController, [
-    'Product.findOne({ key })', '409', 'already exists',
-  ], 'Duplicate key check: ');
+  assertIncludesAll(
+    productController,
+    ['Product.findOne({ key })', '409', 'already exists'],
+    'Duplicate key check: '
+  );
 });
 
 test('createProduct returns 201 on success', () => {
@@ -1958,27 +3094,35 @@ test('createProduct returns 201 on success', () => {
 });
 
 test('Exports updateProduct with duplicate key check', () => {
-  assertIncludesAll(productController, [
-    'export const updateProduct', 'findById', 'product.save()',
-  ], 'updateProduct: ');
+  assertIncludesAll(
+    productController,
+    ['export const updateProduct', 'findById', 'product.save()'],
+    'updateProduct: '
+  );
 });
 
 test('Exports deleteProduct with 404 handling', () => {
-  assertIncludesAll(productController, [
-    'export const deleteProduct', 'findByIdAndDelete', 'Product not found',
-  ], 'deleteProduct: ');
+  assertIncludesAll(
+    productController,
+    ['export const deleteProduct', 'findByIdAndDelete', 'Product not found'],
+    'deleteProduct: '
+  );
 });
 
 test('Exports seedProducts with existing data check', () => {
-  assertIncludesAll(productController, [
-    'export const seedProducts', 'countDocuments', 'insertMany',
-  ], 'seedProducts: ');
+  assertIncludesAll(
+    productController,
+    ['export const seedProducts', 'countDocuments', 'insertMany'],
+    'seedProducts: '
+  );
 });
 
 test('seedProducts includes default product data (manual, auto)', () => {
-  assertIncludesAll(productController, [
-    'manual', 'auto', 'Manual job responding', 'Auto responder',
-  ], 'Default seed data: ');
+  assertIncludesAll(
+    productController,
+    ['manual', 'auto', 'Manual job responding', 'Auto responder'],
+    'Default seed data: '
+  );
 });
 
 test('All product controller functions use try/catch with next(error)', () => {
@@ -1997,7 +3141,11 @@ test('GET / is public (getProducts)', () => {
 });
 
 test('GET /all is protected (admin)', () => {
-  assertIncludesAll(productRouter, ['/all', 'authorize', 'getAllProducts'], 'GET /all: ');
+  assertIncludesAll(
+    productRouter,
+    ['/all', 'authorize', 'getAllProducts'],
+    'GET /all: '
+  );
 });
 
 test('GET /:id (getProductById)', () => {
@@ -2005,19 +3153,35 @@ test('GET /:id (getProductById)', () => {
 });
 
 test('POST / is protected (create)', () => {
-  assertIncludesAll(productRouter, ['post', 'authorize', 'createProduct'], 'POST /: ');
+  assertIncludesAll(
+    productRouter,
+    ['post', 'authorize', 'createProduct'],
+    'POST /: '
+  );
 });
 
 test('POST /seed is protected (seed)', () => {
-  assertIncludesAll(productRouter, ['/seed', 'authorize', 'seedProducts'], 'POST /seed: ');
+  assertIncludesAll(
+    productRouter,
+    ['/seed', 'authorize', 'seedProducts'],
+    'POST /seed: '
+  );
 });
 
 test('PUT /:id is protected (update)', () => {
-  assertIncludesAll(productRouter, ['/:id', 'authorize', 'updateProduct'], 'PUT /:id: ');
+  assertIncludesAll(
+    productRouter,
+    ['/:id', 'authorize', 'updateProduct'],
+    'PUT /:id: '
+  );
 });
 
 test('DELETE /:id is protected (delete)', () => {
-  assertIncludesAll(productRouter, ['deleteProduct', 'authorize'], 'DELETE /:id: ');
+  assertIncludesAll(
+    productRouter,
+    ['deleteProduct', 'authorize'],
+    'DELETE /:id: '
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -2028,19 +3192,35 @@ suite('30. Payment — Model');
 const paymentModel = readSource('models/payment.model.js');
 
 test('Has userId ref to User model (required)', () => {
-  assertIncludesAll(paymentModel, ['userId', "ref: 'User'", 'required'], 'userId: ');
+  assertIncludesAll(
+    paymentModel,
+    ['userId', "ref: 'User'", 'required'],
+    'userId: '
+  );
 });
 
 test('Has stripeSessionId (required, unique)', () => {
-  assertIncludesAll(paymentModel, ['stripeSessionId', 'required', 'unique'], 'stripeSessionId: ');
+  assertIncludesAll(
+    paymentModel,
+    ['stripeSessionId', 'required', 'unique'],
+    'stripeSessionId: '
+  );
 });
 
 test('Has stripePaymentIntentId field', () => {
-  assertIncludes(paymentModel, 'stripePaymentIntentId', 'stripePaymentIntentId missing');
+  assertIncludes(
+    paymentModel,
+    'stripePaymentIntentId',
+    'stripePaymentIntentId missing'
+  );
 });
 
 test('Has plan enum (manual, auto)', () => {
-  assertIncludesAll(paymentModel, ['plan', "'manual'", "'auto'"], 'plan enum: ');
+  assertIncludesAll(
+    paymentModel,
+    ['plan', "'manual'", "'auto'"],
+    'plan enum: '
+  );
 });
 
 test('Has amount field (required, Number)', () => {
@@ -2052,13 +3232,19 @@ test('Has currency field (default usd)', () => {
 });
 
 test('Has status enum (pending, completed, failed, refunded, cancelled)', () => {
-  assertIncludesAll(paymentModel, [
-    "'pending'", "'completed'", "'failed'", "'refunded'", "'cancelled'",
-  ], 'status enum: ');
+  assertIncludesAll(
+    paymentModel,
+    ["'pending'", "'completed'", "'failed'", "'refunded'", "'cancelled'"],
+    'status enum: '
+  );
 });
 
 test('Has coinsAwarded field (default 0)', () => {
-  assertIncludesAll(paymentModel, ['coinsAwarded', 'default: 0'], 'coinsAwarded: ');
+  assertIncludesAll(
+    paymentModel,
+    ['coinsAwarded', 'default: 0'],
+    'coinsAwarded: '
+  );
 });
 
 test('Has metadata field (Mixed type)', () => {
@@ -2081,134 +3267,221 @@ suite('31. Payment — Controller');
 const paymentController = readSource('controller/payment.controller.js');
 
 test('Imports Stripe and initializes with STRIPE_SECRET_KEY', () => {
-  assertIncludesAll(paymentController, ['import Stripe', 'STRIPE_SECRET_KEY', 'new Stripe'], 'Stripe init: ');
+  assertIncludesAll(
+    paymentController,
+    ['import Stripe', 'STRIPE_SECRET_KEY', 'new Stripe'],
+    'Stripe init: '
+  );
 });
 
 test('Imports User and Payment models', () => {
-  assertIncludesAll(paymentController, [
-    "import User from '../models/user.model.js'",
-    "import Payment from '../models/payment.model.js'",
-  ], 'Model imports: ');
+  assertIncludesAll(
+    paymentController,
+    [
+      "import User from '../models/user.model.js'",
+      "import Payment from '../models/payment.model.js'",
+    ],
+    'Model imports: '
+  );
 });
 
 test('Defines COINS_PER_SUBSCRIPTION constant (30000)', () => {
-  assertIncludesAll(paymentController, ['COINS_PER_SUBSCRIPTION', '30000'], 'Coins constant: ');
+  assertIncludesAll(
+    paymentController,
+    ['COINS_PER_SUBSCRIPTION', '30000'],
+    'Coins constant: '
+  );
 });
 
 test('Defines PLAN_PRICES mapping for manual and auto plans', () => {
-  assertIncludesAll(paymentController, ['PLAN_PRICES', 'manual', 'auto', 'amount', 'name', 'description'], 'Plan prices: ');
+  assertIncludesAll(
+    paymentController,
+    ['PLAN_PRICES', 'manual', 'auto', 'amount', 'name', 'description'],
+    'Plan prices: '
+  );
 });
 
 test('Exports createCheckoutSession with plan validation', () => {
-  assertIncludesAll(paymentController, [
-    'export const createCheckoutSession', 'Invalid plan', '"manual" or "auto"',
-  ], 'createCheckoutSession: ');
+  assertIncludesAll(
+    paymentController,
+    [
+      'export const createCheckoutSession',
+      'Invalid plan',
+      '"manual" or "auto"',
+    ],
+    'createCheckoutSession: '
+  );
 });
 
 test('createCheckoutSession creates or retrieves Stripe customer', () => {
-  assertIncludesAll(paymentController, [
-    'stripe.customers.create', 'stripeCustomerId',
-  ], 'Stripe customer: ');
+  assertIncludesAll(
+    paymentController,
+    ['stripe.customers.create', 'stripeCustomerId'],
+    'Stripe customer: '
+  );
 });
 
 test('createCheckoutSession creates Stripe Checkout session', () => {
-  assertIncludesAll(paymentController, [
-    'stripe.checkout.sessions.create', 'payment_method_types', 'line_items',
-    'success_url', 'cancel_url', 'metadata',
-  ], 'Checkout session: ');
+  assertIncludesAll(
+    paymentController,
+    [
+      'stripe.checkout.sessions.create',
+      'payment_method_types',
+      'line_items',
+      'success_url',
+      'cancel_url',
+      'metadata',
+    ],
+    'Checkout session: '
+  );
 });
 
 test('createCheckoutSession creates pending Payment record', () => {
-  assertIncludesAll(paymentController, ["Payment.create", "'pending'"], 'Pending payment: ');
+  assertIncludesAll(
+    paymentController,
+    ['Payment.create', "'pending'"],
+    'Pending payment: '
+  );
 });
 
 test('createCheckoutSession returns session URL and ID', () => {
-  assertIncludesAll(paymentController, ['session.url', 'sessionId'], 'Session response: ');
+  assertIncludesAll(
+    paymentController,
+    ['session.url', 'sessionId'],
+    'Session response: '
+  );
 });
 
 test('Exports stripeWebhook handler', () => {
-  assertIncludesAll(paymentController, [
-    'export const stripeWebhook', 'stripe-signature', 'stripe.webhooks.constructEvent',
-  ], 'stripeWebhook: ');
+  assertIncludesAll(
+    paymentController,
+    [
+      'export const stripeWebhook',
+      'stripe-signature',
+      'stripe.webhooks.constructEvent',
+    ],
+    'stripeWebhook: '
+  );
 });
 
 test('stripeWebhook handles checkout.session.completed event', () => {
-  assertIncludesAll(paymentController, [
-    'checkout.session.completed', 'handleCheckoutComplete',
-  ], 'Checkout completed: ');
+  assertIncludesAll(
+    paymentController,
+    ['checkout.session.completed', 'handleCheckoutComplete'],
+    'Checkout completed: '
+  );
 });
 
 test('stripeWebhook handles checkout.session.expired event', () => {
-  assertIncludesAll(paymentController, [
-    'checkout.session.expired', 'handleCheckoutExpired',
-  ], 'Checkout expired: ');
+  assertIncludesAll(
+    paymentController,
+    ['checkout.session.expired', 'handleCheckoutExpired'],
+    'Checkout expired: '
+  );
 });
 
 test('handleCheckoutComplete updates payment status and awards coins', () => {
-  assertIncludesAll(paymentController, [
-    'handleCheckoutComplete', "status: 'completed'", 'coinsAwarded', 'COINS_PER_SUBSCRIPTION',
-  ], 'Checkout complete handler: ');
+  assertIncludesAll(
+    paymentController,
+    [
+      'handleCheckoutComplete',
+      "status: 'completed'",
+      'coinsAwarded',
+      'COINS_PER_SUBSCRIPTION',
+    ],
+    'Checkout complete handler: '
+  );
 });
 
 test('handleCheckoutComplete updates user subscription and coin balance', () => {
-  assertIncludesAll(paymentController, [
-    "'subscription.plan'", "'subscription.status'", "'subscription.subscribedAt'",
-    "'subscription.expiresAt'", '$inc', 'coins: COINS_PER_SUBSCRIPTION',
-  ], 'User subscription update: ');
+  assertIncludesAll(
+    paymentController,
+    [
+      "'subscription.plan'",
+      "'subscription.status'",
+      "'subscription.subscribedAt'",
+      "'subscription.expiresAt'",
+      '$inc',
+      'coins: COINS_PER_SUBSCRIPTION',
+    ],
+    'User subscription update: '
+  );
 });
 
 test('handleCheckoutComplete pushes to coinHistory', () => {
-  assertIncludesAll(paymentController, [
-    '$push', 'coinHistory', "type: 'credit'", 'reason',
-  ], 'CoinHistory push: ');
+  assertIncludesAll(
+    paymentController,
+    ['$push', 'coinHistory', "type: 'credit'", 'reason'],
+    'CoinHistory push: '
+  );
 });
 
 test('handleCheckoutExpired marks payment as cancelled', () => {
-  assertIncludesAll(paymentController, [
-    'handleCheckoutExpired', "status: 'cancelled'",
-  ], 'Expired handler: ');
+  assertIncludesAll(
+    paymentController,
+    ['handleCheckoutExpired', "status: 'cancelled'"],
+    'Expired handler: '
+  );
 });
 
 test('Exports verifySession with Stripe fallback check', () => {
-  assertIncludesAll(paymentController, [
-    'export const verifySession', 'stripe.checkout.sessions.retrieve', 'payment_status',
-  ], 'verifySession: ');
+  assertIncludesAll(
+    paymentController,
+    [
+      'export const verifySession',
+      'stripe.checkout.sessions.retrieve',
+      'payment_status',
+    ],
+    'verifySession: '
+  );
 });
 
 test('Exports getMyPayments with pagination', () => {
-  assertIncludesAll(paymentController, [
-    'export const getMyPayments', 'page', 'limit', 'skip', 'countDocuments',
-  ], 'getMyPayments: ');
+  assertIncludesAll(
+    paymentController,
+    ['export const getMyPayments', 'page', 'limit', 'skip', 'countDocuments'],
+    'getMyPayments: '
+  );
 });
 
 test('Exports getRevenueStats with aggregation pipeline', () => {
-  assertIncludesAll(paymentController, [
-    'export const getRevenueStats', 'aggregate', '$match', '$group', '$sum',
-  ], 'getRevenueStats: ');
+  assertIncludesAll(
+    paymentController,
+    ['export const getRevenueStats', 'aggregate', '$match', '$group', '$sum'],
+    'getRevenueStats: '
+  );
 });
 
 test('getRevenueStats calculates monthly revenue and change percentage', () => {
-  assertIncludesAll(paymentController, [
-    'currentRevenue', 'lastRevenue', 'revenueChange',
-  ], 'Revenue calculation: ');
+  assertIncludesAll(
+    paymentController,
+    ['currentRevenue', 'lastRevenue', 'revenueChange'],
+    'Revenue calculation: '
+  );
 });
 
 test('getRevenueStats includes plan breakdown and churn rate', () => {
-  assertIncludesAll(paymentController, [
-    'planBreakdown', 'churnRate', 'cancelledPayments',
-  ], 'Revenue metrics: ');
+  assertIncludesAll(
+    paymentController,
+    ['planBreakdown', 'churnRate', 'cancelledPayments'],
+    'Revenue metrics: '
+  );
 });
 
 test('getRevenueStats includes recent payments with user populate', () => {
-  assertIncludesAll(paymentController, [
-    'recentPayments', 'populate', 'name', 'email',
-  ], 'Recent payments: ');
+  assertIncludesAll(
+    paymentController,
+    ['recentPayments', 'populate', 'name', 'email'],
+    'Recent payments: '
+  );
 });
 
 test('Exports getCoinBalance for current user', () => {
-  assertIncludesAll(paymentController, [
-    'export const getCoinBalance', 'coins', 'coinHistory', 'subscription',
-  ], 'getCoinBalance: ');
+  assertIncludesAll(
+    paymentController,
+    ['export const getCoinBalance', 'coins', 'coinHistory', 'subscription'],
+    'getCoinBalance: '
+  );
 });
 
 test('All payment controller functions use try/catch with next(error)', () => {
@@ -2229,46 +3502,66 @@ test('Imports authorize middleware', () => {
 });
 
 test('Imports all payment controller functions', () => {
-  assertIncludesAll(paymentRouterContent, [
-    'createCheckoutSession', 'stripeWebhook', 'verifySession',
-    'getMyPayments', 'getRevenueStats', 'getCoinBalance',
-  ], 'Controller import: ');
+  assertIncludesAll(
+    paymentRouterContent,
+    [
+      'createCheckoutSession',
+      'stripeWebhook',
+      'verifySession',
+      'getMyPayments',
+      'getRevenueStats',
+      'getCoinBalance',
+    ],
+    'Controller import: '
+  );
 });
 
 test('POST /create-checkout-session is protected', () => {
-  assertIncludesAll(paymentRouterContent, [
-    'create-checkout-session', 'authorize', 'createCheckoutSession',
-  ], 'POST /create-checkout-session: ');
+  assertIncludesAll(
+    paymentRouterContent,
+    ['create-checkout-session', 'authorize', 'createCheckoutSession'],
+    'POST /create-checkout-session: '
+  );
 });
 
 test('GET /verify-session/:sessionId is protected', () => {
-  assertIncludesAll(paymentRouterContent, [
-    'verify-session/:sessionId', 'authorize', 'verifySession',
-  ], 'GET /verify-session: ');
+  assertIncludesAll(
+    paymentRouterContent,
+    ['verify-session/:sessionId', 'authorize', 'verifySession'],
+    'GET /verify-session: '
+  );
 });
 
 test('GET /my-payments is protected', () => {
-  assertIncludesAll(paymentRouterContent, [
-    'my-payments', 'authorize', 'getMyPayments',
-  ], 'GET /my-payments: ');
+  assertIncludesAll(
+    paymentRouterContent,
+    ['my-payments', 'authorize', 'getMyPayments'],
+    'GET /my-payments: '
+  );
 });
 
 test('GET /coin-balance is protected', () => {
-  assertIncludesAll(paymentRouterContent, [
-    'coin-balance', 'authorize', 'getCoinBalance',
-  ], 'GET /coin-balance: ');
+  assertIncludesAll(
+    paymentRouterContent,
+    ['coin-balance', 'authorize', 'getCoinBalance'],
+    'GET /coin-balance: '
+  );
 });
 
 test('GET /revenue-stats is protected (admin)', () => {
-  assertIncludesAll(paymentRouterContent, [
-    'revenue-stats', 'authorize', 'getRevenueStats',
-  ], 'GET /revenue-stats: ');
+  assertIncludesAll(
+    paymentRouterContent,
+    ['revenue-stats', 'authorize', 'getRevenueStats'],
+    'GET /revenue-stats: '
+  );
 });
 
 test('POST /webhook has no auth (Stripe sends directly)', () => {
-  assertIncludesAll(paymentRouterContent, [
-    'webhook', 'stripeWebhook',
-  ], 'POST /webhook: ');
+  assertIncludesAll(
+    paymentRouterContent,
+    ['webhook', 'stripeWebhook'],
+    'POST /webhook: '
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -2277,11 +3570,19 @@ test('POST /webhook has no auth (Stripe sends directly)', () => {
 suite('33. Payment — Integration & Security');
 
 test('app.js imports paymentRouter', () => {
-  assertIncludes(appContent, "import paymentRouter from './routes/payment.router.js'", 'paymentRouter import missing');
+  assertIncludes(
+    appContent,
+    "import paymentRouter from './routes/payment.router.js'",
+    'paymentRouter import missing'
+  );
 });
 
 test('app.js mounts /api/v1/payments', () => {
-  assertIncludes(appContent, '/api/v1/payments', 'payments route mount missing');
+  assertIncludes(
+    appContent,
+    '/api/v1/payments',
+    'payments route mount missing'
+  );
 });
 
 test('Stripe webhook raw body is configured before express.json()', () => {
@@ -2293,25 +3594,43 @@ test('Stripe webhook raw body is configured before express.json()', () => {
 });
 
 test('Payment controller authenticates user before checkout', () => {
-  assertIncludesAll(paymentController, [
-    'req.user?.id', 'User not authenticated', '401',
-  ], 'Auth check: ');
+  assertIncludesAll(
+    paymentController,
+    ['req.user?.id', 'User not authenticated', '401'],
+    'Auth check: '
+  );
 });
 
 test('Payment records link to userId for ownership', () => {
-  assertIncludesAll(paymentModel, ['userId', 'ObjectId', "ref: 'User'"], 'Payment userId ref: ');
+  assertIncludesAll(
+    paymentModel,
+    ['userId', 'ObjectId', "ref: 'User'"],
+    'Payment userId ref: '
+  );
 });
 
 test('Coin balance is updated atomically with $inc', () => {
-  assertIncludesAll(paymentController, ['$inc', 'coins: COINS_PER_SUBSCRIPTION'], 'Atomic coin update: ');
+  assertIncludesAll(
+    paymentController,
+    ['$inc', 'coins: COINS_PER_SUBSCRIPTION'],
+    'Atomic coin update: '
+  );
 });
 
 test('Subscription expiry is set to 30 days', () => {
-  assertIncludes(paymentController, '30 * 24 * 60 * 60 * 1000', '30-day expiry missing');
+  assertIncludes(
+    paymentController,
+    '30 * 24 * 60 * 60 * 1000',
+    '30-day expiry missing'
+  );
 });
 
 test('User model subscription has stripeCustomerId for Stripe integration', () => {
-  assertIncludes(userModel, 'stripeCustomerId', 'stripeCustomerId missing from user model');
+  assertIncludes(
+    userModel,
+    'stripeCustomerId',
+    'stripeCustomerId missing from user model'
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -2320,31 +3639,39 @@ test('User model subscription has stripeCustomerId for Stripe integration', () =
 suite('23. Analytics — Real-time Endpoints');
 
 test('getTopTemplates uses MongoDB aggregation with $lookup and $group', () => {
-  assertIncludesAll(proposalController, [
-    'getTopTemplates', '$lookup', '$group', '$sort',
-  ], 'Top templates aggregation: ');
+  assertIncludesAll(
+    proposalController,
+    ['getTopTemplates', '$lookup', '$group', '$sort'],
+    'Top templates aggregation: '
+  );
 });
 
 test('getTopTemplates computes acceptance rate per category', () => {
-  assertIncludesAll(proposalController, [
-    '$divide', '$multiply', '$round',
-  ], 'Rate calculation: ');
+  assertIncludesAll(
+    proposalController,
+    ['$divide', '$multiply', '$round'],
+    'Rate calculation: '
+  );
 });
 
 test('getTopTemplates limits results to top 6', () => {
-  assertIncludes(proposalController, "$limit: 6", 'Top 6 limit missing');
+  assertIncludes(proposalController, '$limit: 6', 'Top 6 limit missing');
 });
 
 test('getTopTemplates handles admin vs user scope', () => {
-  assertIncludesAll(proposalController, [
-    'isAdmin', 'req.adminId',
-  ], 'Admin scope: ');
+  assertIncludesAll(
+    proposalController,
+    ['isAdmin', 'req.adminId'],
+    'Admin scope: '
+  );
 });
 
 test('getJobCategoryPerformance aggregates jobs by category', () => {
-  assertIncludesAll(proposalController, [
-    'getJobCategoryPerformance', '$group', 'category',
-  ], 'Category aggregation: ');
+  assertIncludesAll(
+    proposalController,
+    ['getJobCategoryPerformance', '$group', 'category'],
+    'Category aggregation: '
+  );
 });
 
 test('getJobCategoryPerformance counts proposals per category', () => {
@@ -2352,9 +3679,16 @@ test('getJobCategoryPerformance counts proposals per category', () => {
 });
 
 test('Proposal routes register both analytics endpoints', () => {
-  assertIncludesAll(proposalRouter, [
-    'top-templates', 'category-performance', 'getTopTemplates', 'getJobCategoryPerformance',
-  ], 'Analytics routes: ');
+  assertIncludesAll(
+    proposalRouter,
+    [
+      'top-templates',
+      'category-performance',
+      'getTopTemplates',
+      'getJobCategoryPerformance',
+    ],
+    'Analytics routes: '
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -2363,19 +3697,31 @@ test('Proposal routes register both analytics endpoints', () => {
 suite('34. Frontend — Subscription Tab Structure');
 
 test('SubscriptionView.jsx exists', () => {
-  assert(frontendFileExists('src/components/user/subscription/SubscriptionView.jsx'), 'SubscriptionView.jsx missing');
+  assert(
+    frontendFileExists('src/components/user/subscription/SubscriptionView.jsx'),
+    'SubscriptionView.jsx missing'
+  );
 });
 
 test('Dashboard.jsx exists', () => {
-  assert(frontendFileExists('src/pages/Dashboard.jsx'), 'Dashboard.jsx missing');
+  assert(
+    frontendFileExists('src/pages/Dashboard.jsx'),
+    'Dashboard.jsx missing'
+  );
 });
 
 test('Sidebar.jsx exists', () => {
-  assert(frontendFileExists('src/components/user/layout/Sidebar.jsx'), 'Sidebar.jsx missing');
+  assert(
+    frontendFileExists('src/components/user/layout/Sidebar.jsx'),
+    'Sidebar.jsx missing'
+  );
 });
 
 test('InteractiveCard.jsx exists (shared UI)', () => {
-  assert(frontendFileExists('src/components/user/ui/InteractiveCard.jsx'), 'InteractiveCard.jsx missing');
+  assert(
+    frontendFileExists('src/components/user/ui/InteractiveCard.jsx'),
+    'InteractiveCard.jsx missing'
+  );
 });
 
 test('api.js utility exists with paymentAPI', () => {
@@ -2391,46 +3737,87 @@ test('Context.jsx exists with coin balance state', () => {
 // ═════════════════════════════════════════════
 suite('35. Frontend — SubscriptionView Component');
 
-const subscriptionView = readFrontend('src/components/user/subscription/SubscriptionView.jsx');
+const subscriptionView = readFrontend(
+  'src/components/user/subscription/SubscriptionView.jsx'
+);
 
 test('Imports React hooks (useState, useEffect, useContext, useCallback, useMemo)', () => {
-  assertIncludesAll(subscriptionView, ['useState', 'useEffect', 'useContext', 'useCallback', 'useMemo'], 'React hooks: ');
+  assertIncludesAll(
+    subscriptionView,
+    ['useState', 'useEffect', 'useContext', 'useCallback', 'useMemo'],
+    'React hooks: '
+  );
 });
 
 test('Imports AppContext for user/coin data', () => {
-  assertIncludesAll(subscriptionView, ['AppContext', 'useContext(AppContext)'], 'AppContext: ');
+  assertIncludesAll(
+    subscriptionView,
+    ['AppContext', 'useContext(AppContext)'],
+    'AppContext: '
+  );
 });
 
 test('Imports paymentAPI from utils', () => {
-  assertIncludes(subscriptionView, "import { paymentAPI }", 'paymentAPI import missing');
+  assertIncludes(
+    subscriptionView,
+    'import { paymentAPI }',
+    'paymentAPI import missing'
+  );
 });
 
 test('Imports InteractiveCard shared component', () => {
-  assertIncludes(subscriptionView, "import { InteractiveCard }", 'InteractiveCard import missing');
+  assertIncludes(
+    subscriptionView,
+    'import { InteractiveCard }',
+    'InteractiveCard import missing'
+  );
 });
 
 test('Exports SubscriptionView as default', () => {
-  assertIncludes(subscriptionView, 'export default SubscriptionView', 'Default export missing');
+  assertIncludes(
+    subscriptionView,
+    'export default SubscriptionView',
+    'Default export missing'
+  );
 });
 
 test('Has formatDate helper function', () => {
-  assertIncludesAll(subscriptionView, ['formatDate', 'toLocaleDateString'], 'formatDate: ');
+  assertIncludesAll(
+    subscriptionView,
+    ['formatDate', 'toLocaleDateString'],
+    'formatDate: '
+  );
 });
 
 test('Has daysLeft helper function', () => {
-  assertIncludesAll(subscriptionView, ['daysLeft', 'Math.max', 'Math.ceil'], 'daysLeft: ');
+  assertIncludesAll(
+    subscriptionView,
+    ['daysLeft', 'Math.max', 'Math.ceil'],
+    'daysLeft: '
+  );
 });
 
 test('Defines statusColors mapping for all subscription statuses', () => {
-  assertIncludesAll(subscriptionView, [
-    'statusColors', 'active', 'cancelled', 'past_due', 'trialing', 'none',
-  ], 'statusColors: ');
+  assertIncludesAll(
+    subscriptionView,
+    ['statusColors', 'active', 'cancelled', 'past_due', 'trialing', 'none'],
+    'statusColors: '
+  );
 });
 
 test('Defines paymentStatusColors mapping', () => {
-  assertIncludesAll(subscriptionView, [
-    'paymentStatusColors', 'completed', 'pending', 'failed', 'cancelled', 'refunded',
-  ], 'paymentStatusColors: ');
+  assertIncludesAll(
+    subscriptionView,
+    [
+      'paymentStatusColors',
+      'completed',
+      'pending',
+      'failed',
+      'cancelled',
+      'refunded',
+    ],
+    'paymentStatusColors: '
+  );
 });
 
 test('Shows current plan card with Crown icon', () => {
@@ -2442,55 +3829,91 @@ test('Shows subscription status card with Zap icon', () => {
 });
 
 test('Shows U-Coins balance card with refresh button', () => {
-  assertIncludesAll(subscriptionView, ['U-Coins', 'Coins', 'RefreshCw', 'handleRefreshCoins'], 'Coins card: ');
+  assertIncludesAll(
+    subscriptionView,
+    ['U-Coins', 'Coins', 'RefreshCw', 'handleRefreshCoins'],
+    'Coins card: '
+  );
 });
 
 test('Shows expiry/days-left card with Clock icon', () => {
-  assertIncludesAll(subscriptionView, ['Expires', 'Clock', 'days left'], 'Expiry card: ');
+  assertIncludesAll(
+    subscriptionView,
+    ['Expires', 'Clock', 'days left'],
+    'Expiry card: '
+  );
 });
 
 test('Renders product cards with name, price, features', () => {
-  assertIncludesAll(subscriptionView, [
-    'product.name', 'product.price', 'product.features',
-  ], 'Product cards: ');
+  assertIncludesAll(
+    subscriptionView,
+    ['product.name', 'product.price', 'product.features'],
+    'Product cards: '
+  );
 });
 
 test('Product cards show Popular and Current badges', () => {
-  assertIncludesAll(subscriptionView, ['Popular', 'Current', 'isPopular', 'isCurrentPlan'], 'Badges: ');
+  assertIncludesAll(
+    subscriptionView,
+    ['Popular', 'Current', 'isPopular', 'isCurrentPlan'],
+    'Badges: '
+  );
 });
 
 test('Subscribe/Renew button triggers handleCheckout', () => {
-  assertIncludesAll(subscriptionView, ['handleCheckout', 'Subscribe', 'Renew'], 'Checkout button: ');
+  assertIncludesAll(
+    subscriptionView,
+    ['handleCheckout', 'Subscribe', 'Renew'],
+    'Checkout button: '
+  );
 });
 
 test('Shows coin history section with credit/debit entries', () => {
-  assertIncludesAll(subscriptionView, [
-    'Recent Coin Activity', 'recentCoinHistory', "type === 'credit'",
-  ], 'Coin history: ');
+  assertIncludesAll(
+    subscriptionView,
+    ['Recent Coin Activity', 'recentCoinHistory', "type === 'credit'"],
+    'Coin history: '
+  );
 });
 
 test('Shows payment history table with date, plan, amount, coins, status', () => {
-  assertIncludesAll(subscriptionView, [
-    'Payment History', 'Date', 'Plan', 'Amount', 'Coins', 'Status',
-  ], 'Payment table: ');
+  assertIncludesAll(
+    subscriptionView,
+    ['Payment History', 'Date', 'Plan', 'Amount', 'Coins', 'Status'],
+    'Payment table: '
+  );
 });
 
 test('Payment amounts display in dollars (cents conversion)', () => {
-  assertIncludes(subscriptionView, 'p.amount / 100', 'Cents-to-dollars conversion missing');
+  assertIncludes(
+    subscriptionView,
+    'p.amount / 100',
+    'Cents-to-dollars conversion missing'
+  );
 });
 
 test('Handles error state with AlertCircle display', () => {
-  assertIncludesAll(subscriptionView, ['AlertCircle', 'error', 'text-red'], 'Error display: ');
+  assertIncludesAll(
+    subscriptionView,
+    ['AlertCircle', 'error', 'text-red'],
+    'Error display: '
+  );
 });
 
 test('Handles loading state with Loader2 spinner for each section', () => {
-  assertIncludesAll(subscriptionView, ['Loader2', 'loading.coin', 'loading.payments', 'loading.products'], 'Loading states: ');
+  assertIncludesAll(
+    subscriptionView,
+    ['Loader2', 'loading.coin', 'loading.payments', 'loading.products'],
+    'Loading states: '
+  );
 });
 
 test('Handles empty states gracefully', () => {
-  assertIncludesAll(subscriptionView, [
-    'No plans available', 'No coin activity yet', 'No payments yet',
-  ], 'Empty states: ');
+  assertIncludesAll(
+    subscriptionView,
+    ['No plans available', 'No coin activity yet', 'No payments yet'],
+    'Empty states: '
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -2499,41 +3922,67 @@ test('Handles empty states gracefully', () => {
 suite('36. Frontend — Subscription Speed & Optimization');
 
 test('Fetches all data in parallel with Promise.allSettled (not sequential)', () => {
-  assertIncludesAll(subscriptionView, ['Promise.allSettled', 'getCoinBalance', 'getMyPayments'], 'Parallel fetch: ');
+  assertIncludesAll(
+    subscriptionView,
+    ['Promise.allSettled', 'getCoinBalance', 'getMyPayments'],
+    'Parallel fetch: '
+  );
   // Ensure all 3 calls are inside the same Promise.allSettled array
   const settledIdx = subscriptionView.indexOf('Promise.allSettled');
   const settledBlock = subscriptionView.substring(settledIdx, settledIdx + 400);
-  assertIncludesAll(settledBlock, ['getCoinBalance', 'getMyPayments', '/products'], 'All 3 in Promise.allSettled: ');
+  assertIncludesAll(
+    settledBlock,
+    ['getCoinBalance', 'getMyPayments', '/products'],
+    'All 3 in Promise.allSettled: '
+  );
 });
 
 test('Uses independent loading states per section (not full-page block)', () => {
-  assertIncludes(subscriptionView, '{ coin: true, payments: true, products: true }', 'Independent loading states missing');
+  assertIncludes(
+    subscriptionView,
+    '{ coin: true, payments: true, products: true }',
+    'Independent loading states missing'
+  );
 });
 
 test('handleCheckout is memoized with useCallback', () => {
-  assertIncludes(subscriptionView, 'useCallback(async (planKey)', 'handleCheckout useCallback missing');
+  assertIncludes(
+    subscriptionView,
+    'useCallback(async (planKey)',
+    'handleCheckout useCallback missing'
+  );
 });
 
 test('handleRefreshCoins is memoized with useCallback', () => {
-  assertIncludes(subscriptionView, 'handleRefreshCoins = useCallback', 'handleRefreshCoins useCallback missing');
+  assertIncludes(
+    subscriptionView,
+    'handleRefreshCoins = useCallback',
+    'handleRefreshCoins useCallback missing'
+  );
 });
 
 test('recentCoinHistory is memoized with useMemo', () => {
-  assertIncludesAll(subscriptionView, [
-    'recentCoinHistory = useMemo', 'coinData',
-  ], 'useMemo for coinHistory: ');
+  assertIncludesAll(
+    subscriptionView,
+    ['recentCoinHistory = useMemo', 'coinData'],
+    'useMemo for coinHistory: '
+  );
 });
 
 test('Cleanup flag prevents state updates on unmounted component', () => {
-  assertIncludesAll(subscriptionView, [
-    'let cancelled = false',
-    'if (cancelled) return',
-    'cancelled = true',
-  ], 'Cleanup flag: ');
+  assertIncludesAll(
+    subscriptionView,
+    ['let cancelled = false', 'if (cancelled) return', 'cancelled = true'],
+    'Cleanup flag: '
+  );
 });
 
 test('Coin history is limited to 5 entries (not full array render)', () => {
-  assertIncludes(subscriptionView, '.slice(0, 5)', 'Coin history slice(0,5) missing');
+  assertIncludes(
+    subscriptionView,
+    '.slice(0, 5)',
+    'Coin history slice(0,5) missing'
+  );
 });
 
 test('Payment history fetches only 5 records per page (not all)', () => {
@@ -2541,14 +3990,21 @@ test('Payment history fetches only 5 records per page (not all)', () => {
 });
 
 test('Does not import or bundle entire Stripe SDK on frontend', () => {
-  const noStripeImport = !subscriptionView.includes("import Stripe from 'stripe'");
-  assert(noStripeImport, 'Stripe SDK should NOT be imported on frontend — use API redirect');
+  const noStripeImport = !subscriptionView.includes(
+    "import Stripe from 'stripe'"
+  );
+  assert(
+    noStripeImport,
+    'Stripe SDK should NOT be imported on frontend — use API redirect'
+  );
 });
 
 test('Uses API redirect for checkout (not client-side Stripe)', () => {
-  assertIncludesAll(subscriptionView, [
-    'createCheckoutSession', 'window.location.href',
-  ], 'Server-side checkout: ');
+  assertIncludesAll(
+    subscriptionView,
+    ['createCheckoutSession', 'window.location.href'],
+    'Server-side checkout: '
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -2560,29 +4016,57 @@ const sidebarContent = readFrontend('src/components/user/layout/Sidebar.jsx');
 const dashboardPage = readFrontend('src/pages/Dashboard.jsx');
 
 test('Sidebar imports CreditCard icon for subscription tab', () => {
-  assertIncludes(sidebarContent, 'CreditCard', 'CreditCard icon import missing');
+  assertIncludes(
+    sidebarContent,
+    'CreditCard',
+    'CreditCard icon import missing'
+  );
 });
 
 test('Sidebar has subscription menu item', () => {
-  assertIncludesAll(sidebarContent, ["id: 'subscription'", "label: 'Subscription'"], 'Subscription menu item: ');
+  assertIncludesAll(
+    sidebarContent,
+    ["id: 'subscription'", "label: 'Subscription'"],
+    'Subscription menu item: '
+  );
 });
 
 test('Sidebar lists 5 menu items (dashboard, subscription, prompts, notifications, settings)', () => {
-  assertIncludesAll(sidebarContent, [
-    "'dashboard'", "'subscription'", "'prompts'", "'notifications'", "'settings'",
-  ], 'Menu items: ');
+  assertIncludesAll(
+    sidebarContent,
+    [
+      "'dashboard'",
+      "'subscription'",
+      "'prompts'",
+      "'notifications'",
+      "'settings'",
+    ],
+    'Menu items: '
+  );
 });
 
 test('Dashboard.jsx imports SubscriptionView', () => {
-  assertIncludes(dashboardPage, "import SubscriptionView from '../components/user/subscription/SubscriptionView'", 'SubscriptionView import missing');
+  assertIncludes(
+    dashboardPage,
+    "import SubscriptionView from '../components/user/subscription/SubscriptionView'",
+    'SubscriptionView import missing'
+  );
 });
 
 test('Dashboard renderContent handles subscription case', () => {
-  assertIncludesAll(dashboardPage, ["case 'subscription'", '<SubscriptionView'], 'Subscription case: ');
+  assertIncludesAll(
+    dashboardPage,
+    ["case 'subscription'", '<SubscriptionView'],
+    'Subscription case: '
+  );
 });
 
 test('SubscriptionView renders without props (self-contained via context)', () => {
-  assertIncludes(dashboardPage, '<SubscriptionView />', 'SubscriptionView should be self-contained (no props)');
+  assertIncludes(
+    dashboardPage,
+    '<SubscriptionView />',
+    'SubscriptionView should be self-contained (no props)'
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -2594,45 +4078,83 @@ const apiUtils = readFrontend('src/utils/api.js');
 const contextFile = readFrontend('src/context/Context.jsx');
 
 test('api.js exports paymentAPI object', () => {
-  assertIncludes(apiUtils, 'export const paymentAPI', 'paymentAPI export missing');
+  assertIncludes(
+    apiUtils,
+    'export const paymentAPI',
+    'paymentAPI export missing'
+  );
 });
 
 test('paymentAPI has createCheckoutSession method', () => {
-  assertIncludesAll(apiUtils, ['createCheckoutSession', 'create-checkout-session', 'POST'], 'createCheckoutSession: ');
+  assertIncludesAll(
+    apiUtils,
+    ['createCheckoutSession', 'create-checkout-session', 'POST'],
+    'createCheckoutSession: '
+  );
 });
 
 test('paymentAPI has verifySession method', () => {
-  assertIncludesAll(apiUtils, ['verifySession', 'verify-session'], 'verifySession: ');
+  assertIncludesAll(
+    apiUtils,
+    ['verifySession', 'verify-session'],
+    'verifySession: '
+  );
 });
 
 test('paymentAPI has getMyPayments with pagination params', () => {
-  assertIncludesAll(apiUtils, ['getMyPayments', 'page', 'limit', 'my-payments'], 'getMyPayments: ');
+  assertIncludesAll(
+    apiUtils,
+    ['getMyPayments', 'page', 'limit', 'my-payments'],
+    'getMyPayments: '
+  );
 });
 
 test('paymentAPI has getCoinBalance method', () => {
-  assertIncludesAll(apiUtils, ['getCoinBalance', 'coin-balance'], 'getCoinBalance: ');
+  assertIncludesAll(
+    apiUtils,
+    ['getCoinBalance', 'coin-balance'],
+    'getCoinBalance: '
+  );
 });
 
 test('paymentAPI has getRevenueStats method (admin)', () => {
-  assertIncludesAll(apiUtils, ['getRevenueStats', 'revenue-stats'], 'getRevenueStats: ');
+  assertIncludesAll(
+    apiUtils,
+    ['getRevenueStats', 'revenue-stats'],
+    'getRevenueStats: '
+  );
 });
 
 test('Context imports paymentAPI', () => {
-  assertIncludes(contextFile, 'paymentAPI', 'paymentAPI not imported in Context');
+  assertIncludes(
+    contextFile,
+    'paymentAPI',
+    'paymentAPI not imported in Context'
+  );
 });
 
 test('Context provides coinBalance state', () => {
-  assertIncludesAll(contextFile, ['coinBalance', 'setCoinBalance'], 'coinBalance state: ');
+  assertIncludesAll(
+    contextFile,
+    ['coinBalance', 'setCoinBalance'],
+    'coinBalance state: '
+  );
 });
 
 test('Context provides fetchCoinBalance function', () => {
-  assertIncludesAll(contextFile, ['fetchCoinBalance', 'getCoinBalance'], 'fetchCoinBalance: ');
+  assertIncludesAll(
+    contextFile,
+    ['fetchCoinBalance', 'getCoinBalance'],
+    'fetchCoinBalance: '
+  );
 });
 
 test('Context updates user object when coin balance changes', () => {
-  assertIncludesAll(contextFile, [
-    'updatedUser', 'coins', "localStorage.setItem('user'",
-  ], 'User coin sync: ');
+  assertIncludesAll(
+    contextFile,
+    ['updatedUser', 'coins', "localStorage.setItem('user'"],
+    'User coin sync: '
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -2642,7 +4164,11 @@ suite('39. App — Speed & Optimization Checks');
 
 // Backend optimizations
 test('Job insertMany uses ordered:false for parallel inserts', () => {
-  assertIncludes(jobController, 'ordered: false', 'ordered:false missing (parallel inserts)');
+  assertIncludes(
+    jobController,
+    'ordered: false',
+    'ordered:false missing (parallel inserts)'
+  );
 });
 
 test('Upwork service uses bulkWrite with upsert for efficient caching', () => {
@@ -2651,31 +4177,58 @@ test('Upwork service uses bulkWrite with upsert for efficient caching', () => {
 
 test('AI service uses AbortController timeout to prevent hanging requests', () => {
   const abortCount = (aiService.match(/AbortController/g) || []).length;
-  assert(abortCount >= 4, `Expected ≥4 AbortController instances, found ${abortCount}`);
+  assert(
+    abortCount >= 4,
+    `Expected ≥4 AbortController instances, found ${abortCount}`
+  );
 });
 
 test('Job search is non-blocking (fires background, returns immediately)', () => {
-  assertIncludesAll(jobController, ['.then(', '.catch('], 'Non-blocking pattern: ');
+  assertIncludesAll(
+    jobController,
+    ['.then(', '.catch('],
+    'Non-blocking pattern: '
+  );
 });
 
 test('Proposal generation is non-blocking (background async)', () => {
-  assertIncludesAll(proposalController, ['generateProposalAsync(', '.catch('], 'Non-blocking generation: ');
+  assertIncludesAll(
+    proposalController,
+    ['generateProposalAsync(', '.catch('],
+    'Non-blocking generation: '
+  );
 });
 
 test('Pagination implemented in getFilteredJobs (skip/limit/pages)', () => {
-  assertIncludesAll(jobController, ['skip', 'limit', 'pages'], 'Job pagination: ');
+  assertIncludesAll(
+    jobController,
+    ['skip', 'limit', 'pages'],
+    'Job pagination: '
+  );
 });
 
 test('Pagination implemented in getUserProposals', () => {
-  assertIncludesAll(proposalController, ['skip', 'limit', 'pages'], 'Proposal pagination: ');
+  assertIncludesAll(
+    proposalController,
+    ['skip', 'limit', 'pages'],
+    'Proposal pagination: '
+  );
 });
 
 test('Pagination implemented in getMyPayments', () => {
-  assertIncludesAll(paymentController, ['skip', 'limit', 'countDocuments'], 'Payment pagination: ');
+  assertIncludesAll(
+    paymentController,
+    ['skip', 'limit', 'countDocuments'],
+    'Payment pagination: '
+  );
 });
 
 test('getAllDemos limits max page size to 100', () => {
-  assertIncludes(demoController, 'Math.min(Math.max(', 'Page size limit missing');
+  assertIncludes(
+    demoController,
+    'Math.min(Math.max(',
+    'Page size limit missing'
+  );
 });
 
 test('TTL index on job cacheExpiry for auto-cleanup', () => {
@@ -2685,18 +4238,27 @@ test('TTL index on job cacheExpiry for auto-cleanup', () => {
 
 test('Compound indexes on Proposal for query performance', () => {
   const proposalModel = readSource('models/proposal.model.js');
-  assertIncludesAll(proposalModel, [
-    'userId: 1, jobId: 1',
-    'userId: 1, status: 1',
-  ], 'Compound indexes: ');
+  assertIncludesAll(
+    proposalModel,
+    ['userId: 1, jobId: 1', 'userId: 1, status: 1'],
+    'Compound indexes: '
+  );
 });
 
 test('AI service timeout is configurable via PROPOSAL_GENERATION_TIMEOUT', () => {
-  assertIncludesAll(aiService, ['PROPOSAL_GENERATION_TIMEOUT', 'this.timeout'], 'Configurable timeout: ');
+  assertIncludesAll(
+    aiService,
+    ['PROPOSAL_GENERATION_TIMEOUT', 'this.timeout'],
+    'Configurable timeout: '
+  );
 });
 
 test('Upwork service caching is configurable (JOB_CACHE_TTL / JOB_CACHE_ENABLED)', () => {
-  assertIncludesAll(upworkService, ['cacheTTL', 'cacheEnabled'], 'Cache config: ');
+  assertIncludesAll(
+    upworkService,
+    ['cacheTTL', 'cacheEnabled'],
+    'Cache config: '
+  );
 });
 
 // Frontend optimizations
@@ -2706,34 +4268,56 @@ test('SubscriptionView component is lazy-loaded via tab switch (not route)', () 
   // Not in main.jsx router — it's a tab, not a route
   const mainJsx = readFrontend('src/main.jsx');
   const noSubscriptionRoute = !mainJsx.includes('SubscriptionView');
-  assert(noSubscriptionRoute, 'SubscriptionView should NOT be a route — it is a dashboard tab');
+  assert(
+    noSubscriptionRoute,
+    'SubscriptionView should NOT be a route — it is a dashboard tab'
+  );
 });
 
 test('Frontend uses fetch redirect for Stripe (zero SDK overhead)', () => {
   // Check that stripe is NOT in frontend package.json as a dependency
   const frontendPkg = JSON.parse(readFrontend('package.json'));
-  const noStripeDep = !frontendPkg.dependencies?.stripe && !frontendPkg.dependencies?.['@stripe/stripe-js'];
-  assert(noStripeDep, 'Stripe SDK should not be a frontend dependency — use server-side redirect');
+  const noStripeDep =
+    !frontendPkg.dependencies?.stripe &&
+    !frontendPkg.dependencies?.['@stripe/stripe-js'];
+  assert(
+    noStripeDep,
+    'Stripe SDK should not be a frontend dependency — use server-side redirect'
+  );
 });
 
 test('Backend Stripe webhook uses raw body (not double-parsed JSON)', () => {
-  assertIncludes(appContent, "express.raw({ type: 'application/json' })", 'Raw body for webhook missing');
+  assertIncludes(
+    appContent,
+    "express.raw({ type: 'application/json' })",
+    'Raw body for webhook missing'
+  );
 });
 
 test('Context auto-clears errors after 5 seconds (no memory leaks)', () => {
-  assertIncludesAll(contextFile, ['setTimeout', 'clearTimeout', '5000'], 'Error auto-clear: ');
+  assertIncludesAll(
+    contextFile,
+    ['setTimeout', 'clearTimeout', '5000'],
+    'Error auto-clear: '
+  );
 });
 
 test('Backend file sizes are reasonable (controllers < 30KB each)', () => {
   const maxSize = 30 * 1024; // 30KB
   for (const ctrl of controllers) {
     const content = readSource(ctrl);
-    assert(content.length < maxSize, `${ctrl} is ${(content.length / 1024).toFixed(1)}KB — should be < 30KB`);
+    assert(
+      content.length < maxSize,
+      `${ctrl} is ${(content.length / 1024).toFixed(1)}KB — should be < 30KB`
+    );
   }
 });
 
 test('Frontend SubscriptionView file size is reasonable (< 20KB)', () => {
-  assert(subscriptionView.length < 20 * 1024, `SubscriptionView is ${(subscriptionView.length / 1024).toFixed(1)}KB — should be < 20KB`);
+  assert(
+    subscriptionView.length < 20 * 1024,
+    `SubscriptionView is ${(subscriptionView.length / 1024).toFixed(1)}KB — should be < 20KB`
+  );
 });
 
 // ═════════════════════════════════════════════
@@ -2765,7 +4349,9 @@ log('  SUITE BREAKDOWN:', 'cyan');
 log('─'.repeat(50), 'dim');
 Object.entries(suiteResults).forEach(([name, { passed, failed }]) => {
   const status = failed === 0 ? colors.green + '✓' : colors.red + '✗';
-  log(`  ${status} ${name} ${colors.dim}(${passed}/${passed + failed})${colors.reset}`);
+  log(
+    `  ${status} ${name} ${colors.dim}(${passed}/${passed + failed})${colors.reset}`
+  );
 });
 
 log('\n' + '═'.repeat(50), 'cyan');

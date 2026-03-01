@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import {
-    uploadReviewVideo,
-    getLatestReviewVideo,
-    getAllReviewVideos,
-    deleteReviewVideo,
-    updateReviewVideo,
-    setActiveReviewVideo
+  uploadReviewVideo,
+  getLatestReviewVideo,
+  getAllReviewVideos,
+  deleteReviewVideo,
+  updateReviewVideo,
+  setActiveReviewVideo,
 } from '../controller/reviewVideo.controller.js';
 import authorize from '../middleware/auth.middleware.js';
 

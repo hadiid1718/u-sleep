@@ -1,17 +1,17 @@
 import { Router } from 'express';
 import {
-    generateProposal,
-    getProposal,
-    getUserProposals,
-    sendProposal,
-    updateProposalStatus,
-    upgradeProposal,
-    copyProposal,
-    rateProposal,
-    deleteProposal,
-    getProposalStats,
-    getTopTemplates,
-    getJobCategoryPerformance,
+  generateProposal,
+  getProposal,
+  getUserProposals,
+  sendProposal,
+  updateProposalStatus,
+  upgradeProposal,
+  copyProposal,
+  rateProposal,
+  deleteProposal,
+  getProposalStats,
+  getTopTemplates,
+  getJobCategoryPerformance,
 } from '../controller/proposal.controller.js';
 import authorize from '../middleware/auth.middleware.js';
 
@@ -35,7 +35,11 @@ proposalRouter.get('/stats/top-templates', authorize, getTopTemplates);
  * GET /api/v1/proposals/stats/category-performance
  * Get job category performance
  */
-proposalRouter.get('/stats/category-performance', authorize, getJobCategoryPerformance);
+proposalRouter.get(
+  '/stats/category-performance',
+  authorize,
+  getJobCategoryPerformance
+);
 
 /**
  * GET /api/v1/proposals
