@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "node test.js",
-    "dev": "node --watch app.js",
+    "dev": "node --watch  src/server.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -21,11 +21,13 @@
     "debug": "~2.6.9",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
+    "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.2.1",
     "morgan": "~1.9.1",
     "nodemailer": "^8.0.1",
-    "stripe": "^20.4.0"
+    "stripe": "^20.4.0",
+    "winston": "^3.19.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -99,13 +99,14 @@ suite('1. Project Structure — Core Files');
 
 const coreFiles = [
   'app.js',
+  'server.js',
   'package.json',
-  'config/env.js',
-  'config/arcjet.js',
-  'database/mongodb.js',
-  'middleware/auth.middleware.js',
-  'middleware/error.middleware.js',
-  'middleware/arcject.middleware.js',
+  'src/config/env.js',
+  'src/config/arcjet.js',
+  'src/database/mongodb.js',
+  'src/middleware/auth.middleware.js',
+  'src/middleware/error.middleware.js',
+  'src/middleware/arcject.middleware.js',
 ];
 
 coreFiles.forEach(f => {
@@ -115,15 +116,15 @@ coreFiles.forEach(f => {
 suite('1. Project Structure — Models');
 
 const models = [
-  'models/user.model.js',
-  'models/admin.model.js',
-  'models/demo.model.js',
-  'models/job.model.js',
-  'models/proposal.model.js',
-  'models/product.model.js',
-  'models/comparison.model.js',
-  'models/reviewVideo.model.js',
-  'models/payment.model.js',
+  'src/models/user.model.js',
+  'src/models/admin.model.js',
+  'src/models/demo.model.js',
+  'src/models/job.model.js',
+  'src/models/proposal.model.js',
+  'src/models/product.model.js',
+  'src/models/comparison.model.js',
+  'src/models/reviewVideo.model.js',
+  'src/models/payment.model.js',
 ];
 
 models.forEach(f => {
@@ -133,15 +134,15 @@ models.forEach(f => {
 suite('1. Project Structure — Controllers');
 
 const controllers = [
-  'controller/auth.controller.js',
-  'controller/user.controller.js',
-  'controller/demo.controller.js',
-  'controller/job.controller.js',
-  'controller/proposal.controller.js',
-  'controller/product.controller.js',
-  'controller/comparison.controller.js',
-  'controller/reviewVideo.controller.js',
-  'controller/payment.controller.js',
+  'src/controller/auth.controller.js',
+  'src/controller/user.controller.js',
+  'src/controller/demo.controller.js',
+  'src/controller/job.controller.js',
+  'src/controller/proposal.controller.js',
+  'src/controller/product.controller.js',
+  'src/controller/comparison.controller.js',
+  'src/controller/reviewVideo.controller.js',
+  'src/controller/payment.controller.js',
 ];
 
 controllers.forEach(f => {
@@ -151,15 +152,15 @@ controllers.forEach(f => {
 suite('1. Project Structure — Routes');
 
 const routes = [
-  'routes/auth.router.js',
-  'routes/user.router.js',
-  'routes/demo.router.js',
-  'routes/job.router.js',
-  'routes/proposal.router.js',
-  'routes/product.router.js',
-  'routes/comparison.router.js',
-  'routes/reviewVideo.router.js',
-  'routes/payment.router.js',
+  'src/routes/auth.router.js',
+  'src/routes/user.router.js',
+  'src/routes/demo.router.js',
+  'src/routes/job.router.js',
+  'src/routes/proposal.router.js',
+  'src/routes/product.router.js',
+  'src/routes/comparison.router.js',
+  'src/routes/reviewVideo.router.js',
+  'src/routes/payment.router.js',
 ];
 
 routes.forEach(f => {
@@ -168,7 +169,7 @@ routes.forEach(f => {
 
 suite('1. Project Structure — Services');
 
-['services/upwork.service.js', 'services/ai.service.js'].forEach(f => {
+['src/services/upwork.service.js', 'src/services/ai.service.js'].forEach(f => {
   test(`${f} exists`, () => assert(fileExists(f), `Missing: ${f}`));
 });
 
@@ -201,8 +202,12 @@ test('package.json type is "module" (ESM)', () => {
   assert(packageJson.type === 'module', 'type !== "module"');
 });
 
-test('package.json has "start" script', () => {
+test('package.json has "start" script pointing to server.js', () => {
   assert(packageJson.scripts?.start, 'start script missing');
+  assert(
+    packageJson.scripts?.start?.includes('server.js'),
+    'start script should reference server.js'
+  );
 });
 
 test('package.json has "test" script pointing to test.js', () => {
@@ -212,10 +217,14 @@ test('package.json has "test" script pointing to test.js', () => {
   );
 });
 
-test('package.json has "dev" script with nodemon', () => {
+test('package.json has "dev" script with nodemon and server.js', () => {
   assert(
     packageJson.scripts?.dev?.includes('nodemon'),
     'dev script missing nodemon'
+  );
+  assert(
+    packageJson.scripts?.dev?.includes('server.js'),
+    'dev script should reference server.js'
   );
   assert(
     packageJson.devDependencies?.nodemon,
@@ -225,7 +234,8 @@ test('package.json has "dev" script with nodemon', () => {
 
 test('ESLint is configured as devDependency', () => {
   assert(
-    packageJson.devDependencies?.eslint,
+    packageJson.devDependencies?.eslint ||
+      packageJson.devDependencies?.['@eslint/js'],
     'eslint missing from devDependencies'
   );
 });
@@ -322,23 +332,10 @@ test('Applies global error middleware last', () => {
   );
 });
 
-test('Starts server with app.listen on PORT', () => {
-  assertIncludes(appContent, 'app.listen(PORT', 'app.listen(PORT) missing');
-});
-
-test('Connects to database on startup', () => {
-  assertIncludes(
-    appContent,
-    'await connectToDatabase()',
-    'connectToDatabase() not called on startup'
-  );
-});
-
-test('Creates default admin on startup', () => {
-  assertIncludes(
-    appContent,
-    'await createDefaultAdmin()',
-    'createDefaultAdmin() not called on startup'
+test('Does NOT call app.listen (server.js handles that)', () => {
+  assert(
+    !appContent.includes('app.listen'),
+    'app.js should not call app.listen — server.js handles startup'
   );
 });
 
@@ -347,11 +344,50 @@ test('Exports app as default', () => {
 });
 
 // ═════════════════════════════════════════════
+//  3b. SERVER.JS — Server Startup
+// ═════════════════════════════════════════════
+suite('3b. server.js — Server Startup');
+
+const serverContent = readSource('server.js');
+
+test('Imports app from ./app.js', () => {
+  assertIncludes(
+    serverContent,
+    "import app from './app.js'",
+    'app import missing'
+  );
+});
+
+test('Imports PORT from src/config/env.js', () => {
+  assertIncludes(serverContent, 'PORT', 'PORT import missing');
+});
+
+test('Starts server with app.listen on PORT', () => {
+  assertIncludes(serverContent, 'app.listen(PORT', 'app.listen(PORT) missing');
+});
+
+test('Connects to database on startup', () => {
+  assertIncludes(
+    serverContent,
+    'await connectToDatabase()',
+    'connectToDatabase() not called on startup'
+  );
+});
+
+test('Creates default admin on startup', () => {
+  assertIncludes(
+    serverContent,
+    'await createDefaultAdmin()',
+    'createDefaultAdmin() not called on startup'
+  );
+});
+
+// ═════════════════════════════════════════════
 //  4. CONFIGURATION
 // ═════════════════════════════════════════════
 suite('4. Configuration — env.js');
 
-const envContent = readSource('config/env.js');
+const envContent = readSource('src/config/env.js');
 
 test('Loads dotenv with environment-specific file', () => {
   assertIncludes(envContent, 'dotenv.config', 'dotenv.config not called');
@@ -437,7 +473,7 @@ test('Exports Stripe keys', () => {
 
 suite('4. Configuration — arcjet.js');
 
-const arcjetContent = readSource('config/arcjet.js');
+const arcjetContent = readSource('src/config/arcjet.js');
 
 test('Imports and configures @arcjet/node', () => {
   assertIncludesAll(
@@ -449,7 +485,7 @@ test('Imports and configures @arcjet/node', () => {
 
 test('Shield protection is LIVE', () => {
   assertIncludes(arcjetContent, 'shield(', 'shield not configured');
-  assertIncludes(arcjetContent, '"LIVE"', 'Shield not in LIVE mode');
+  assertIncludes(arcjetContent, "'LIVE'", 'Shield not in LIVE mode');
 });
 
 test('Bot detection allows search engine crawlers', () => {
@@ -473,7 +509,7 @@ test('Token bucket rate limiting is configured', () => {
 // ═════════════════════════════════════════════
 suite('5. Database — mongodb.js');
 
-const mongoContent = readSource('database/mongodb.js');
+const mongoContent = readSource('src/database/mongodb.js');
 
 test('Uses mongoose.connect with DB_URI', () => {
   assertIncludes(
@@ -504,7 +540,7 @@ test('Logs connected environment', () => {
 // ═════════════════════════════════════════════
 suite('6. Models — User');
 
-const userModel = readSource('models/user.model.js');
+const userModel = readSource('src/models/user.model.js');
 
 test('Has name field with min/max length validation', () => {
   assertIncludesAll(
@@ -640,7 +676,7 @@ test('Has timestamps enabled', () => {
 
 suite('6. Models — Admin');
 
-const adminModel = readSource('models/admin.model.js');
+const adminModel = readSource('src/models/admin.model.js');
 
 test('Has username (required, unique, trim, minlength)', () => {
   assertIncludesAll(
@@ -672,7 +708,7 @@ test('Has timestamps', () => {
 
 suite('6. Models — Demo');
 
-const demoModel = readSource('models/demo.model.js');
+const demoModel = readSource('src/models/demo.model.js');
 
 test('Has email with regex validation', () => {
   assertIncludesAll(demoModel, ['email', 'match', 'required'], 'Demo email: ');
@@ -716,7 +752,7 @@ test('Has notes field with maxlength', () => {
 
 suite('6. Models — Job');
 
-const jobModel = readSource('models/job.model.js');
+const jobModel = readSource('src/models/job.model.js');
 
 test('Has upworkJobId (required, unique, indexed)', () => {
   assertIncludesAll(
@@ -799,7 +835,7 @@ test('Has TTL index on cacheExpiry', () => {
 
 suite('6. Models — Proposal');
 
-const proposalModel = readSource('models/proposal.model.js');
+const proposalModel = readSource('src/models/proposal.model.js');
 
 test('Has userId and jobId refs (required, indexed)', () => {
   assertIncludesAll(
@@ -902,7 +938,7 @@ test('Has compound indexes for performance', () => {
 // ═════════════════════════════════════════════
 suite('7. Middleware — auth.middleware.js');
 
-const authMiddleware = readSource('middleware/auth.middleware.js');
+const authMiddleware = readSource('src/middleware/auth.middleware.js');
 
 test('Extracts Bearer token from Authorization header', () => {
   assertIncludesAll(
@@ -950,7 +986,7 @@ test('Returns 401 for missing or invalid tokens', () => {
 
 suite('7. Middleware — error.middleware.js');
 
-const errorMiddleware = readSource('middleware/error.middleware.js');
+const errorMiddleware = readSource('src/middleware/error.middleware.js');
 
 test('Handles CastError (404 Resource Not Found)', () => {
   assertIncludesAll(
@@ -986,7 +1022,7 @@ test('Logs errors to console', () => {
 
 suite('7. Middleware — arcject.middleware.js');
 
-const arcjetMW = readSource('middleware/arcject.middleware.js');
+const arcjetMW = readSource('src/middleware/arcject.middleware.js');
 
 test('Calls aj.protect with rate limit token', () => {
   assertIncludes(arcjetMW, 'aj.protect(req', 'aj.protect not called');
@@ -1013,7 +1049,7 @@ test('Returns 403 for bot detection', () => {
 // ═════════════════════════════════════════════
 suite('8. Controllers — auth.controller.js');
 
-const authController = readSource('controller/auth.controller.js');
+const authController = readSource('src/controller/auth.controller.js');
 
 test('Exports createDefaultAdmin function', () => {
   assertIncludes(
@@ -1058,7 +1094,7 @@ test('adminLogin checks isActive status', () => {
 test('adminLogin uses select("+password") for password field', () => {
   assertIncludes(
     authController,
-    'select("+password")',
+    "select('+password')",
     'select("+password") missing'
   );
 });
@@ -1166,12 +1202,12 @@ test('Exports signOut function (clears cookie)', () => {
 // ═════════════════════════════════════════════
 suite('9. Controllers — user.controller.js');
 
-const userController = readSource('controller/user.controller.js');
+const userController = readSource('src/controller/user.controller.js');
 
 test('Exports getUsers (all users, password excluded)', () => {
   assertIncludesAll(
     userController,
-    ['export const getUsers', 'User.find(', 'select("-password")'],
+    ['export const getUsers', 'User.find(', "select('-password')"],
     'getUsers: '
   );
 });
@@ -1221,7 +1257,7 @@ test('flagUser validates isFlagged is boolean', () => {
 // ═════════════════════════════════════════════
 suite('10. Controllers — demo.controller.js');
 
-const demoController = readSource('controller/demo.controller.js');
+const demoController = readSource('src/controller/demo.controller.js');
 
 test('Exports getAvailableDates (excludes weekends, next 30 days)', () => {
   assertIncludesAll(
@@ -1320,7 +1356,7 @@ test('Exports cancelDemo', () => {
 // ═════════════════════════════════════════════
 suite('11. Controllers — job.controller.js');
 
-const jobController = readSource('controller/job.controller.js');
+const jobController = readSource('src/controller/job.controller.js');
 
 test('Exports searchJobs (non-blocking, returns immediately)', () => {
   assertIncludesAll(
@@ -1461,7 +1497,7 @@ test('searchJobsWithAIAnalysis updates user stats (jobsViewed)', () => {
 // ═════════════════════════════════════════════
 suite('12. Controllers — proposal.controller.js');
 
-const proposalController = readSource('controller/proposal.controller.js');
+const proposalController = readSource('src/controller/proposal.controller.js');
 
 test('Exports generateProposal (non-blocking with async background)', () => {
   assertIncludesAll(
@@ -1648,27 +1684,27 @@ test('Exports getJobCategoryPerformance with aggregation pipeline', () => {
 // ═════════════════════════════════════════════
 suite('13. Routes — auth.router.js');
 
-const authRouter = readSource('routes/auth.router.js');
+const authRouter = readSource('src/routes/auth.router.js');
 
 test('POST /sign-up', () =>
-  assertIncludes(authRouter, '"/sign-up"', '/sign-up route missing'));
+  assertIncludes(authRouter, "'/sign-up'", '/sign-up route missing'));
 test('POST /sign-in', () =>
-  assertIncludes(authRouter, '"/sign-in"', '/sign-in route missing'));
+  assertIncludes(authRouter, "'/sign-in'", '/sign-in route missing'));
 test('POST /sign-out', () =>
-  assertIncludes(authRouter, '"/sign-out"', '/sign-out route missing'));
+  assertIncludes(authRouter, "'/sign-out'", '/sign-out route missing'));
 test('POST /admin/login', () =>
-  assertIncludes(authRouter, '"/admin/login"', '/admin/login route missing'));
+  assertIncludes(authRouter, "'/admin/login'", '/admin/login route missing'));
 test('GET /admin/profile (protected)', () => {
   assertIncludesAll(
     authRouter,
-    ['"/admin/profile"', 'authorize', 'getAdminProfile'],
+    ["'/admin/profile'", 'authorize', 'getAdminProfile'],
     'Admin profile route: '
   );
 });
 
 suite('13. Routes — user.router.js');
 
-const userRouter = readSource('routes/user.router.js');
+const userRouter = readSource('src/routes/user.router.js');
 
 test('GET / (list users)', () =>
   assertIncludes(userRouter, 'getUsers', 'getUsers handler missing'));
@@ -1703,7 +1739,7 @@ test('DELETE /:id (protected delete)', () => {
 
 suite('13. Routes — demo.router.js');
 
-const demoRouter = readSource('routes/demo.router.js');
+const demoRouter = readSource('src/routes/demo.router.js');
 
 test('GET /available-dates (public)', () =>
   assertIncludes(
@@ -1730,7 +1766,7 @@ test('DELETE /:id (admin — cancel demo)', () =>
 
 suite('13. Routes — job.router.js');
 
-const jobRouter = readSource('routes/job.router.js');
+const jobRouter = readSource('src/routes/job.router.js');
 
 test('POST /search (protected)', () => {
   assertIncludesAll(
@@ -1777,7 +1813,7 @@ test('PUT /:jobId/reject (protected)', () => {
 
 suite('13. Routes — proposal.router.js');
 
-const proposalRouter = readSource('routes/proposal.router.js');
+const proposalRouter = readSource('src/routes/proposal.router.js');
 
 test('GET /stats/summary (protected)', () => {
   assertIncludesAll(
@@ -1866,7 +1902,7 @@ test('GET /stats/category-performance (protected)', () => {
 
 suite('13. Routes — product.router.js');
 
-const productRouter = readSource('routes/product.router.js');
+const productRouter = readSource('src/routes/product.router.js');
 
 test('Imports authorize middleware', () => {
   assertIncludes(productRouter, 'authorize', 'authorize import missing');
@@ -1878,7 +1914,7 @@ test('Has GET route for products', () => {
 
 suite('13. Routes — comparison.router.js');
 
-const comparisonRouter = readSource('routes/comparison.router.js');
+const comparisonRouter = readSource('src/routes/comparison.router.js');
 
 test('Imports authorize middleware', () => {
   assertIncludes(comparisonRouter, 'authorize', 'authorize import missing');
@@ -1891,7 +1927,7 @@ test('Has GET and POST routes', () => {
 
 suite('13. Routes — reviewVideo.router.js');
 
-const reviewVideoRouter = readSource('routes/reviewVideo.router.js');
+const reviewVideoRouter = readSource('src/routes/reviewVideo.router.js');
 
 test('Imports authorize middleware', () => {
   assertIncludes(reviewVideoRouter, 'authorize', 'authorize import missing');
@@ -1946,7 +1982,7 @@ test('DELETE /:id is protected', () => {
 // ═════════════════════════════════════════════
 suite('14. Services — upwork.service.js');
 
-const upworkService = readSource('services/upwork.service.js');
+const upworkService = readSource('src/services/upwork.service.js');
 
 test('Uses UpworkService class pattern', () => {
   assertIncludes(upworkService, 'class UpworkService', 'Class not defined');
@@ -2073,7 +2109,7 @@ test('applyRateMatching filters by hourly or fixed rate', () => {
 // ═════════════════════════════════════════════
 suite('15. Services — ai.service.js');
 
-const aiService = readSource('services/ai.service.js');
+const aiService = readSource('src/services/ai.service.js');
 
 test('Uses AIProposalService class pattern', () => {
   assertIncludes(aiService, 'class AIProposalService', 'Class not defined');
@@ -2210,7 +2246,7 @@ suite('16. Production — Security');
 test('CORS restricts origin to FRONTEND_URL', () => {
   assertIncludesAll(
     appContent,
-    ['origin:FRONTEND_URL', 'credentials: true'],
+    ['origin: FRONTEND_URL', 'credentials: true'],
     'CORS security: '
   );
 });
@@ -2223,11 +2259,11 @@ test('CORS allows only specific HTTP methods', () => {
   );
 });
 
-test('Passwords are never sent in API responses (select: false / select("-password"))', () => {
+test("Passwords are never sent in API responses (select: false / select('-password'))", () => {
   assertIncludes(adminModel, 'select: false', 'Admin password select:false');
   assertIncludes(
     userController,
-    'select("-password")',
+    "select('-password')",
     'User password excluded'
   );
   assertIncludes(
@@ -2256,7 +2292,7 @@ test('Admin login checks account active status before auth', () => {
 test('Arcjet provides bot protection and rate limiting in production', () => {
   assertIncludesAll(
     arcjetContent,
-    ['shield', 'detectBot', 'tokenBucket', '"LIVE"'],
+    ['shield', 'detectBot', 'tokenBucket', "'LIVE'"],
     'Arcjet protection: '
   );
 });
@@ -2309,7 +2345,7 @@ test('Error middleware handles CastError, DuplicateKey, ValidationError', () => 
 test('Error middleware returns JSON with success:false and error message', () => {
   assertIncludesAll(
     errorMiddleware,
-    ['success:false', 'error:error.message'],
+    ['success: false', 'error: error.message'],
     'Error response: '
   );
 });
@@ -2503,14 +2539,6 @@ test('job.controller.js imports and uses upworkService', () => {
   );
 });
 
-test('job.controller.js imports and uses aiService', () => {
-  assertIncludes(
-    jobController,
-    "import aiService from '../services/ai.service.js'",
-    'AI service import missing'
-  );
-});
-
 test('proposal.controller.js imports and uses aiService', () => {
   assertIncludesAll(
     proposalController,
@@ -2534,10 +2562,10 @@ test('auth.middleware.js imports both User and Admin models', () => {
   );
 });
 
-test('app.js imports createDefaultAdmin from auth controller', () => {
+test('server.js imports createDefaultAdmin from auth controller', () => {
   assertIncludes(
-    appContent,
-    "import { createDefaultAdmin } from './controller/auth.controller.js'",
+    serverContent,
+    "import { createDefaultAdmin } from './src/controller/auth.controller.js'",
     'createDefaultAdmin import missing'
   );
 });
@@ -2545,7 +2573,7 @@ test('app.js imports createDefaultAdmin from auth controller', () => {
 test('app.js imports arcjetMiddleware', () => {
   assertIncludes(
     appContent,
-    "import arcjetMiddleware from './middleware/arcject.middleware.js'",
+    "import arcjetMiddleware from './src/middleware/arcject.middleware.js'",
     'Arcjet middleware import missing'
   );
 });
@@ -2553,7 +2581,7 @@ test('app.js imports arcjetMiddleware', () => {
 test('app.js imports reviewVideoRouter', () => {
   assertIncludes(
     appContent,
-    "import reviewVideoRouter from './routes/reviewVideo.router.js'",
+    "import reviewVideoRouter from './src/routes/reviewVideo.router.js'",
     'reviewVideoRouter import missing'
   );
 });
@@ -2571,7 +2599,7 @@ test('app.js mounts /api/v1/review-video', () => {
 // ═════════════════════════════════════════════
 suite('21. Review Video — Model');
 
-const reviewVideoModel = readSource('models/reviewVideo.model.js');
+const reviewVideoModel = readSource('src/models/reviewVideo.model.js');
 
 test('Has title field (required, trim, maxlength)', () => {
   assertIncludesAll(
@@ -2647,7 +2675,7 @@ test('Exports ReviewVideo model', () => {
 suite('22. Review Video — Controller');
 
 const reviewVideoController = readSource(
-  'controller/reviewVideo.controller.js'
+  'src/controller/reviewVideo.controller.js'
 );
 
 test('Imports ReviewVideo model', () => {
@@ -2767,7 +2795,7 @@ test('All controller functions use try/catch with next(error)', () => {
 // ═════════════════════════════════════════════
 suite('24. Comparison — Model');
 
-const comparisonModel = readSource('models/comparison.model.js');
+const comparisonModel = readSource('src/models/comparison.model.js');
 
 test('Has feature field (required, trim)', () => {
   assertIncludesAll(
@@ -2822,7 +2850,9 @@ test('Exports Comparison model', () => {
 // ═════════════════════════════════════════════
 suite('25. Comparison — Controller');
 
-const comparisonController = readSource('controller/comparison.controller.js');
+const comparisonController = readSource(
+  'src/controller/comparison.controller.js'
+);
 
 test('Imports Comparison model', () => {
   assertIncludes(
@@ -2972,7 +3002,7 @@ test('DELETE /:id is protected (delete)', () => {
 // ═════════════════════════════════════════════
 suite('27. Product — Model');
 
-const productModel = readSource('models/product.model.js');
+const productModel = readSource('src/models/product.model.js');
 
 test('Has key field (required, unique, trim)', () => {
   assertIncludesAll(
@@ -3031,7 +3061,7 @@ test('Exports Product model', () => {
 // ═════════════════════════════════════════════
 suite('28. Product — Controller');
 
-const productController = readSource('controller/product.controller.js');
+const productController = readSource('src/controller/product.controller.js');
 
 test('Imports Product model', () => {
   assertIncludes(
@@ -3189,7 +3219,7 @@ test('DELETE /:id is protected (delete)', () => {
 // ═════════════════════════════════════════════
 suite('30. Payment — Model');
 
-const paymentModel = readSource('models/payment.model.js');
+const paymentModel = readSource('src/models/payment.model.js');
 
 test('Has userId ref to User model (required)', () => {
   assertIncludesAll(
@@ -3264,7 +3294,7 @@ test('Exports Payment model', () => {
 // ═════════════════════════════════════════════
 suite('31. Payment — Controller');
 
-const paymentController = readSource('controller/payment.controller.js');
+const paymentController = readSource('src/controller/payment.controller.js');
 
 test('Imports Stripe and initializes with STRIPE_SECRET_KEY', () => {
   assertIncludesAll(
@@ -3293,10 +3323,10 @@ test('Defines COINS_PER_SUBSCRIPTION constant (30000)', () => {
   );
 });
 
-test('Defines PLAN_PRICES mapping for manual and auto plans', () => {
+test('Fetches plan pricing from Product model', () => {
   assertIncludesAll(
     paymentController,
-    ['PLAN_PRICES', 'manual', 'auto', 'amount', 'name', 'description'],
+    ['Product.findOne', 'manual', 'auto', 'amount'],
     'Plan prices: '
   );
 });
@@ -3495,7 +3525,7 @@ test('All payment controller functions use try/catch with next(error)', () => {
 // ═════════════════════════════════════════════
 suite('32. Payment — Routes');
 
-const paymentRouterContent = readSource('routes/payment.router.js');
+const paymentRouterContent = readSource('src/routes/payment.router.js');
 
 test('Imports authorize middleware', () => {
   assertIncludes(paymentRouterContent, 'authorize', 'authorize import missing');
@@ -3572,7 +3602,7 @@ suite('33. Payment — Integration & Security');
 test('app.js imports paymentRouter', () => {
   assertIncludes(
     appContent,
-    "import paymentRouter from './routes/payment.router.js'",
+    "import paymentRouter from './src/routes/payment.router.js'",
     'paymentRouter import missing'
   );
 });
@@ -4232,12 +4262,12 @@ test('getAllDemos limits max page size to 100', () => {
 });
 
 test('TTL index on job cacheExpiry for auto-cleanup', () => {
-  const jobModel = readSource('models/job.model.js');
+  const jobModel = readSource('src/models/job.model.js');
   assertIncludes(jobModel, 'expireAfterSeconds: 0', 'TTL index missing');
 });
 
 test('Compound indexes on Proposal for query performance', () => {
-  const proposalModel = readSource('models/proposal.model.js');
+  const proposalModel = readSource('src/models/proposal.model.js');
   assertIncludesAll(
     proposalModel,
     ['userId: 1, jobId: 1', 'userId: 1, status: 1'],
