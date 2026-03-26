@@ -102,6 +102,21 @@ const jobSchema = new mongoose.Schema(
       type: String,
     },
 
+    // Search Cache Metadata
+    searchMetadata: {
+      keywords: {
+        type: [String],
+        default: [],
+      },
+      signature: {
+        type: String,
+        index: true,
+      },
+      source: {
+        type: String,
+      },
+    },
+
     // Cache & Performance
     isCached: { type: Boolean, default: false },
     cacheExpiry: Date,

@@ -8,6 +8,10 @@ import {
   JWT_EXPIRES_IN,
   ADMIN_USERNAME,
   ADMIN_PASSWORD,
+  FRONTEND_URL,
+  UPWORK_CLIENT_ID,
+  UPWORK_CLIENT_SECRET,
+  UPWORK_OAUTH_REDIRECT_URI,
 } from '../config/env.js';
 
 //----------------------- ADMIN_AUTH --------------------//
@@ -249,5 +253,127 @@ export const signOut = async (req, res, next) => {
     }); // Invalidate the token on the client side by clearing it from storage
   } catch (error) {
     next(error);
+  }
+};
+
+//----------------------- Upwork OAuth ----------------------//
+
+const UPWORK_OAUTH_AUTHORIZE_URL =
+  'https://www.upwork.com/ab/account-security/oauth2/authorize';
+const UPWORK_OAUTH_TOKEN_URL = 'https://www.upwork.com/api/v3/oauth2/token';
+
+const ensureUpworkOAuthConfig = () => {
+  if (!UPWORK_CLIENT_ID || !UPWORK_CLIENT_SECRET || !UPWORK_OAUTH_REDIRECT_URI) {
+    const error = new Error(
+      'Upwork OAuth is not configured. Missing UPWORK_CLIENT_ID, UPWORK_CLIENT_SECRET, or UPWORK_OAUTH_REDIRECT_URI.'
+    );
+    error.statusCode = 500;
+    error.code = 'UPWORK_OAUTH_NOT_CONFIGURED';
+    throw error;
+  }
+};
+
+export const startUpworkOAuth = async (req, res, next) => {
+  try {
+    ensureUpworkOAuthConfig();
+
+    const state = req.query.state || '';
+    const scope = req.query.scope || '';
+
+    const params = new URLSearchParams({
+      client_id: UPWORK_CLIENT_ID,
+      redirect_uri: UPWORK_OAUTH_REDIRECT_URI,
+      response_type: 'code',
+    });
+
+    if (scope) {
+      params.set('scope', scope);
+    }
+
+    if (state) {
+      params.set('state', String(state));
+    }
+
+    return res.redirect(`${UPWORK_OAUTH_AUTHORIZE_URL}?${params.toString()}`);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const handleUpworkOAuthCallback = async (req, res, next) => {
+  try {
+    ensureUpworkOAuthConfig();
+
+    const { code, error: oauthError, error_description: errorDescription } =
+      req.query;
+
+    if (oauthError) {
+      const error = new Error(
+        errorDescription
+          ? `Upwork OAuth failed: ${errorDescription}`
+          : `Upwork OAuth failed: ${oauthError}`
+      );
+      error.statusCode = 400;
+      error.code = 'UPWORK_OAUTH_FAILED';
+      throw error;
+    }
+
+    if (!code) {
+      const error = new Error('Missing OAuth authorization code in callback.');
+      error.statusCode = 400;
+      error.code = 'UPWORK_OAUTH_CODE_MISSING';
+      throw error;
+    }
+
+    const basicAuth = Buffer.from(
+      `${UPWORK_CLIENT_ID}:${UPWORK_CLIENT_SECRET}`
+    ).toString('base64');
+
+    const tokenResponse = await fetch(UPWORK_OAUTH_TOKEN_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${basicAuth}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: String(code),
+        redirect_uri: UPWORK_OAUTH_REDIRECT_URI,
+      }),
+    });
+
+    const tokenData = await tokenResponse.json().catch(() => null);
+
+    if (!tokenResponse.ok || !tokenData?.access_token) {
+      const error = new Error('Failed to exchange Upwork OAuth code for token.');
+      error.statusCode = 502;
+      error.code = 'UPWORK_TOKEN_EXCHANGE_FAILED';
+      error.diagnostics = {
+        status: tokenResponse.status,
+        response: tokenData,
+      };
+      throw error;
+    }
+
+    const successPayload = {
+      success: true,
+      message:
+        'Upwork OAuth callback received and token exchange succeeded. Store token persistence as needed.',
+      data: {
+        tokenType: tokenData.token_type,
+        expiresIn: tokenData.expires_in,
+        scope: tokenData.scope,
+      },
+    };
+
+    if (FRONTEND_URL) {
+      const url = new URL(FRONTEND_URL);
+      url.searchParams.set('upworkOAuth', 'success');
+      return res.redirect(url.toString());
+    }
+
+    return res.status(200).json(successPayload);
+  } catch (error) {
+    return next(error);
   }
 };

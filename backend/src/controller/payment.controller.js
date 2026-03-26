@@ -472,8 +472,8 @@ export const getRevenueStats = async (req, res, next) => {
     const subChange =
       lastMonthSubs > 0
         ? (((newSubscriptions - lastMonthSubs) / lastMonthSubs) * 100).toFixed(
-            1
-          )
+          1
+        )
         : newSubscriptions > 0
           ? '100'
           : '0';

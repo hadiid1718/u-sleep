@@ -618,16 +618,16 @@ export const getTopTemplates = async (req, res, next) => {
 
     const matchStage = isAdmin
       ? {
-          status: {
-            $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
-          },
-        }
+        status: {
+          $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
+        },
+      }
       : {
-          userId: req.user?._id || req.user?.id,
-          status: {
-            $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
-          },
-        };
+        userId: req.user?._id || req.user?.id,
+        status: {
+          $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
+        },
+      };
 
     const results = await Proposal.aggregate([
       { $match: matchStage },

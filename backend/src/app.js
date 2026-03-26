@@ -3,7 +3,6 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 
-
 import { FRONTEND_URL } from './config/env.js';
 
 import userRouter from './routes/user.router.js';
@@ -34,12 +33,15 @@ app.use(cors(corsOptions));
 app.use('/api/v1/payments/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(morgan('combined', { stream: { write: (message) => console.log(message.trim()) } }));
-
+app.use(
+  morgan('combined', {
+    stream: { write: message => console.log(message.trim()) },
+  })
+);
 
 app.use(cookieParser());
 app.use(arcjetMiddleware);
-app.use(helmet())
+app.use(helmet());
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/users', userRouter);
 app.use('/api/v1/demo', demoRouter);

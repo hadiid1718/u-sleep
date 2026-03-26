@@ -2,25 +2,86 @@ import Job from '../models/job.model.js';
 import User from '../models/user.model.js';
 import upworkService from '../services/upwork.service.js';
 
+const normalizeSelectedRole = role => {
+  if (!role) return null;
+  const normalized = String(role).trim().toLowerCase();
+
+  if (normalized.includes('agency')) return 'agency';
+  if (normalized.includes('freelancer')) return 'freelancer';
+
+  return normalized;
+};
+
+const normalizeKeywords = (keywords, fallback = []) => {
+  if (Array.isArray(keywords) && keywords.length > 0) return keywords;
+  if (typeof keywords === 'string' && keywords.trim()) return [keywords];
+  if (Array.isArray(fallback) && fallback.length > 0) return fallback;
+  return [];
+};
+
+const normalizeBadCriteria = criteria => {
+  if (Array.isArray(criteria)) return criteria;
+  if (typeof criteria === 'string' && criteria.trim()) return [criteria];
+  return [];
+};
+
+const buildUpworkPreferences = (payload, user) => {
+  const jobPreferences = user?.jobPreferences || {};
+  const keywords = normalizeKeywords(payload?.keywords, jobPreferences.keywords);
+  const selectedRole = normalizeSelectedRole(
+    payload?.selectedRole || payload?.userRole || jobPreferences.userRole
+  );
+
+  return {
+    keywords,
+    jobHourly: payload?.jobHourly ?? jobPreferences.hourlyRate ?? null,
+    projectFixedRate:
+      payload?.projectFixedRate ?? jobPreferences.fixedRate ?? null,
+    badJobCriteria: normalizeBadCriteria(
+      payload?.badJobCriteria ?? jobPreferences.badJobCriteria
+    ),
+    selectedRole,
+    upworkProfileUrl:
+      payload?.upworkProfileUrl ?? jobPreferences.upworkProfileUrl ?? null,
+    rateType: payload?.rateType ?? jobPreferences.rateType ?? null,
+    hourlyRateRange:
+      payload?.hourlyRateRange ?? jobPreferences.hourlyRateRange ?? null,
+    fixedRateRange:
+      payload?.fixedRateRange ?? jobPreferences.fixedRateRange ?? null,
+  };
+};
+
+const persistJobsIfPossible = async (jobs, userId) => {
+  if (!upworkService.isDatabaseAvailable() || jobs.length === 0) {
+    return false;
+  }
+
+  await Job.insertMany(
+    jobs.map(job => ({
+      ...job,
+      userId,
+      matchStatus: 'pending',
+    })),
+    { ordered: false }
+  ).catch(err => {
+    if (err.code !== 11000) throw err;
+  });
+
+  return true;
+};
+
 /**
- * Search and fetch jobs from Upwork
- * Non-blocking operation - returns immediately while fetching continues
+ * Search and fetch jobs from Upwork API
  */
 export const searchJobs = async (req, res, next) => {
   try {
-    const { keywords, filters = {} } = req.body;
+    const { filters = {} } = req.body;
     const userId =
       req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
     if (!userId) {
       const error = new Error('User not authenticated');
       error.statusCode = 401;
-      throw error;
-    }
-
-    if (!keywords || keywords.length === 0) {
-      const error = new Error('At least one keyword is required');
-      error.statusCode = 400;
       throw error;
     }
 
@@ -32,55 +93,45 @@ export const searchJobs = async (req, res, next) => {
       throw error;
     }
 
-    // Start fetching jobs asynchronously (non-blocking)
-    upworkService
-      .searchJobs(keywords, filters)
-      .then(async jobs => {
-        // Apply bad job filters
-        let filteredJobs = upworkService.applyBadJobFilters(
-          jobs,
-          user.jobPreferences?.badJobCriteria
-        );
+    const preferences = buildUpworkPreferences(req.body, user);
+    if (preferences.keywords.length === 0) {
+      const error = new Error('At least one keyword is required');
+      error.statusCode = 400;
+      throw error;
+    }
 
-        // Apply rate matching
-        if (user.jobPreferences?.rateType) {
-          const rate =
-            user.jobPreferences?.rateType === 'hourly'
-              ? user.jobPreferences?.hourlyRate
-              : user.jobPreferences?.fixedRate;
+    const { jobs, diagnostics } = await upworkService.searchJobsDetailed(
+      preferences,
+      filters
+    );
 
-          filteredJobs = upworkService.applyRateMatching(
-            filteredJobs,
-            rate,
-            user.jobPreferences?.rateType
-          );
-        }
+    let filteredJobs = upworkService.applyBadJobFilters(
+      jobs,
+      preferences.badJobCriteria
+    );
 
-        // Save jobs to database for caching
-        if (filteredJobs.length > 0) {
-          await Job.insertMany(
-            filteredJobs.map(job => ({
-              ...job,
-              userId,
-              matchStatus: 'pending',
-            })),
-            { ordered: false }
-          ).catch(err => {
-            // Ignore duplicate key errors
-            if (err.code !== 11000) throw err;
-          });
-        }
-      })
-      .catch(error => console.error('Background job fetch error:', error));
+    if (preferences.rateType) {
+      const rate =
+        preferences.rateType === 'hourly'
+          ? preferences.jobHourly
+          : preferences.projectFixedRate;
 
-    // Return immediate response while jobs are being fetched
+      filteredJobs = upworkService.applyRateMatching(
+        filteredJobs,
+        rate,
+        preferences.rateType
+      );
+    }
+
+    await persistJobsIfPossible(filteredJobs, userId);
+
     res.status(200).json({
       success: true,
-      message: 'Job search initiated. Fetching jobs in background...',
+      message: `Total Jobs Found: ${filteredJobs.length}`,
       data: {
-        status: 'pending',
-        keywords,
-        userId,
+        jobs: filteredJobs,
+        totalFound: filteredJobs.length,
+        diagnostics,
       },
     });
   } catch (error) {
@@ -268,19 +319,13 @@ export const markJobAsRejected = async (req, res, next) => {
  */
 export const searchJobsWithAIAnalysis = async (req, res, next) => {
   try {
-    const { keywords, filters = {} } = req.body;
+    const { filters = {} } = req.body;
     const userId =
       req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
     if (!userId) {
       const error = new Error('User not authenticated');
       error.statusCode = 401;
-      throw error;
-    }
-
-    if (!keywords || keywords.length === 0) {
-      const error = new Error('At least one keyword is required');
-      error.statusCode = 400;
       throw error;
     }
 
@@ -292,8 +337,17 @@ export const searchJobsWithAIAnalysis = async (req, res, next) => {
       throw error;
     }
 
-    // Fetch jobs from Upwork
-    const jobs = await upworkService.searchJobs(keywords, filters);
+    const preferences = buildUpworkPreferences(req.body, user);
+    if (preferences.keywords.length === 0) {
+      const error = new Error('At least one keyword is required');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const { jobs, diagnostics } = await upworkService.searchJobsDetailed(
+      preferences,
+      filters
+    );
 
     if (jobs.length === 0) {
       return res.status(200).json({
@@ -309,20 +363,20 @@ export const searchJobsWithAIAnalysis = async (req, res, next) => {
     // Apply bad job filters
     let filteredJobs = upworkService.applyBadJobFilters(
       jobs,
-      user.jobPreferences?.badJobCriteria
+      preferences.badJobCriteria
     );
 
     // Apply rate matching
-    if (user.jobPreferences?.rateType) {
+    if (preferences.rateType) {
       const rate =
-        user.jobPreferences?.rateType === 'hourly'
-          ? user.jobPreferences?.hourlyRate
-          : user.jobPreferences?.fixedRate;
+        preferences.rateType === 'hourly'
+          ? preferences.jobHourly
+          : preferences.projectFixedRate;
 
       filteredJobs = upworkService.applyRateMatching(
         filteredJobs,
         rate,
-        user.jobPreferences?.rateType
+        preferences.rateType
       );
     }
 
@@ -352,16 +406,7 @@ export const searchJobsWithAIAnalysis = async (req, res, next) => {
     );
 
     // Save to database
-    await Job.insertMany(
-      jobsWithScores.map(job => ({
-        ...job,
-        userId,
-        matchStatus: 'pending',
-      })),
-      { ordered: false }
-    ).catch(err => {
-      if (err.code !== 11000) throw err;
-    });
+    await persistJobsIfPossible(jobsWithScores, userId);
 
     // Update user stats
     await User.findByIdAndUpdate(userId, {
@@ -373,8 +418,37 @@ export const searchJobsWithAIAnalysis = async (req, res, next) => {
       data: {
         jobs: jobsWithScores,
         totalFound: jobsWithScores.length,
+        diagnostics,
         message: `Total Jobs Found: ${jobsWithScores.length}`,
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Run a scraper diagnostic for a given search query.
+ */
+export const getJobSearchDiagnostics = async (req, res, next) => {
+  try {
+    const { filters = {} } = req.body;
+    const preferences = buildUpworkPreferences(req.body, null);
+
+    if (preferences.keywords.length === 0) {
+      const error = new Error('At least one keyword is required');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const diagnostics = await upworkService.diagnoseSearch(
+      preferences,
+      filters
+    );
+
+    res.status(200).json({
+      success: true,
+      data: diagnostics,
     });
   } catch (error) {
     next(error);

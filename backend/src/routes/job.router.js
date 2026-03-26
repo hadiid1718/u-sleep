@@ -6,6 +6,7 @@ import {
   markJobAsMatched,
   markJobAsRejected,
   searchJobsWithAIAnalysis,
+  getJobSearchDiagnostics,
 } from '../controller/job.controller.js';
 import authorize from '../middleware/auth.middleware.js';
 
@@ -13,10 +14,15 @@ const jobRouter = Router();
 
 /**
  * POST /api/v1/jobs/search
- * Search jobs from Upwork API
- * Non-blocking operation
+ * Search jobs from scraper service
  */
 jobRouter.post('/search', authorize, searchJobs);
+
+/**
+ * POST /api/v1/jobs/diagnostics
+ * Run scraper diagnostics for a job search query
+ */
+jobRouter.post('/diagnostics', authorize, getJobSearchDiagnostics);
 
 /**
  * POST /api/v1/jobs/search-with-ai

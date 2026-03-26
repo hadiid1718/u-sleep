@@ -211,10 +211,10 @@ Proposals Received: ${job.proposalsCount || 'N/A'}
 Name: ${user.name}
 Role: ${user.jobPreferences?.userRole || 'Freelancer'}
 Rate: ${
-      user.jobPreferences?.rateType === 'hourly'
-        ? `$${user.jobPreferences?.hourlyRate}/hour`
-        : `$${user.jobPreferences?.fixedRate} fixed`
-    }
+  user.jobPreferences?.rateType === 'hourly'
+    ? `$${user.jobPreferences?.hourlyRate}/hour`
+    : `$${user.jobPreferences?.fixedRate} fixed`
+}
 Profile URL: ${user.jobPreferences?.upworkProfileUrl || 'N/A'}
 Keywords/Expertise: ${user.jobPreferences?.keywords?.join(', ') || 'N/A'}
 
