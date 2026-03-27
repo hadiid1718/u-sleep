@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext } from 'react';
 import Keywords from './steps/Keywords';
 import Rates from './steps/Rates';
 import BadJobCriteria from './steps/BadJobCriteria';
@@ -15,11 +15,8 @@ const HeroSection = () => {
     steps, 
     setSteps, 
     user, 
-    loading,
-    setLoading, 
     error,
-    setError,
-    jobResults 
+    jobSearching,
   } = useContext(AppContext);
 
   return (
@@ -68,7 +65,7 @@ const HeroSection = () => {
           )}
 
           {/* Loading State */}
-          {loading ? (
+          {jobSearching ? (
             <div className="text-center py-12">
               <Loader2 className="animate-spin h-16 w-16 text-lime-400 mx-auto mb-4" />
               <p className="text-white text-xl">Fetching jobs from Upwork...</p>
@@ -97,7 +94,7 @@ const HeroSection = () => {
                   {!user ? (
                     // Show login/signup if user not logged in
                     <NoUser />
-                  ) : loading ? (
+                  ) : jobSearching ? (
                     // Show countdown/loading if waiting for jobs
                     <CountdownTimer />
                   ) : error ? (

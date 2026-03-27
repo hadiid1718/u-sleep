@@ -32,7 +32,10 @@ const apiRequest = async (endpoint, options = {}) => {
 
     // Handle error responses
     if (!response.ok) {
-      const errorMessage = data.message || `Error ${response.status}: ${response.statusText}`;
+      const errorMessage =
+        data.message ||
+        data.error ||
+        `Error ${response.status}: ${response.statusText}`;
       const error = new Error(errorMessage);
       error.statusCode = response.status;
       error.response = data;
@@ -430,13 +433,49 @@ export const seedProducts = () =>
 // JOB API ENDPOINTS
 // =====================================================
 
+const normalizeJobKeywords = (payloadOrKeywords) => {
+  if (Array.isArray(payloadOrKeywords)) return payloadOrKeywords;
+  if (typeof payloadOrKeywords === 'string' && payloadOrKeywords.trim()) {
+    return [payloadOrKeywords];
+  }
+  if (payloadOrKeywords && typeof payloadOrKeywords === 'object') {
+    const value = payloadOrKeywords.keywords;
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string' && value.trim()) return [value];
+  }
+  return [];
+};
+
+const buildJobSearchBody = (payloadOrKeywords, filters = {}) => {
+  const keywords = normalizeJobKeywords(payloadOrKeywords);
+  if (payloadOrKeywords && typeof payloadOrKeywords === 'object' && !Array.isArray(payloadOrKeywords)) {
+    return {
+      keywords,
+      body: {
+        ...payloadOrKeywords,
+        keywords,
+        filters,
+      },
+    };
+  }
+
+  return {
+    keywords,
+    body: {
+      keywords,
+      filters,
+    },
+  };
+};
+
 export const jobAPI = {
   /**
-   * Search jobs from Upwork API (non-blocking)
+  * Search jobs from Upwork API
    * POST /api/v1/jobs/search
    */
-  searchJobs: async (keywords, filters = {}) => {
-    if (!keywords || (Array.isArray(keywords) && keywords.length === 0)) {
+  searchJobs: async (payloadOrKeywords, filters = {}) => {
+    const { keywords, body } = buildJobSearchBody(payloadOrKeywords, filters);
+    if (!keywords || keywords.length === 0) {
       return {
         success: false,
         error: { message: 'At least one keyword is required', statusCode: 400 },
@@ -444,7 +483,7 @@ export const jobAPI = {
     }
     return apiRequest('/jobs/search', {
       method: 'POST',
-      body: JSON.stringify({ keywords, filters }),
+      body: JSON.stringify(body),
     });
   },
 
@@ -452,8 +491,9 @@ export const jobAPI = {
    * Search jobs with AI analysis and scoring
    * POST /api/v1/jobs/search-with-ai
    */
-  searchJobsWithAI: async (keywords, filters = {}) => {
-    if (!keywords || (Array.isArray(keywords) && keywords.length === 0)) {
+  searchJobsWithAI: async (payloadOrKeywords, filters = {}) => {
+    const { keywords, body } = buildJobSearchBody(payloadOrKeywords, filters);
+    if (!keywords || keywords.length === 0) {
       return {
         success: false,
         error: { message: 'At least one keyword is required', statusCode: 400 },
@@ -461,7 +501,25 @@ export const jobAPI = {
     }
     return apiRequest('/jobs/search-with-ai', {
       method: 'POST',
-      body: JSON.stringify({ keywords, filters }),
+      body: JSON.stringify(body),
+    });
+  },
+
+  /**
+   * Run backend job diagnostics for a query
+   * POST /api/v1/jobs/diagnostics
+   */
+  getSearchDiagnostics: async (payloadOrKeywords, filters = {}) => {
+    const { keywords, body } = buildJobSearchBody(payloadOrKeywords, filters);
+    if (!keywords || keywords.length === 0) {
+      return {
+        success: false,
+        error: { message: 'At least one keyword is required', statusCode: 400 },
+      };
+    }
+    return apiRequest('/jobs/diagnostics', {
+      method: 'POST',
+      body: JSON.stringify(body),
     });
   },
 

@@ -11,14 +11,19 @@ import { AppContext } from "../context/Context";
 
 const JobResultPage = () => {
   const navigate = useNavigate();
-  const { jobResults, formData, matchJob, rejectJob } = useContext(AppContext);
+  const {
+    jobResults,
+    jobDiagnostics,
+    error,
+    formData,
+    matchJob,
+    rejectJob,
+  } = useContext(AppContext);
 
   const [currentJobIndex, setCurrentJobIndex] = useState(0);
   const [showReasonModel, setShowReasonModel] = useState(false);
   const [reason, setReason] = useState("");
   const [showJobResponse, setShowJobResponse] = useState(false);
-  const [dismissedJobs, setDismissedJobs] = useState([]);
-  const [matchedJobs, setMatchedJobs] = useState([]);
 
   const jobs = jobResults || [];
   const totalJobs = jobs.length;
@@ -42,11 +47,6 @@ const JobResultPage = () => {
       await rejectJob(jobId, reason);
     }
 
-    setDismissedJobs((prev) => [
-      ...prev,
-      { job: currentJob, reason, timestamp: new Date().toISOString() },
-    ]);
-
     moveToNextJob();
     closeReasonModel();
   };
@@ -57,7 +57,6 @@ const JobResultPage = () => {
       await matchJob(jobId);
     }
 
-    setMatchedJobs((prev) => [...prev, currentJob]);
     setShowJobResponse(true);
   };
 
@@ -90,11 +89,38 @@ const JobResultPage = () => {
   ======================= */
 
   if (!currentJob) {
+    const blockerDetected = jobDiagnostics?.page?.antiBotDetected;
+
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-white mb-3">No Jobs Available</h2>
-          <p className="text-gray-400 mb-6">Search for jobs first to see results here.</p>
+        <div className="text-center max-w-2xl px-6">
+          <h2 className="text-2xl font-bold text-white mb-3">
+            {blockerDetected ? 'Job Search Blocked' : 'No Jobs Available'}
+          </h2>
+          <p className="text-gray-400 mb-4">
+            {error || 'Search for jobs first to see results here.'}
+          </p>
+
+          {jobDiagnostics && (
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 text-left mb-6 text-sm">
+              <p className="text-gray-300 mb-1">
+                Source: <span className="text-white">{jobDiagnostics.source || 'unknown'}</span>
+              </p>
+              <p className="text-gray-300 mb-1">
+                Page title: <span className="text-white">{jobDiagnostics.page?.title || 'N/A'}</span>
+              </p>
+              <p className="text-gray-300 mb-1">
+                Anti-bot detected: <span className="text-white">{jobDiagnostics.page?.antiBotDetected ? 'Yes' : 'No'}</span>
+              </p>
+              <p className="text-gray-300 mb-1">
+                DOM candidates: <span className="text-white">{jobDiagnostics.extraction?.domCandidates ?? 0}</span>
+              </p>
+              <p className="text-gray-300">
+                Embedded candidates: <span className="text-white">{jobDiagnostics.extraction?.embeddedCandidates ?? 0}</span>
+              </p>
+            </div>
+          )}
+
           <button
             onClick={() => navigate('/user/dashboard')}
             className="bg-lime-400 text-gray-900 px-6 py-3 rounded-lg font-semibold hover:bg-lime-300 transition"

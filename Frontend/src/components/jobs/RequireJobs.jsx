@@ -3,9 +3,9 @@ import { Navigate } from 'react-router-dom';
 import { AppContext } from '../../context/Context';
 
 const RequireJobs = ({ children }) => {
-  const { jobResults, loading } = useContext(AppContext);
+  const { jobResults, jobSearching, error, jobDiagnostics } = useContext(AppContext);
 
-  if (loading) {
+  if (jobSearching) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -17,6 +17,10 @@ const RequireJobs = ({ children }) => {
   }
 
   if (!Array.isArray(jobResults) || jobResults.length === 0) {
+    if (error || jobDiagnostics) {
+      return children;
+    }
+
     return <Navigate to="/" replace />;
   }
 

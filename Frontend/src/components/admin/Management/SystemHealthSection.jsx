@@ -24,7 +24,7 @@ const SystemHealthSection = () => {
           <h3 className="text-white text-lg font-semibold mb-4">API Status</h3>
           <div className="space-y-3">
             {[
-              { service: 'Upwork API', status: 'Online', latency: '142ms' },
+              { service: 'Job Scraper Service', status: 'Online', latency: '142ms' },
               { service: 'Yelp API', status: 'Online', latency: '98ms' },
               { service: 'Email Service', status: 'Online', latency: '67ms' },
               { service: 'Database', status: 'Online', latency: '23ms' }
@@ -44,7 +44,7 @@ const SystemHealthSection = () => {
           <h3 className="text-white text-lg font-semibold mb-4">Recent Errors</h3>
           <div className="space-y-3">
             <div className="text-sm">
-              <div className="text-red-400 truncate">Rate limit exceeded - Upwork API</div>
+              <div className="text-red-400 truncate">Rate limit exceeded - Job Scraper Service</div>
               <div className="text-gray-400 text-xs">2 minutes ago</div>
             </div>
             <div className="text-sm">

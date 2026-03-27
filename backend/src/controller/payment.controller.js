@@ -3,6 +3,7 @@ import { STRIPE_SECRET_KEY, FRONTEND_URL, APP_URL } from '../config/env.js';
 import User from '../models/user.model.js';
 import Payment from '../models/payment.model.js';
 import Product from '../models/product.model.js';
+import { getEffectiveAnnualPrice } from '../utils/pricing.js';
 import workflowClient from '../config/upstash.js';
 
 const stripe = new Stripe(STRIPE_SECRET_KEY);
@@ -47,7 +48,9 @@ export const createCheckoutSession = async (req, res, next) => {
     }
 
     const amount =
-      frequency === 'annually' ? product.annualPrice : product.monthlyPrice;
+      frequency === 'annually'
+        ? getEffectiveAnnualPrice(product)
+        : product.monthlyPrice;
 
     if (!amount || amount <= 0) {
       const error = new Error(

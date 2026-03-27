@@ -132,24 +132,58 @@ export const ContextProvider = ({ children }) => {
      Job State
   ========================== */
   const [jobResults, setJobResults] = useState([]);
+  const [jobDiagnostics, setJobDiagnostics] = useState(null);
   const [dashboardJobs, setDashboardJobs] = useState([]);
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [jobSearching, setJobSearching] = useState(false);
 
+  const getJobErrorMessage = (result, fallbackMessage) => {
+    const diagnostics = result?.error?.details?.diagnostics;
+    const code = result?.error?.details?.code;
+
+    if (code === 'SCRAPER_BLOCKED' || diagnostics?.page?.antiBotDetected) {
+      return 'Job search is currently blocked by Upwork protection. Please try again later.';
+    }
+
+    if (code === 'UPWORK_AUTH_MISSING') {
+      return 'Upwork API credentials are missing. Please contact support.';
+    }
+
+    if (code === 'UPWORK_API_ERROR') {
+      return 'Upwork API request failed. Please try again shortly.';
+    }
+
+    if (code === 'UPWORK_EMPTY_RESULTS') {
+      return 'No jobs found matching your criteria.';
+    }
+
+    return result?.error?.message || fallbackMessage;
+  };
+
   // Search jobs with AI analysis
-  const searchJobsWithAI = async (keywords, filters = {}) => {
+  const searchJobsWithAI = async (payloadOrKeywords, filters = {}) => {
     setJobSearching(true);
     setError(null);
+    setJobDiagnostics(null);
     try {
-      const result = await jobAPI.searchJobsWithAI(keywords, filters);
+      const result = await jobAPI.searchJobsWithAI(payloadOrKeywords, filters);
       if (result.success) {
         setJobResults(result.data?.data?.jobs || []);
+        setJobDiagnostics(result.data?.data?.diagnostics || null);
+
+        if ((result.data?.data?.jobs || []).length === 0) {
+          setError(result.data?.data?.message || 'No jobs found matching your criteria');
+        }
+
         return result;
       } else {
-        setError(result.error?.message || "Failed to search jobs");
+        setJobResults([]);
+        setJobDiagnostics(result.error?.details?.diagnostics || null);
+        setError(getJobErrorMessage(result, 'Failed to search jobs'));
         return result;
       }
     } catch (err) {
+      setJobResults([]);
       setError(err.message || "Failed to search jobs");
       return { success: false, error: { message: err.message } };
     } finally {
@@ -158,18 +192,29 @@ export const ContextProvider = ({ children }) => {
   };
 
   // Search jobs (basic, non-blocking)
-  const searchJobs = async (keywords, filters = {}) => {
+  const searchJobs = async (payloadOrKeywords, filters = {}) => {
     setJobSearching(true);
     setError(null);
+    setJobDiagnostics(null);
     try {
-      const result = await jobAPI.searchJobs(keywords, filters);
+      const result = await jobAPI.searchJobs(payloadOrKeywords, filters);
       if (result.success) {
+        setJobResults(result.data?.data?.jobs || []);
+        setJobDiagnostics(result.data?.data?.diagnostics || null);
+
+        if ((result.data?.data?.jobs || []).length === 0) {
+          setError(result.data?.data?.message || 'No jobs found matching your criteria');
+        }
+
         return result;
       } else {
-        setError(result.error?.message || "Failed to search jobs");
+        setJobResults([]);
+        setJobDiagnostics(result.error?.details?.diagnostics || null);
+        setError(getJobErrorMessage(result, 'Failed to search jobs'));
         return result;
       }
     } catch (err) {
+      setJobResults([]);
       setError(err.message || "Failed to search jobs");
       return { success: false, error: { message: err.message } };
     } finally {
@@ -343,6 +388,8 @@ export const ContextProvider = ({ children }) => {
         /* Jobs */
         jobResults,
         setJobResults,
+        jobDiagnostics,
+        setJobDiagnostics,
         dashboardJobs,
         dashboardLoading,
         jobSearching,

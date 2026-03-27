@@ -9,7 +9,8 @@ const ProfileUrl = () => {
     formData,
     setFormData,
     error,
-    setError,
+    user,
+    searchJobsWithAI,
   } = useContext(AppContext);
 
   const [profileLink, setProfileLink] = useState(formData.profileUrl || '');
@@ -17,19 +18,54 @@ const ProfileUrl = () => {
 
   const navigate = useNavigate();
 
-  const handleContinue = () => {
-    if (!profileLink.trim()) {
-      setShowError(true);
-      return;
-    }
+  const buildSearchPayload = (data) => {
+    const jobHourly = data.hourlyRate ? Number(data.hourlyRate) : null;
+    const projectFixedRate = data.fixedRate ? Number(data.fixedRate) : null;
 
-    // Only update state - no API call
+    let rateType = null;
+    if (jobHourly && !projectFixedRate) rateType = 'hourly';
+    if (projectFixedRate && !jobHourly) rateType = 'fixed';
+
+    const payload = {
+      keywords: data.keywords || [],
+      jobHourly,
+      projectFixedRate,
+      badJobCriteria: data.badJobCriteria || [],
+      selectedRole: data.accountType || null,
+      upworkProfileUrl: data.profileUrl || '',
+    };
+
+    if (rateType) payload.rateType = rateType;
+    if (jobHourly) payload.hourlyRateRange = { min: jobHourly };
+    if (projectFixedRate) payload.fixedRateRange = { min: projectFixedRate };
+
+    return payload;
+  };
+
+  const handleContinue = async () => {
     const updatedData = { ...formData, profileUrl: profileLink };
     setFormData(updatedData);
 
-    // Move to next step / page
-    nextStep();
-    navigate('/job-result', { replace: true });
+    if (!user) {
+      nextStep();
+      return;
+    }
+
+    const filters = {};
+    if (updatedData.hourlyRate) {
+      filters.minRate = Number(updatedData.hourlyRate);
+    }
+    if (updatedData.fixedRate) {
+      filters.minBudget = Number(updatedData.fixedRate);
+    }
+
+    const payload = buildSearchPayload(updatedData);
+    const result = await searchJobsWithAI(payload, filters);
+
+    if (result.success && (result.data?.data?.jobs || []).length > 0) {
+      nextStep();
+      navigate('/job-result', { replace: true });
+    }
   };
 
   const handleInputChange = (e) => {
