@@ -26,6 +26,7 @@ A full-stack web application that helps users find and manage job opportunities 
 - MongoDB database with Mongoose ODM
 - AI-powered proposal generation (OpenAI & Google Gemini)
 - Upwork job integration with configurable caching
+- Freelancer.com OAuth + job integration
 - Server-side pagination & filtering
 - Responsive design with Tailwind CSS v4
 - Centralized API service layer (frontend)
@@ -176,6 +177,19 @@ UPWORK_CLIENT_ID=
 UPWORK_CLIENT_SECRET=
 UPWORK_ACCESS_TOKEN=
 UPWORK_REFRESH_TOKEN=
+UPWORK_OAUTH_REDIRECT_URI=
+
+# Freelancer API + OAuth
+FREELANCER_BASE_URL=https://www.freelancer.com
+FREELANCER_ACCOUNTS_BASE_URL=https://accounts.freelancer.com
+FREELANCER_CLIENT_ID=
+FREELANCER_CLIENT_SECRET=
+FREELANCER_OAUTH_REDIRECT_URI=
+FREELANCER_OAUTH_SCOPE=basic
+FREELANCER_OAUTH_ADVANCED_SCOPES=1 2 3 4 5 6
+FREELANCER_OAUTH_PROMPT=select_account consent
+FREELANCER_OAUTH_ACCESS_TOKEN=
+FREELANCER_API_TIMEOUT_MS=20000
 
 # OpenAI
 OPENAI_API_KEY=
@@ -212,6 +226,7 @@ npm install
 Create `.env.local` (optional):
 ```env
 VITE_API_URL=http://localhost:5000/api/v1
+VITE_FREELANCER_OAUTH_START_URL=http://localhost:5000/api/v1/auth/freelancer/connect
 ```
 
 Start the dev server:
@@ -232,6 +247,8 @@ Frontend runs on `http://localhost:5173`
 | POST | `/sign-out` | Sign out user | No |
 | POST | `/admin/login` | Admin login | No |
 | GET | `/admin/profile` | Get admin profile | Yes |
+| GET | `/freelancer/connect` | Start Freelancer OAuth flow | Optional |
+| GET | `/freelancer/callback` | Freelancer OAuth callback | No |
 
 ### Demo Scheduling (`/api/v1/demo`)
 

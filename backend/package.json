@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch  src/server.js",
+    "seed:billing": "node src/scripts/seed-billing-plans.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",

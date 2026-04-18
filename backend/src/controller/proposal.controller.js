@@ -1,7 +1,14 @@
 import Proposal from '../models/proposal.model.js';
 import Job from '../models/job.model.js';
 import User from '../models/user.model.js';
+import UsageRecord from '../models/usageRecord.model.js';
 import aiService from '../services/ai.service.js';
+import { toMonthKey } from '../utils/subscriptionPlans.js';
+
+const normalizePlatform = platform => {
+  const normalized = String(platform || '').toLowerCase();
+  return normalized === 'freelancer' ? 'freelancer' : 'upwork';
+};
 
 /**
  * Generate proposal for a job
@@ -57,6 +64,31 @@ export const generateProposal = async (req, res, next) => {
         aiService: preferredAIService,
       });
     }
+
+    const usageMonth = req.usageMonth || toMonthKey();
+    const selectedPlatform = normalizePlatform(
+      req.currentPlatform ||
+        req.body?.platform ||
+        user.jobPreferences?.selectedPlatform ||
+        (job?.source?.includes('freelancer') ? 'freelancer' : 'upwork')
+    );
+
+    await UsageRecord.findOneAndUpdate(
+      { userId, month: usageMonth },
+      {
+        $inc: { aiProposalsUsed: 1 },
+        $addToSet: { platformsConnected: selectedPlatform },
+        $setOnInsert: {
+          orgId: null,
+          autoSendUsed: 0,
+        },
+      },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true,
+      }
+    );
 
     // Generate proposal asynchronously (non-blocking)
     generateProposalAsync(proposal._id, job, user, preferredAIService).catch(
@@ -236,22 +268,6 @@ export const sendProposal = async (req, res, next) => {
       throw error;
     }
 
-    // Check if user has enough coins (1 coin per proposal send)
-    const user = await User.findById(userId);
-    if (!user) {
-      const error = new Error('User not found');
-      error.statusCode = 404;
-      throw error;
-    }
-
-    if (user.subscription?.status !== 'active') {
-      const error = new Error(
-        'Active subscription required to send proposals. Please subscribe to a plan first.'
-      );
-      error.statusCode = 403;
-      throw error;
-    }
-
     // In production, send to Upwork API here
     // For now, mark as sent and update status
 
@@ -272,6 +288,33 @@ export const sendProposal = async (req, res, next) => {
     await User.findByIdAndUpdate(userId, {
       $inc: { 'stats.proposalsSent': 1 },
     });
+
+    const proposalJob = await Job.findById(proposal.jobId)
+      .select('source')
+      .lean();
+    const usageMonth = toMonthKey();
+    const selectedPlatform = normalizePlatform(
+      req.currentPlatform ||
+        req.body?.platform ||
+        (proposalJob?.source?.includes('freelancer') ? 'freelancer' : 'upwork')
+    );
+
+    await UsageRecord.findOneAndUpdate(
+      { userId, month: usageMonth },
+      {
+        $inc: { autoSendUsed: 1 },
+        $addToSet: { platformsConnected: selectedPlatform },
+        $setOnInsert: {
+          orgId: null,
+          aiProposalsUsed: 0,
+        },
+      },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true,
+      }
+    );
 
     res.status(200).json({
       success: true,
@@ -618,16 +661,16 @@ export const getTopTemplates = async (req, res, next) => {
 
     const matchStage = isAdmin
       ? {
-        status: {
-          $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
-        },
-      }
+          status: {
+            $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
+          },
+        }
       : {
-        userId: req.user?._id || req.user?.id,
-        status: {
-          $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
-        },
-      };
+          userId: req.user?._id || req.user?.id,
+          status: {
+            $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
+          },
+        };
 
     const results = await Proposal.aggregate([
       { $match: matchStage },

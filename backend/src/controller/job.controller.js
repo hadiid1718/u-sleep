@@ -1,6 +1,7 @@
 import Job from '../models/job.model.js';
 import User from '../models/user.model.js';
 import upworkService from '../services/upwork.service.js';
+import freelancerService from '../services/freelancer.service.js';
 
 const normalizeSelectedRole = role => {
   if (!role) return null;
@@ -25,9 +26,12 @@ const normalizeBadCriteria = criteria => {
   return [];
 };
 
-const buildUpworkPreferences = (payload, user) => {
+const buildPlatformPreferences = (payload, user) => {
   const jobPreferences = user?.jobPreferences || {};
-  const keywords = normalizeKeywords(payload?.keywords, jobPreferences.keywords);
+  const keywords = normalizeKeywords(
+    payload?.keywords,
+    jobPreferences.keywords
+  );
   const selectedRole = normalizeSelectedRole(
     payload?.selectedRole || payload?.userRole || jobPreferences.userRole
   );
@@ -41,14 +45,25 @@ const buildUpworkPreferences = (payload, user) => {
       payload?.badJobCriteria ?? jobPreferences.badJobCriteria
     ),
     selectedRole,
+    selectedPlatform:
+      payload?.selectedPlatform || jobPreferences.selectedPlatform || 'upwork',
     upworkProfileUrl:
       payload?.upworkProfileUrl ?? jobPreferences.upworkProfileUrl ?? null,
+    freelancerProfileUrl:
+      payload?.freelancerProfileUrl ??
+      jobPreferences.freelancerProfileUrl ??
+      null,
     rateType: payload?.rateType ?? jobPreferences.rateType ?? null,
     hourlyRateRange:
       payload?.hourlyRateRange ?? jobPreferences.hourlyRateRange ?? null,
     fixedRateRange:
       payload?.fixedRateRange ?? jobPreferences.fixedRateRange ?? null,
   };
+};
+
+const getPlatformService = selectedPlatform => {
+  const platform = String(selectedPlatform || 'upwork').toLowerCase();
+  return platform === 'freelancer' ? freelancerService : upworkService;
 };
 
 const persistJobsIfPossible = async (jobs, userId) => {
@@ -93,19 +108,23 @@ export const searchJobs = async (req, res, next) => {
       throw error;
     }
 
-    const preferences = buildUpworkPreferences(req.body, user);
+    const preferences = buildPlatformPreferences(req.body, user);
     if (preferences.keywords.length === 0) {
       const error = new Error('At least one keyword is required');
       error.statusCode = 400;
       throw error;
     }
 
-    const { jobs, diagnostics } = await upworkService.searchJobsDetailed(
+    const platformService = getPlatformService(preferences.selectedPlatform);
+    const freelancerToken = user?.freelancerAuth?.accessToken || null;
+
+    const { jobs, diagnostics } = await platformService.searchJobsDetailed(
       preferences,
-      filters
+      filters,
+      freelancerToken
     );
 
-    let filteredJobs = upworkService.applyBadJobFilters(
+    let filteredJobs = platformService.applyBadJobFilters(
       jobs,
       preferences.badJobCriteria
     );
@@ -116,7 +135,7 @@ export const searchJobs = async (req, res, next) => {
           ? preferences.jobHourly
           : preferences.projectFixedRate;
 
-      filteredJobs = upworkService.applyRateMatching(
+      filteredJobs = platformService.applyRateMatching(
         filteredJobs,
         rate,
         preferences.rateType
@@ -337,16 +356,20 @@ export const searchJobsWithAIAnalysis = async (req, res, next) => {
       throw error;
     }
 
-    const preferences = buildUpworkPreferences(req.body, user);
+    const preferences = buildPlatformPreferences(req.body, user);
     if (preferences.keywords.length === 0) {
       const error = new Error('At least one keyword is required');
       error.statusCode = 400;
       throw error;
     }
 
-    const { jobs, diagnostics } = await upworkService.searchJobsDetailed(
+    const platformService = getPlatformService(preferences.selectedPlatform);
+    const freelancerToken = user?.freelancerAuth?.accessToken || null;
+
+    const { jobs, diagnostics } = await platformService.searchJobsDetailed(
       preferences,
-      filters
+      filters,
+      freelancerToken
     );
 
     if (jobs.length === 0) {
@@ -361,7 +384,7 @@ export const searchJobsWithAIAnalysis = async (req, res, next) => {
     }
 
     // Apply bad job filters
-    let filteredJobs = upworkService.applyBadJobFilters(
+    let filteredJobs = platformService.applyBadJobFilters(
       jobs,
       preferences.badJobCriteria
     );
@@ -373,7 +396,7 @@ export const searchJobsWithAIAnalysis = async (req, res, next) => {
           ? preferences.jobHourly
           : preferences.projectFixedRate;
 
-      filteredJobs = upworkService.applyRateMatching(
+      filteredJobs = platformService.applyRateMatching(
         filteredJobs,
         rate,
         preferences.rateType
@@ -433,7 +456,9 @@ export const searchJobsWithAIAnalysis = async (req, res, next) => {
 export const getJobSearchDiagnostics = async (req, res, next) => {
   try {
     const { filters = {} } = req.body;
-    const preferences = buildUpworkPreferences(req.body, null);
+    const preferences = buildPlatformPreferences(req.body, req.user || null);
+    const platformService = getPlatformService(preferences.selectedPlatform);
+    const freelancerToken = req.user?.freelancerAuth?.accessToken || null;
 
     if (preferences.keywords.length === 0) {
       const error = new Error('At least one keyword is required');
@@ -441,14 +466,19 @@ export const getJobSearchDiagnostics = async (req, res, next) => {
       throw error;
     }
 
-    const diagnostics = await upworkService.diagnoseSearch(
+    const { diagnostics, jobs } = await platformService.searchJobsDetailed(
       preferences,
-      filters
+      filters,
+      freelancerToken
     );
 
     res.status(200).json({
       success: true,
-      data: diagnostics,
+      data: {
+        ok: true,
+        jobsFound: jobs.length,
+        diagnostics,
+      },
     });
   } catch (error) {
     next(error);

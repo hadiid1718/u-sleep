@@ -1,19 +1,3 @@
-  const menuItems = [
-    { id: 'analytics', label: 'Analytics & Monitoring', icon: BarChart3 },
-    { id: 'jobs', label: 'Jobs', icon: Briefcase },
-    { id: 'proposals', label: 'Proposals', icon: FileText },
-    { id: 'users', label: 'Users', icon: Users },
-    { id: 'products', label: 'Products', icon: Package },
-    { id: 'revenue', label: 'Revenue & BI', icon: DollarSign },
-    { id: 'comparisons', label: 'Comparisons', icon: Table2 },
-    { id: 'demos', label: 'Demo', icon: Calendar },
-    { id: 'reviews', label: 'Review Videos', icon: Video },
-    { id: 'messages', label: 'Messages', icon: MessageSquare },
-    { id: 'system', label: 'System Health', icon: Activity },
-    { id: 'compliance', label: 'Compliance & Safety', icon: Shield },
-    { id: 'settings', label: 'Settings', icon: Settings }
-  ];
-
 import React, { useContext } from 'react';
 import {
   BarChart3, 
@@ -24,7 +8,6 @@ import {
   DollarSign,
   Shield,
   Calendar,
-  Package,
   Briefcase,
   FileText,
   Table2,
@@ -33,6 +16,20 @@ import {
 import { AppContext } from '../../../context/Context';
 
 const Sidebar = ({ activeSection, setActiveSection, isOpen, onClose }) => {
+  const menuItems = [
+    { id: 'analytics', label: 'Analytics & Monitoring', icon: BarChart3 },
+    { id: 'jobs', label: 'Jobs', icon: Briefcase },
+    { id: 'proposals', label: 'Proposals', icon: FileText },
+    { id: 'users', label: 'Users', icon: Users },
+    { id: 'revenue', label: 'Revenue & BI', icon: DollarSign },
+    { id: 'comparisons', label: 'Comparisons', icon: Table2 },
+    { id: 'demos', label: 'Demo', icon: Calendar },
+    { id: 'reviews', label: 'Review Videos', icon: Video },
+    { id: 'messages', label: 'Messages', icon: MessageSquare },
+    { id: 'system', label: 'System Health', icon: Activity },
+    { id: 'compliance', label: 'Compliance & Safety', icon: Shield },
+    { id: 'settings', label: 'Settings', icon: Settings }
+  ];
 
 
   const { user} = useContext(AppContext)

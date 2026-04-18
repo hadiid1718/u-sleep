@@ -7,9 +7,18 @@ import FeedbackModal from '../models/FeedBackModel';
 import CaseStudyModal from '../models/CaseStudyModel';
 import { AppContext } from '../../context/Context';
 import { proposalAPI } from '../../utils/api';
+import useSubscription from '../../hooks/useSubscription';
+import UpgradeBanner from '../billing/UpgradeBanner';
 
-const JobResponseGenerator = ({ job, onClose }) => {
+const JobResponseGenerator = ({ job }) => {
   const { generateProposal, pollProposal, currentProposal } = useContext(AppContext);
+  const {
+    usagePercentage,
+    shouldShowUpgradeWarning,
+    isQuotaExhausted,
+    startCheckout,
+    refreshSubscription,
+  } = useSubscription();
 
   const [currentScreen, setCurrentScreen] = useState('loading');
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -36,6 +45,7 @@ const JobResponseGenerator = ({ job, onClose }) => {
             const pollResult = await pollProposal(proposalId);
             if (pollResult.success) {
               setResponseText(pollResult.data?.data?.content || '');
+              await refreshSubscription();
             }
           }
         }
@@ -110,6 +120,22 @@ const JobResponseGenerator = ({ job, onClose }) => {
           <h1 className="text-white text-5xl font-bold mb-3">Job Response Generated</h1>
           <p className="text-gray-400 text-lg">Here's your AI-generated response for this job</p>
         </div>
+
+        {shouldShowUpgradeWarning && (
+          <div className="mb-6">
+            <UpgradeBanner
+              tone={isQuotaExhausted ? 'danger' : 'warning'}
+              title={
+                isQuotaExhausted
+                  ? 'You have reached your monthly limit'
+                  : `You are at ${usagePercentage}% of your monthly usage`
+              }
+              description="Upgrade your plan to keep generating and sending proposals without interruptions."
+              ctaLabel="Upgrade plan"
+              onAction={() => startCheckout('pro')}
+            />
+          </div>
+        )}
         
         <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
           <JobDetails job={job} />

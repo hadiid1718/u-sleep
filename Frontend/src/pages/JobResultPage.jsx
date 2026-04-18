@@ -159,6 +159,7 @@ const JobResultPage = () => {
   const matchScore = currentJob?.aiAnalysis?.matchScore || null;
   const recommendation = currentJob?.aiAnalysis?.recommendation || null;
   const greenFlags = currentJob?.aiAnalysis?.greenFlags || [];
+  const sourceLabel = currentJob?.source === 'freelancer_api' ? 'Freelancer' : 'Upwork';
 
   /* =======================
      UI
@@ -210,7 +211,7 @@ const JobResultPage = () => {
             rel="noopener noreferrer"
             className="text-green-400 underline flex items-center gap-2 mb-6"
           >
-            View on Upwork <ExternalLink size={16} />
+            View on {sourceLabel} <ExternalLink size={16} />
           </a>
 
           <div className="flex gap-4">

@@ -18,8 +18,30 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
+      required() {
+        return this.authProvider === 'local' || this.authProvider === 'both';
+      },
       minlength: [6, 'Password must be at least 6 characters long'],
+    },
+    authProvider: {
+      type: String,
+      enum: ['local', 'google', 'freelancer', 'both'],
+      default: 'local',
+    },
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      default: null,
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    profilePicture: {
+      type: String,
+      trim: true,
+      default: '',
     },
 
     // Job Matching Preferences
@@ -54,6 +76,11 @@ const userSchema = new mongoose.Schema(
         enum: ['freelancer', 'agency'],
         default: 'freelancer',
       },
+      selectedPlatform: {
+        type: String,
+        enum: ['upwork', 'freelancer'],
+        default: 'upwork',
+      },
       badJobCriteria: {
         type: [String],
         default: [],
@@ -61,6 +88,37 @@ const userSchema = new mongoose.Schema(
       upworkProfileUrl: {
         type: String,
         trim: true,
+      },
+      freelancerProfileUrl: {
+        type: String,
+        trim: true,
+      },
+    },
+
+    freelancerAuth: {
+      accessToken: {
+        type: String,
+        default: null,
+      },
+      refreshToken: {
+        type: String,
+        default: null,
+      },
+      expiresAt: {
+        type: Date,
+        default: null,
+      },
+      scope: {
+        type: String,
+        default: null,
+      },
+      freelancerUserId: {
+        type: String,
+        default: null,
+      },
+      connectedAt: {
+        type: Date,
+        default: null,
       },
     },
 

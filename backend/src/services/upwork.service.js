@@ -18,8 +18,7 @@ class UpworkService {
       process.env.UPWORK_API_BASE_URL?.trim() || DEFAULT_API_BASE_URL;
     this.jobsSearchPath =
       process.env.UPWORK_JOBS_SEARCH_PATH?.trim() || DEFAULT_SEARCH_PATH;
-    this.requestTimeoutMs =
-      Number(process.env.UPWORK_API_TIMEOUT_MS) || 20000;
+    this.requestTimeoutMs = Number(process.env.UPWORK_API_TIMEOUT_MS) || 20000;
   }
 
   isDatabaseAvailable() {
@@ -297,9 +296,9 @@ class UpworkService {
     const client = rawJob?.client || rawJob?.clientInfo || {};
     const paymentVerified = Boolean(
       rawJob?.paymentVerified ||
-        rawJob?.clientPaymentVerified ||
-        client?.paymentVerified ||
-        client?.payment_verified
+      rawJob?.clientPaymentVerified ||
+      client?.paymentVerified ||
+      client?.payment_verified
     );
 
     const upworkJobId =
@@ -314,7 +313,8 @@ class UpworkService {
       upworkJobId,
       upworkUrl: absoluteUrl,
       title: this.normalizeText(title) || 'Untitled Job',
-      description: this.normalizeText(description) || 'No description available.',
+      description:
+        this.normalizeText(description) || 'No description available.',
       shortDescription: this.normalizeText(description || '').substring(0, 200),
       category: rawJob?.category || rawJob?.categoryName || null,
       skills: this.normalizeSkillList(rawJob?.skills || rawJob?.skillNames),
@@ -445,7 +445,10 @@ class UpworkService {
 
       const now = new Date();
       return await Job.find({
-        'searchMetadata.signature': this.buildSearchSignature(preferences, filters),
+        'searchMetadata.signature': this.buildSearchSignature(
+          preferences,
+          filters
+        ),
         cacheExpiry: { $gt: now },
         isCached: true,
       })
@@ -464,7 +467,9 @@ class UpworkService {
         return;
       }
 
-      const normalizedKeywords = this.normalizeKeywords(preferences?.keywords || []);
+      const normalizedKeywords = this.normalizeKeywords(
+        preferences?.keywords || []
+      );
       const signature = this.buildSearchSignature(preferences, filters);
 
       const operations = jobs.map(job => ({
@@ -604,7 +609,11 @@ class UpworkService {
         }
       }
 
-      const payload = await this.fetchUpworkJobs(preferences, filters, diagnostics);
+      const payload = await this.fetchUpworkJobs(
+        preferences,
+        filters,
+        diagnostics
+      );
       const candidates = this.extractJobsFromResponse(payload);
 
       if (!Array.isArray(candidates) || candidates.length === 0) {

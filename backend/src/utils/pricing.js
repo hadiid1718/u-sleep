@@ -1,4 +1,4 @@
-const clampPercentage = (value) => {
+const clampPercentage = value => {
   if (typeof value !== 'number' || Number.isNaN(value)) return 0;
   return Math.min(100, Math.max(0, value));
 };
@@ -11,7 +11,7 @@ export const calculateAnnualPrice = (monthlyPrice, annualDiscount = 0) => {
   return Math.round(monthly * 12 * (1 - discount / 100));
 };
 
-export const getEffectiveAnnualPrice = (product) => {
+export const getEffectiveAnnualPrice = product => {
   if (!product) return 0;
 
   const monthly = Number(product.monthlyPrice) || 0;

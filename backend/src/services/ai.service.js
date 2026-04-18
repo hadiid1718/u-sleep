@@ -197,7 +197,14 @@ Your proposals are:
    * Build proposal prompt
    */
   buildPrompt(job, user, caseStudy) {
-    let prompt = `Generate a professional Upwork proposal for the following job:
+    const platform =
+      job?.source === 'freelancer_api' ? 'Freelancer.com' : 'Upwork';
+    const profileUrl =
+      platform === 'Freelancer.com'
+        ? user.jobPreferences?.freelancerProfileUrl || 'N/A'
+        : user.jobPreferences?.upworkProfileUrl || 'N/A';
+
+    let prompt = `Generate a professional ${platform} proposal for the following job:
 
 **JOB DETAILS:**
 Title: ${job.title}
@@ -211,11 +218,12 @@ Proposals Received: ${job.proposalsCount || 'N/A'}
 Name: ${user.name}
 Role: ${user.jobPreferences?.userRole || 'Freelancer'}
 Rate: ${
-  user.jobPreferences?.rateType === 'hourly'
-    ? `$${user.jobPreferences?.hourlyRate}/hour`
-    : `$${user.jobPreferences?.fixedRate} fixed`
-}
-Profile URL: ${user.jobPreferences?.upworkProfileUrl || 'N/A'}
+      user.jobPreferences?.rateType === 'hourly'
+        ? `$${user.jobPreferences?.hourlyRate}/hour`
+        : `$${user.jobPreferences?.fixedRate} fixed`
+    }
+Platform: ${platform}
+Profile URL: ${profileUrl}
 Keywords/Expertise: ${user.jobPreferences?.keywords?.join(', ') || 'N/A'}
 
 **INSTRUCTIONS:**

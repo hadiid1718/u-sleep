@@ -1,6 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { AppContext } from '../../../context/Context';
 import { useNavigate } from 'react-router-dom';
+import { authAPI } from '../../../utils/api';
 
 const ProfileUrl = () => {
   const {
@@ -15,6 +16,7 @@ const ProfileUrl = () => {
 
   const [profileLink, setProfileLink] = useState(formData.profileUrl || '');
   const [showError, setShowError] = useState(false);
+  const selectedPlatform = formData.selectedPlatform || 'upwork';
 
   const navigate = useNavigate();
 
@@ -27,12 +29,14 @@ const ProfileUrl = () => {
     if (projectFixedRate && !jobHourly) rateType = 'fixed';
 
     const payload = {
+      selectedPlatform: data.selectedPlatform || 'upwork',
       keywords: data.keywords || [],
       jobHourly,
       projectFixedRate,
       badJobCriteria: data.badJobCriteria || [],
       selectedRole: data.accountType || null,
       upworkProfileUrl: data.profileUrl || '',
+      freelancerProfileUrl: data.profileUrl || '',
     };
 
     if (rateType) payload.rateType = rateType;
@@ -75,13 +79,17 @@ const ProfileUrl = () => {
     }
   };
 
+  const handleFreelancerConnect = () => {
+    window.location.href = authAPI.getFreelancerOAuthUrl('connect-freelancer');
+  };
+
   return (
     <>
       <div className="flex items-center justify-center p-6">
         <div className="max-w-4xl w-full">
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              <span className="text-green-400">Step 5 -</span> share your Upwork profile link
+              <span className="text-green-400">Step 6 -</span> share your {selectedPlatform === 'freelancer' ? 'Freelancer.com' : 'Upwork'} profile link
             </h1>
             <p className="text-gray-300 text-lg max-w-3xl mx-auto leading-relaxed">
               This helps AI understand your services and generate better job responses.
@@ -94,7 +102,7 @@ const ProfileUrl = () => {
                 type="url"
                 value={profileLink}
                 onChange={handleInputChange}
-                placeholder="Your Upwork profile link"
+                placeholder={`Your ${selectedPlatform === 'freelancer' ? 'Freelancer.com' : 'Upwork'} profile link`}
                 className={`w-full px-6 py-4 bg-gray-800 border-2 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400 ${
                   showError ? 'border-red-500' : 'border-green-400'
                 }`}
@@ -117,15 +125,30 @@ const ProfileUrl = () => {
 
             <div className="flex flex-col lg:flex-row md:flex-row items-center justify-center mb-8">
               <p className="text-gray-300 text-sm  ">
-                Example: https://www.upwork.com/freelancers/~01234567890
+                {selectedPlatform === 'freelancer'
+                  ? 'Example: https://www.freelancer.com/u/yourusername'
+                  : 'Example: https://www.upwork.com/freelancers/~01234567890'}
               </p>
             </div>
+
+            {selectedPlatform === 'freelancer' && (
+              <div className="text-center mb-8 text-sm">
+                <button
+                  onClick={handleFreelancerConnect}
+                  className="border-2 border-lime-400 text-lime-400 hover:bg-lime-400 hover:text-gray-900 font-semibold py-3 px-6 rounded-lg transition"
+                >
+                  {user ? 'Connect Freelancer Account (OAuth)' : 'Sign in with Freelancer OAuth'}
+                </button>
+              </div>
+            )}
 
             <div className="text-center mb-8 text-sm">
               <button
                 onClick={() =>
                   window.open(
-                    'https://support.upwork.com/hc/en-us/articles/211068468-Find-Your-Profile-URL',
+                    selectedPlatform === 'freelancer'
+                      ? 'https://www.freelancer.com/support'
+                      : 'https://support.upwork.com/hc/en-us/articles/211068468-Find-Your-Profile-URL',
                     '_blank'
                   )
                 }

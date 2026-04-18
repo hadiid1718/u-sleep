@@ -32,6 +32,13 @@ const Header = () => {
           {!user ? (
             <>
               <Link
+                to="/billing"
+                className="text-white hover:text-lime-400 transition"
+              >
+                Billing
+              </Link>
+
+              <Link
                 to="/demo-scheduling"
                 className="bg-lime-400 text-black px-4 py-2 rounded-md hover:bg-lime-500 transition"
               >
@@ -57,6 +64,13 @@ const Header = () => {
               <span className="text-white">
                 Welcome, {user.name || user.username || user.email || "User"}!
               </span>
+
+              <Link
+                to="/billing"
+                className="text-white hover:text-lime-400 transition"
+              >
+                Billing
+              </Link>
 
               <Link
                 to="/demo-scheduling"
@@ -181,6 +195,14 @@ const Header = () => {
             {!user ? (
               <>
                 <Link
+                  to="/billing"
+                  onClick={closeMobileMenu}
+                  className="block px-4 py-3 rounded-md bg-gray-700 hover:bg-gray-600 transition"
+                >
+                  Billing
+                </Link>
+
+                <Link
                   to="/demo-scheduling"
                   onClick={closeMobileMenu}
                   className="block px-4 py-3 rounded-md bg-gray-700 hover:bg-gray-600 transition"
@@ -206,6 +228,14 @@ const Header = () => {
               </>
             ) : (
               <>
+                <Link
+                  to="/billing"
+                  onClick={closeMobileMenu}
+                  className="block px-4 py-3 rounded-md bg-gray-700 hover:bg-gray-600 transition"
+                >
+                  Billing
+                </Link>
+
                 <Link
                   to={isAdminUser(user) ? "/admin/dashboard" : "/user/dashboard"}
                   onClick={closeMobileMenu}

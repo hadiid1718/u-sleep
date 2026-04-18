@@ -3,6 +3,8 @@ import './index.css'
 import App from './App.jsx'
 import { RouterProvider, createBrowserRouter } from 'react-router-dom'
 import { ContextProvider } from "./context/Context.jsx"
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { SubscriptionProvider } from './context/SubscriptionContext.jsx'
 import HomePage from './pages/HomePage.jsx'
 import SignIn from './pages/SignIn.jsx'
 import JobSelectionPage from './pages/JobResultPage.jsx'
@@ -12,8 +14,12 @@ import UserDashboard from './pages/Dashboard.jsx'
 import AdminDashboard from './pages/AdminDashboard.jsx'
 import RequireJobs from './components/jobs/RequireJobs.jsx'
 import AdminSignIn from './pages/AdminSignIn.jsx'
-import PaymentSuccess from './pages/PaymentSuccess.jsx'
-import PaymentCancel from './pages/PaymentCancel.jsx'
+import BillingPage from './pages/Billing/BillingPage.jsx'
+import BillingSuccessPage from './pages/Billing/BillingSuccessPage.jsx'
+import BillingCancelledPage from './pages/Billing/BillingCancelledPage.jsx'
+
+const queryClient = new QueryClient()
+
 const router = createBrowserRouter([
   {
     path: "/",
@@ -48,14 +54,6 @@ const router = createBrowserRouter([
         element: <RequireJobs><JobSelectionPage /></RequireJobs>
       },
       {
-        path: "/payment/success",
-        element: <PaymentSuccess />
-      },
-      {
-        path: "/payment/cancel",
-        element: <PaymentCancel />
-      },
-      {
         path: "/admin/sign-in",
         element: <AdminSignIn />,
         // loader: async () => {
@@ -67,13 +65,27 @@ const router = createBrowserRouter([
         // },
         // errorElement: <div>Unauthorized Access</div>,
       },
+      {
+        path: "/billing",
+        element: <BillingPage />,
+      },
+      {
+        path: "/billing/success",
+        element: <BillingSuccessPage />,
+      },
+      {
+        path: "/billing/cancelled",
+        element: <BillingCancelledPage />,
+      },
     ]
   }
 ])
 createRoot(document.getElementById('root')).render(
   <ContextProvider>
-
-    <RouterProvider router={router} />
-
+    <QueryClientProvider client={queryClient}>
+      <SubscriptionProvider>
+        <RouterProvider router={router} />
+      </SubscriptionProvider>
+    </QueryClientProvider>
   </ContextProvider>
 )

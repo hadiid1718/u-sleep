@@ -24,14 +24,12 @@ const errorMiddleware = (err, req, res, next) => {
       error.statusCode = 400;
     }
 
-    res
-      .status(error.statusCode || 500)
-      .json({
-        success: false,
-        error: error.message || 'Server Error',
-        code: err.code || error.code || 'SERVER_ERROR',
-        diagnostics: err.diagnostics || null,
-      });
+    res.status(error.statusCode || 500).json({
+      success: false,
+      error: error.message || 'Server Error',
+      code: err.code || error.code || 'SERVER_ERROR',
+      diagnostics: err.diagnostics || null,
+    });
   } catch (error) {
     next(error);
   }

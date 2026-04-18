@@ -1,4 +1,5 @@
 import React, { useContext } from 'react';
+import PlatformSelect from './steps/PlatformSelect';
 import Keywords from './steps/Keywords';
 import Rates from './steps/Rates';
 import BadJobCriteria from './steps/BadJobCriteria';
@@ -17,7 +18,11 @@ const HeroSection = () => {
     user, 
     error,
     jobSearching,
+    formData,
   } = useContext(AppContext);
+
+  const selectedPlatform = formData?.selectedPlatform || 'upwork';
+  const platformLabel = selectedPlatform === 'freelancer' ? 'Freelancer' : 'Upwork';
 
   return (
     <section className="bg-gradient-to-br bg-black min-h-screen flex items-center px-6 relative">
@@ -30,7 +35,7 @@ const HeroSection = () => {
 
       <div className="max-w-4xl mx-auto text-center relative z-10 w-full">
         <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-6 leading-tight">
-          AI will find relevant <span className="text-lime-400">Upwork</span><br />
+          AI will find relevant <span className="text-lime-400">{platformLabel}</span><br />
           jobs and respond in <span className="text-lime-400">5 min</span>
         </h1>
 
@@ -39,10 +44,10 @@ const HeroSection = () => {
         </p>
 
         {/* Progress Bar */}
-        {steps <= 5 && (
+        {steps <= 6 && (
           <div className="mb-8 max-w-4xl mx-auto">
             <div className="flex justify-between mb-2">
-              {[1, 2, 3, 4, 5].map((s) => (
+              {[1, 2, 3, 4, 5, 6].map((s) => (
                 <div
                   key={s}
                   className={`w-full h-2 mx-1 rounded-full transition-all ${
@@ -51,7 +56,7 @@ const HeroSection = () => {
                 />
               ))}
             </div>
-            <p className="text-center text-gray-400">Step {steps} of 5</p>
+            <p className="text-center text-gray-400">Step {steps} of 6</p>
           </div>
         )}
 
@@ -68,28 +73,31 @@ const HeroSection = () => {
           {jobSearching ? (
             <div className="text-center py-12">
               <Loader2 className="animate-spin h-16 w-16 text-lime-400 mx-auto mb-4" />
-              <p className="text-white text-xl">Fetching jobs from Upwork...</p>
+              <p className="text-white text-xl">Fetching jobs from {platformLabel}...</p>
               <p className="text-gray-400 mt-2">Analyzing with AI... This may take a few moments</p>
             </div>
           ) : (
             <>
-              {/* Step 1 - Keywords */}
-              {steps === 1 && <Keywords steps={steps} setSteps={setSteps} />}
+              {/* Step 1 - Platform */}
+              {steps === 1 && <PlatformSelect />}
 
-              {/* Step 2 - Rates */}
-              {steps === 2 && <Rates />}
+              {/* Step 2 - Keywords */}
+              {steps === 2 && <Keywords steps={steps} setSteps={setSteps} />}
 
-              {/* Step 3 - Bad Job Criteria */}
-              {steps === 3 && <BadJobCriteria />}
+              {/* Step 3 - Rates */}
+              {steps === 3 && <Rates />}
 
-              {/* Step 4 - Role Selection */}
-              {steps === 4 && <RoleSelecting />}
+              {/* Step 4 - Bad Job Criteria */}
+              {steps === 4 && <BadJobCriteria />}
 
-              {/* Step 5 - Profile URL */}
-              {steps === 5 && <ProfileUrl />}
+              {/* Step 5 - Role Selection */}
+              {steps === 5 && <RoleSelecting />}
 
-              {/* Step 6 - Results/User Check */}
-              {steps === 6 && (
+              {/* Step 6 - Profile URL */}
+              {steps === 6 && <ProfileUrl />}
+
+              {/* Step 7 - Results/User Check */}
+              {steps === 7 && (
                 <div>
                   {!user ? (
                     // Show login/signup if user not logged in

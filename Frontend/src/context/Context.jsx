@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect } from "react";
-import { jobAPI, proposalAPI, paymentAPI } from "../utils/api";
+import { jobAPI, proposalAPI } from "../utils/api";
 
 export const AppContext = createContext(null);
 
@@ -9,7 +9,7 @@ export const ContextProvider = ({ children }) => {
   ========================== */
   const [steps, setSteps] = useState(1);
 
-  const nextStep = () => setSteps((prev) => Math.min(prev + 1, 6));
+  const nextStep = () => setSteps((prev) => Math.min(prev + 1, 7));
   const prevStep = () => setSteps((prev) => Math.max(prev - 1, 1));
 
   /* =========================
@@ -72,6 +72,7 @@ export const ContextProvider = ({ children }) => {
      Form Data (Non-job)
   ========================== */
   const [formData, setFormData] = useState({
+    selectedPlatform: 'upwork',
     keywords: [],
     hourlyRate: "",
     fixedRate: "",
@@ -83,6 +84,7 @@ export const ContextProvider = ({ children }) => {
   const resetForm = () => {
     setSteps(1);
     setFormData({
+      selectedPlatform: 'upwork',
       keywords: [],
       hourlyRate: "",
       fixedRate: "",
@@ -101,23 +103,9 @@ export const ContextProvider = ({ children }) => {
 
   // Fetch coin balance from API and sync with user
   const fetchCoinBalance = async () => {
-    try {
-      const result = await paymentAPI.getCoinBalance();
-      if (result.success) {
-        const coins = result.data?.data?.coins || 0;
-        setCoinBalance(coins);
-        // Sync user object with latest coin balance
-        setUser((prev) => {
-          if (!prev) return prev;
-          const updatedUser = { ...prev, coins };
-          localStorage.setItem('user', JSON.stringify(updatedUser));
-          return updatedUser;
-        });
-      }
-      return result;
-    } catch (err) {
-      return { success: false, error: { message: err.message } };
-    }
+    const coins = user?.coins || 0;
+    setCoinBalance(coins);
+    return { success: true, data: { data: { coins } } };
   };
 
   // Auto-clear error after 5 seconds
@@ -155,6 +143,18 @@ export const ContextProvider = ({ children }) => {
 
     if (code === 'UPWORK_EMPTY_RESULTS') {
       return 'No jobs found matching your criteria.';
+    }
+
+    if (code === 'FREELANCER_AUTH_MISSING') {
+      return 'Freelancer OAuth is missing. Connect your Freelancer account first.';
+    }
+
+    if (code === 'FREELANCER_API_ERROR') {
+      return 'Freelancer API request failed. Please try again shortly.';
+    }
+
+    if (code === 'FREELANCER_EMPTY_RESULTS') {
+      return 'No Freelancer jobs found matching your criteria.';
     }
 
     return result?.error?.message || fallbackMessage;

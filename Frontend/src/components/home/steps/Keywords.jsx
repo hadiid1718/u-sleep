@@ -2,9 +2,10 @@ import React, { useContext, useState } from 'react';
 import { AppContext } from '../../../context/Context';
 
 const Keywords = () => {
-  const { formData, setFormData, nextStep, steps } = useContext(AppContext);
+  const { formData, setFormData, nextStep, prevStep, steps } = useContext(AppContext);
   const [keywords, setKeywords] = useState(formData.keywords || []);
   const [inputValue, setInputValue] = useState('');
+  const selectedPlatform = formData.selectedPlatform || 'upwork';
 
   const handleAdded = () => {
     if (inputValue.trim() && !keywords.includes(inputValue.trim())) {
@@ -27,9 +28,9 @@ const Keywords = () => {
         <div className="max-w-4xl mx-auto text-center relative z-10 w-full">
           <div className='mb-4'>
             <h3 className="text-white text-4xl font-bold mb-4">
-              <span className='text-lime-400'>Step 1</span> - write your keywords
+              <span className='text-lime-400'>Step 2</span> - write your keywords
             </h3>
-            <p className='text-gray-500'>Exact the same keywords, which you use in Upwork.</p>
+            <p className='text-gray-500'>Use the same keywords you target on {selectedPlatform === 'freelancer' ? 'Freelancer.com' : 'Upwork'}.</p>
           </div>
           <div className='flex flex-col justify-center items-center md:flex-row lg:flex-row  gap-4'>
             <input
@@ -63,7 +64,7 @@ const Keywords = () => {
       <div className='mt-6 flex justify-between items-center'>
         <button 
           className={`text-black py-2 px-6 border rounded-lg font-bold ${steps === 1 ? "hidden" : "bg-lime-400 hover:bg-lime-300 border-lime-400 cursor-pointer"}`}
-          onClick={() => {}}
+          onClick={prevStep}
         >
           Previous Question
         </button>

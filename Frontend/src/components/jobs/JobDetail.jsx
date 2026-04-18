@@ -18,6 +18,7 @@ const JobDetails = ({ job: propJob }) => {
   const title = job.title || 'Untitled Job';
   const description = job.description || job.shortDescription || 'No description available';
   const url = job.upworkUrl || job.url || '#';
+  const sourceLabel = job.source === 'freelancer_api' ? 'Freelancer' : 'Upwork';
   const postedDate = job.postedDate || job.createdAt;
   const budgetType = job.budgetType || 'fixed';
   const budget = job.budget || {};
@@ -176,7 +177,7 @@ const JobDetails = ({ job: propJob }) => {
         rel="noopener noreferrer"
         className="text-lime-400 hover:underline flex items-center gap-2 font-medium"
       >
-        View on Upwork <ExternalLink size={18} />
+        View on {sourceLabel} <ExternalLink size={18} />
       </a>
     </div>
   );

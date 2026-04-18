@@ -5,6 +5,7 @@ import { Building2, Laptop, Check } from 'lucide-react';
 const RoleSelecting = () => {
   const { formData, setFormData, nextStep, prevStep, steps } = useContext(AppContext);
   const [selectedOption, setSelectedOption] = useState(formData.accountType || 'agency');
+  const selectedPlatform = formData.selectedPlatform || 'upwork';
 
   const handleNext = () => {
     setFormData({ ...formData, accountType: selectedOption });
@@ -18,10 +19,10 @@ const RoleSelecting = () => {
           <div className="max-w-4xl w-full">
             <div className="text-center mb-12">
               <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-                <span className="text-lime-400">Step 4 -</span> are you agency founder or freelancer?
+                <span className="text-lime-400">Step 5 -</span> are you agency founder or freelancer?
               </h1>
               <p className="text-gray-300 text-lg">
-                It will help to set up Upwork jobs validation algorithm
+                It helps fine-tune {selectedPlatform === 'freelancer' ? 'Freelancer.com' : 'Upwork'} job filtering.
               </p>
             </div>
 

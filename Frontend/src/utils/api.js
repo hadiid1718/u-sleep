@@ -1,4 +1,9 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+const GOOGLE_OAUTH_START_URL =
+  import.meta.env.VITE_GOOGLE_OAUTH_START_URL || `${API_BASE_URL}/auth/google`;
+const FREELANCER_OAUTH_START_URL =
+  import.meta.env.VITE_FREELANCER_OAUTH_START_URL ||
+  `${API_BASE_URL}/auth/freelancer/connect`;
 
 // Api request wrapper with error handling
 const apiRequest = async (endpoint, options = {}) => {
@@ -95,6 +100,31 @@ export const authAPI = {
       method: 'GET',
     });
   },
+
+  getGoogleOAuthUrl: (state = 'signin') => {
+    const separator = GOOGLE_OAUTH_START_URL.includes('?') ? '&' : '?';
+    return `${GOOGLE_OAUTH_START_URL}${separator}state=${encodeURIComponent(state)}`;
+  },
+
+  getFreelancerOAuthUrl: (state = 'connect') => {
+    const token = localStorage.getItem('token') || '';
+    const separator = FREELANCER_OAUTH_START_URL.includes('?') ? '&' : '?';
+    return `${FREELANCER_OAUTH_START_URL}${separator}state=${encodeURIComponent(state)}&appToken=${encodeURIComponent(token)}`;
+  },
+};
+
+export const parseOAuthUserPayload = (userParam) => {
+  if (!userParam) return null;
+
+  try {
+    return JSON.parse(userParam);
+  } catch {}
+
+  try {
+    return JSON.parse(decodeURIComponent(userParam));
+  } catch {
+    return null;
+  }
 };
 
 // =====================================================
@@ -384,50 +414,6 @@ export const getToken = () => {
  * Get all active products (public)
  */
 export const getProducts = () => apiRequest('/products');
-
-/**
- * Get all products including inactive (admin)
- */
-export const getAllProducts = () => apiRequest('/products/all');
-
-/**
- * Get a product by ID
- */
-export const getProductById = (id) => apiRequest(`/products/${id}`);
-
-/**
- * Create a new product (admin)
- */
-export const createProduct = (productData) =>
-  apiRequest('/products', {
-    method: 'POST',
-    body: JSON.stringify(productData),
-  });
-
-/**
- * Update a product (admin)
- */
-export const updateProduct = (id, productData) =>
-  apiRequest(`/products/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(productData),
-  });
-
-/**
- * Delete a product (admin)
- */
-export const deleteProduct = (id) =>
-  apiRequest(`/products/${id}`, {
-    method: 'DELETE',
-  });
-
-/**
- * Seed default products (admin)
- */
-export const seedProducts = () =>
-  apiRequest('/products/seed', {
-    method: 'POST',
-  });
 
 // =====================================================
 // JOB API ENDPOINTS
@@ -828,43 +814,4 @@ export const reviewVideoAPI = {
   /** Delete a review video (admin) */
   delete: (id) =>
     apiRequest(`/review-video/${id}`, { method: 'DELETE' }),
-};
-
-// =====================================================
-// PAYMENT API ENDPOINTS
-// =====================================================
-
-export const paymentAPI = {
-  /** Create a Stripe checkout session */
-  createCheckoutSession: (plan, frequency = 'monthly') =>
-    apiRequest('/payments/create-checkout-session', {
-      method: 'POST',
-      body: JSON.stringify({ plan, frequency }),
-    }),
-
-  /** Verify a checkout session (after payment) */
-  verifySession: (sessionId) =>
-    apiRequest(`/payments/verify-session/${sessionId}`),
-
-  /** Get current user's payment history */
-  getMyPayments: ({ page = 1, limit = 10 } = {}) => {
-    const params = new URLSearchParams();
-    params.append('page', page);
-    params.append('limit', limit);
-    return apiRequest(`/payments/my-payments?${params.toString()}`);
-  },
-
-  /** Get revenue stats (admin) */
-  getRevenueStats: ({ subPage = 1, subLimit = 2, payPage = 1, payLimit = 2 } = {}) => {
-    const params = new URLSearchParams();
-    params.append('subPage', subPage);
-    params.append('subLimit', subLimit);
-    params.append('payPage', payPage);
-    params.append('payLimit', payLimit);
-    return apiRequest(`/payments/revenue-stats?${params.toString()}`);
-  },
-
-  /** Get current user's coin balance */
-  getCoinBalance: () =>
-    apiRequest('/payments/coin-balance'),
 };

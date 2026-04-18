@@ -11,12 +11,7 @@ const Rates = () => {
     nextStep();
   };
 
-  const handlingRates = ()=> {
-    if(!hourlyRate && !fixedRate){
-      alert(`Please specify your ${hourlyRate} and ${fixedRate} rate.`);
-      return;
-    }
-  }
+  
 
   return (
     <>
@@ -24,7 +19,7 @@ const Rates = () => {
         <div className='max-w-4xl mx-auto text-center relative z-10 w-full text-white'>
           <div className='mb-6'>
             <h1 className='text-4xl font-bold'>
-              <span className='text-lime-400'>Step 2</span> - Your Rates
+              <span className='text-lime-400'>Step 3</span> - Your Rates
             </h1>
             <p className='text-gray-500 mt-6'>Define Your Rates</p>
           </div>
@@ -39,7 +34,7 @@ const Rates = () => {
                   value={hourlyRate} 
                   onChange={(e) => setHourlyRate(e.target.value)} 
                   className='w-[100px] bg-gray-800 focus:border-lime-400 focus:outline-none'
-                  onClick={handlingRates}
+                 
                 />
                 /hr
               </div>
@@ -54,7 +49,7 @@ const Rates = () => {
                   value={fixedRate} 
                   onChange={(e) => setFixedRate(e.target.value)} 
                   className='w-[100px] bg-gray-800 p-2 focus:border-lime-400 focus:outline-none'
-                  onClick={handlingRates}
+                  
                 />
                 /project
               </div>

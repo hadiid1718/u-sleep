@@ -6,7 +6,6 @@ import UserManagementSection from "../components/admin/Management/UserManagement
 import DemoManagementSection from "../components/admin/Management/DemoManagementSection"
 import RevenueSection from "../components/admin/Management/RevenueSection"
 import SettingsSection from "../components/admin/Management/SettingsSection"
-import ProductManagementSection from "../components/admin/Management/ProductManagementSection"
 import JobManagementSection from "../components/admin/Management/JobManagementSection"
 import ProposalManagementSection from "../components/admin/Management/ProposalManagementSection"
 import ComparisonManagementSection from "../components/admin/Management/ComparisonManagementSection"
@@ -38,8 +37,6 @@ const AdminDashboard = () => {
         return <ComplianceSection />;
       case 'settings':
         return <SettingsSection />;
-      case 'products':
-        return <ProductManagementSection />;
       case 'jobs':
         return <JobManagementSection />;
       case 'proposals':

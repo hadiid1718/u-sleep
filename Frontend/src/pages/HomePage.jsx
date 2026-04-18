@@ -1,7 +1,6 @@
 import React from 'react'
 import HeroSection from "../components/home/HeroSection"
 import HowItWorks from "../components/home/Working"
-import PricingSection from "../components/home/PricingSection"
 import TestimonialSection from "../components/home/TestimonialSection"
 import ComparisonTable from "../components/home/CamparisonTable"
 import FeaturesSection from "../components/home/FeatureSection"
@@ -16,7 +15,6 @@ const HomePage = () => {
        
        <HeroSection/>
        <HowItWorks/>
-       <PricingSection/>
        <TestimonialSection/>
        <ComparisonTable/>
        <FeaturesSection/>

@@ -14,6 +14,8 @@ import {
   getJobCategoryPerformance,
 } from '../controller/proposal.controller.js';
 import authorize from '../middleware/auth.middleware.js';
+import requireSubscription from '../middleware/requireSubscription.js';
+import usageMetering from '../middleware/usageMetering.js';
 
 const proposalRouter = Router();
 
@@ -53,7 +55,13 @@ proposalRouter.get('/', authorize, getUserProposals);
  * Generate proposal for a job
  * Non-blocking operation
  */
-proposalRouter.post('/job/:jobId/generate', authorize, generateProposal);
+proposalRouter.post(
+  '/job/:jobId/generate',
+  authorize,
+  requireSubscription({ checkPlatformLimit: true }),
+  usageMetering,
+  generateProposal
+);
 
 /**
  * GET /api/v1/proposals/:proposalId
@@ -65,7 +73,12 @@ proposalRouter.get('/:proposalId', authorize, getProposal);
  * POST /api/v1/proposals/:proposalId/send
  * Send proposal to Upwork
  */
-proposalRouter.post('/:proposalId/send', authorize, sendProposal);
+proposalRouter.post(
+  '/:proposalId/send',
+  authorize,
+  requireSubscription({ action: 'direct-send', checkPlatformLimit: true }),
+  sendProposal
+);
 
 /**
  * PATCH /api/v1/proposals/:proposalId/status
