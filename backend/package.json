@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch  src/server.js",
+    "test": "node --env-file=.env.test --test --test-concurrency=1",
     "seed:billing": "node src/scripts/seed-billing-plans.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -34,7 +35,9 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
     "globals": "^17.3.0",
+    "mongodb-memory-server": "^10.2.3",
     "nodemon": "^3.1.13",
-    "prettier": "^3.8.1"
+    "prettier": "^3.8.1",
+    "supertest": "^7.1.4"
   }
 }

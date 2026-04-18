@@ -1,7 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '../config/env.js';
 import User from '../models/user.model.js';
-import Admin from '../models/admin.model.js';
 
 const authorize = async (req, res, next) => {
   try {
@@ -16,15 +15,7 @@ const authorize = async (req, res, next) => {
 
       const decoded = jwt.verify(token, JWT_SECRET);
 
-      // Check if it's an admin token
-      if (decoded.adminId) {
-        const admin = await Admin.findById(decoded.adminId).select('-password');
-        if (!admin) return res.status(401).json({ message: 'Unauthorized' });
-        req.admin = admin;
-        req.adminId = admin._id;
-      }
-      // Check if it's a user token
-      else if (decoded.userId) {
+      if (decoded.userId) {
         const user = await User.findById(decoded.userId).select('-password');
         if (!user) return res.status(401).json({ message: 'Unauthorized' });
         req.user = user;

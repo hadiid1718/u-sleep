@@ -9,6 +9,16 @@ const jobSchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
+    source: {
+      type: String,
+      enum: ['upwork_api', 'freelancer_api'],
+      default: 'upwork_api',
+      index: true,
+    },
+    sourceJobId: {
+      type: String,
+      default: null,
+    },
     upworkUrl: {
       type: String,
       required: true,

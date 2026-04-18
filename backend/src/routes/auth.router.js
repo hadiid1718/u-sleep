@@ -3,8 +3,6 @@ import {
   signIn,
   signOut,
   signUp,
-  adminLogin,
-  getAdminProfile,
   startGoogleOAuth,
   handleGoogleOAuthCallback,
   startUpworkOAuth,
@@ -30,9 +28,5 @@ authRouter.get('/upwork/callback', handleUpworkOAuthCallback);
 // Freelancer OAuth Routes
 authRouter.get('/freelancer/connect', startFreelancerOAuth);
 authRouter.get('/freelancer/callback', handleFreelancerOAuthCallback);
-
-// Admin Auth Routes
-authRouter.post('/admin/login', adminLogin);
-authRouter.get('/admin/profile', authorize, getAdminProfile);
 
 export default authRouter;

@@ -42,7 +42,7 @@ const reviewVideoSchema = new mongoose.Schema(
     },
     uploadedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Admin',
+      ref: 'User',
       required: true,
     },
   },

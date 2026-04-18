@@ -1,13 +1,10 @@
 import mongoose from 'mongoose';
 import User from '../models/user.model.js';
-import Admin from '../models/admin.model.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import {
   JWT_SECRET,
   JWT_EXPIRES_IN,
-  ADMIN_USERNAME,
-  ADMIN_PASSWORD,
   FRONTEND_URL,
   GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET,
@@ -112,151 +109,6 @@ const redirectGoogleFailure = (res, code, message) => {
   failureUrl.searchParams.set('code', code);
   failureUrl.searchParams.set('message', message);
   return res.redirect(failureUrl.toString());
-};
-
-//----------------------- ADMIN_AUTH --------------------//
-
-export const createDefaultAdmin = async () => {
-  try {
-    if (!ADMIN_USERNAME || !ADMIN_PASSWORD) {
-      throw new Error(
-        'ADMIN_USERNAME or ADMIN_PASSWORD missing in environment variables'
-      );
-    }
-
-    // Check if default admin already exists
-    const existingAdmin = await Admin.findOne({ username: ADMIN_USERNAME });
-
-    if (existingAdmin) {
-      console.log(`Default admin already exists: ${ADMIN_USERNAME}`);
-      return;
-    }
-
-    // Hash the default password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, salt);
-
-    // Create default admin
-    const defaultAdmin = await Admin.create({
-      username: ADMIN_USERNAME,
-      password: hashedPassword,
-      role: 'super_admin',
-      isActive: true,
-    });
-
-    console.log(' Default admin created:', defaultAdmin.username);
-  } catch (error) {
-    console.error(' createDefaultAdmin error:', error.message);
-  }
-};
-
-// Admin Login
-export const adminLogin = async (req, res, next) => {
-  try {
-    const { username, password } = req.body;
-
-    // Validate input
-    if (!username || !password) {
-      const error = new Error('Username and password are required');
-      error.statusCode = 400;
-      throw error;
-    }
-
-    // Find admin AND explicitly include password
-    const admin = await Admin.findOne({ username }).select('+password');
-
-    if (!admin) {
-      const error = new Error('Invalid username or password');
-      error.statusCode = 401;
-      throw error;
-    }
-
-    // Check if admin is active
-    if (!admin.isActive) {
-      const error = new Error('Admin account is inactive');
-      error.statusCode = 403;
-      throw error;
-    }
-
-    // SAFETY CHECK (prevents password error)
-    if (!admin.password) {
-      const error = new Error(
-        'Admin password not found. Contact system administrator.'
-      );
-      error.statusCode = 500;
-      throw error;
-    }
-
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(password, admin.password);
-
-    if (!isPasswordValid) {
-      const error = new Error('Invalid username or password');
-      error.statusCode = 401;
-      throw error;
-    }
-
-    // Generate token
-    const token = jwt.sign(
-      { adminId: admin._id, role: admin.role },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
-    );
-
-    res.status(200).json({
-      success: true,
-      message: 'Admin signed in successfully',
-      data: {
-        token,
-        admin: {
-          _id: admin._id,
-          username: admin.username,
-          role: admin.role,
-          email: admin.email,
-        },
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Get Admin Profile
-export const getAdminProfile = async (req, res, next) => {
-  try {
-    // Extract adminId from the authenticated request (from auth middleware)
-    const adminId = req.admin?._id || req.adminId;
-
-    if (!adminId) {
-      const error = new Error('Unauthorized - Admin ID not found');
-      error.statusCode = 401;
-      throw error;
-    }
-
-    const admin = await Admin.findById(adminId).select('-password');
-
-    if (!admin) {
-      const error = new Error('Admin not found');
-      error.statusCode = 404;
-      throw error;
-    }
-
-    res.status(200).json({
-      success: true,
-      message: 'Admin profile retrieved successfully',
-      data: {
-        _id: admin._id,
-        username: admin.username,
-        email: admin.email,
-        role: admin.role,
-        isActive: admin.isActive,
-        createdAt: admin.createdAt,
-        updatedAt: admin.updatedAt,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
 };
 
 //----------------------- User Auth ----------------------//

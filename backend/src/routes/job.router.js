@@ -7,10 +7,17 @@ import {
   markJobAsRejected,
   searchJobsWithAIAnalysis,
   getJobSearchDiagnostics,
+  getFreelancerWorkflow,
 } from '../controller/job.controller.js';
 import authorize from '../middleware/auth.middleware.js';
 
 const jobRouter = Router();
+
+/**
+ * GET /api/v1/jobs/freelancer/workflow
+ * Get Freelancer-specific workflow guidance for frontend steps
+ */
+jobRouter.get('/freelancer/workflow', getFreelancerWorkflow);
 
 /**
  * POST /api/v1/jobs/search

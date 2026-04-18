@@ -2,6 +2,7 @@ import Job from '../models/job.model.js';
 import User from '../models/user.model.js';
 import upworkService from '../services/upwork.service.js';
 import freelancerService from '../services/freelancer.service.js';
+import freelancerWorkflowService from '../services/freelancerWorkflow.service.js';
 
 const normalizeSelectedRole = role => {
   if (!role) return null;
@@ -64,6 +65,26 @@ const buildPlatformPreferences = (payload, user) => {
 const getPlatformService = selectedPlatform => {
   const platform = String(selectedPlatform || 'upwork').toLowerCase();
   return platform === 'freelancer' ? freelancerService : upworkService;
+};
+
+const buildFreelancerWorkflow = ({
+  preferences,
+  filters,
+  diagnostics,
+  jobs,
+}) => {
+  if (
+    String(preferences?.selectedPlatform || '').toLowerCase() !== 'freelancer'
+  ) {
+    return null;
+  }
+
+  return freelancerWorkflowService.buildSearchWorkflowContext({
+    preferences,
+    filters,
+    diagnostics,
+    jobsFound: Array.isArray(jobs) ? jobs.length : 0,
+  });
 };
 
 const persistJobsIfPossible = async (jobs, userId) => {
@@ -144,6 +165,13 @@ export const searchJobs = async (req, res, next) => {
 
     await persistJobsIfPossible(filteredJobs, userId);
 
+    const workflow = buildFreelancerWorkflow({
+      preferences,
+      filters,
+      diagnostics,
+      jobs: filteredJobs,
+    });
+
     res.status(200).json({
       success: true,
       message: `Total Jobs Found: ${filteredJobs.length}`,
@@ -151,6 +179,7 @@ export const searchJobs = async (req, res, next) => {
         jobs: filteredJobs,
         totalFound: filteredJobs.length,
         diagnostics,
+        workflow,
       },
     });
   } catch (error) {
@@ -436,14 +465,57 @@ export const searchJobsWithAIAnalysis = async (req, res, next) => {
       $inc: { 'stats.jobsViewed': jobsWithScores.length },
     });
 
+    const workflow = buildFreelancerWorkflow({
+      preferences,
+      filters,
+      diagnostics,
+      jobs: jobsWithScores,
+    });
+
     res.status(200).json({
       success: true,
       data: {
         jobs: jobsWithScores,
         totalFound: jobsWithScores.length,
         diagnostics,
+        workflow,
         message: `Total Jobs Found: ${jobsWithScores.length}`,
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get Freelancer workflow guidance used by the frontend stepper.
+ */
+export const getFreelancerWorkflow = async (req, res, next) => {
+  try {
+    const keywords = freelancerWorkflowService.normalizeKeywords(
+      req.query?.keywords || []
+    );
+    const preferences = {
+      selectedPlatform: 'freelancer',
+      selectedRole: normalizeSelectedRole(req.query?.selectedRole || null),
+      rateType: req.query?.rateType || null,
+      keywords,
+    };
+
+    const filters = {
+      rateType: req.query?.rateType || null,
+    };
+
+    const workflow = freelancerWorkflowService.buildSearchWorkflowContext({
+      preferences,
+      filters,
+      diagnostics: null,
+      jobsFound: null,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: workflow,
     });
   } catch (error) {
     next(error);

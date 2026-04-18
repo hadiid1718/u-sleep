@@ -1,7 +1,6 @@
 import app from './app.js';
 import { PORT } from './config/env.js';
 import connectToDatabase from './config/db.js';
-import { createDefaultAdmin } from './controller/auth.controller.js';
 import logger from './config/logger.js';
 
 app.listen(PORT, async () => {
@@ -11,5 +10,4 @@ app.listen(PORT, async () => {
 
   // Database connection function calling
   await connectToDatabase();
-  await createDefaultAdmin();
 });

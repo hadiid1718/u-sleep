@@ -3,6 +3,7 @@ import Job from '../models/job.model.js';
 import User from '../models/user.model.js';
 import UsageRecord from '../models/usageRecord.model.js';
 import aiService from '../services/ai.service.js';
+import freelancerWorkflowService from '../services/freelancerWorkflow.service.js';
 import { toMonthKey } from '../utils/subscriptionPlans.js';
 
 const normalizePlatform = platform => {
@@ -53,6 +54,8 @@ export const generateProposal = async (req, res, next) => {
     // Check if proposal already exists
     let proposal = await Proposal.findOne({ jobId, userId });
 
+    const isFreelancerJob = String(job?.source || '').includes('freelancer');
+
     if (!proposal) {
       // Create draft proposal
       proposal = await Proposal.create({
@@ -96,6 +99,13 @@ export const generateProposal = async (req, res, next) => {
     );
 
     // Return immediately with message
+    const workflow = isFreelancerJob
+      ? freelancerWorkflowService.buildProposalWorkflowContext({
+          job: job.toObject(),
+          bidInput: req.body,
+        })
+      : null;
+
     res.status(200).json({
       success: true,
       message: 'Proposal generation started...',
@@ -103,6 +113,7 @@ export const generateProposal = async (req, res, next) => {
         proposalId: proposal._id,
         status: 'generating',
         jobId,
+        workflow,
       },
     });
   } catch (error) {
@@ -268,6 +279,30 @@ export const sendProposal = async (req, res, next) => {
       throw error;
     }
 
+    const proposalJob = await Job.findById(proposal.jobId)
+      .select('source title budgetType budget hourlyRate upworkUrl sourceJobId')
+      .lean();
+    const isFreelancerJob = proposalJob?.source === 'freelancer_api';
+
+    if (isFreelancerJob) {
+      const normalizedBidAmount = Number(bidAmount || 0);
+      if (!Number.isFinite(normalizedBidAmount) || normalizedBidAmount <= 0) {
+        const error = new Error(
+          'Bid amount is required for Freelancer project submission.'
+        );
+        error.statusCode = 400;
+        throw error;
+      }
+
+      if (!estimatedDuration && !deliveryDate) {
+        const error = new Error(
+          'Estimated duration or delivery date is required for Freelancer bids.'
+        );
+        error.statusCode = 400;
+        throw error;
+      }
+    }
+
     // In production, send to Upwork API here
     // For now, mark as sent and update status
 
@@ -279,7 +314,9 @@ export const sendProposal = async (req, res, next) => {
     proposal.statusHistory.push({
       status: 'sent',
       timestamp: new Date(),
-      notes: 'Proposal sent to client',
+      notes: isFreelancerJob
+        ? 'Bid submitted using Freelancer workflow'
+        : 'Proposal sent to client',
     });
 
     await proposal.save();
@@ -289,9 +326,6 @@ export const sendProposal = async (req, res, next) => {
       $inc: { 'stats.proposalsSent': 1 },
     });
 
-    const proposalJob = await Job.findById(proposal.jobId)
-      .select('source')
-      .lean();
     const usageMonth = toMonthKey();
     const selectedPlatform = normalizePlatform(
       req.currentPlatform ||
@@ -319,7 +353,15 @@ export const sendProposal = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'Proposal sent successfully',
-      data: proposal,
+      data: {
+        proposal,
+        workflow: isFreelancerJob
+          ? freelancerWorkflowService.buildProposalWorkflowContext({
+              job: proposalJob,
+              bidInput: { bidAmount, estimatedDuration, deliveryDate },
+            })
+          : null,
+      },
     });
   } catch (error) {
     next(error);

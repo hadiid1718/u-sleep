@@ -539,11 +539,9 @@ export const handleStripeWebhook = async (req, res) => {
       STRIPE_WEBHOOK_SECRET
     );
   } catch (error) {
-    return res
-      .status(400)
-      .json({
-        error: `Webhook signature verification failed: ${error.message}`,
-      });
+    return res.status(400).json({
+      error: `Webhook signature verification failed: ${error.message}`,
+    });
   }
 
   try {
