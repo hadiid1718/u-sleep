@@ -3,10 +3,9 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { AppContext } from "../context/Context";
 import {
   authAPI,
-  getErrorMessage,
   parseOAuthUserPayload,
-  setToken,
-} from "../utils/api";
+} from '../services/authService';
+import { getErrorMessage, setToken } from '../services/core/apiClient';
 
 const SignUp = () => {
   const [name, setName] = useState("");

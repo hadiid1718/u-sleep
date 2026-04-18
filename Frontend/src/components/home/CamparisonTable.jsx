@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { comparisonAPI } from '../../utils/api';
+import { comparisonAPI } from '../../services/comparisonService';
 
 const ComparisonTable = () => {
   const [comparisons, setComparisons] = useState([]);

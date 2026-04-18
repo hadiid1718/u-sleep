@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, AlertCircle } from 'lucide-react';
-import { demoAPI, getErrorMessage } from '../../utils/api';
+import { demoAPI } from '../../services/demoService';
+import { getErrorMessage } from '../../services/core/apiClient';
 
 const ScheduleDemo = () => {
   const [dates, setDates] = useState([]);

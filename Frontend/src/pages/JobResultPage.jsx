@@ -225,7 +225,7 @@ const JobResultPage = () => {
               onClick={handleMatch}
               className="flex-1 bg-green-400 text-gray-900 py-3 rounded-lg"
             >
-              Match
+              {sourceLabel === 'Freelancer' ? 'Prepare Bid Proposal' : 'Match'}
             </button>
           </div>
         </div>

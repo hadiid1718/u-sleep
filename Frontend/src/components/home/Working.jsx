@@ -11,8 +11,8 @@ const HowItWorks = () => {
     {
       number: '02',
       icon: <Search  className='text-gray-100'/>,
-      title: 'AI analyzes your keywords',
-      description: 'Our advanced AI scans through thousands of jobs to find the perfect matches for your skills and expertise.'
+      title: 'AI scans project feed',
+      description: 'The engine searches marketplace projects using your keywords, rates, and role settings.'
     },
     {
       number: '03',
@@ -23,8 +23,8 @@ const HowItWorks = () => {
     {
       number: '04',
        icon: <Target className='text-gray-100'/>,
-      title: 'Instant AI responses',
-      description: 'AI crafts personalized, professional responses and submits proposals automatically within 5 minutes of job posting.'
+      title: 'Bid-ready proposal drafts',
+      description: 'AI drafts personalized cover letters and bid-ready text so you can submit quickly with confidence.'
     },
     {
       number: '05',

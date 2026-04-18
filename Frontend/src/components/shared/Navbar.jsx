@@ -2,9 +2,6 @@ import { useContext, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AppContext } from "../../context/Context";
 
-
-const isAdminUser = (user) => user?.role === 'admin' || user?.role === 'super_admin' || user?.isAdmin;
-
 const Header = () => {
   const { user, handleLogout } = useContext(AppContext);
   const navigate = useNavigate();
@@ -80,7 +77,7 @@ const Header = () => {
               </Link>
 
               <Link
-                to={isAdminUser(user) ? "/admin/dashboard" : "/user/dashboard"}
+                to="/user/dashboard"
                 className="bg-lime-400 text-black px-3 py-1 rounded hover:bg-lime-500 transition"
               >
                 Dashboard
@@ -183,7 +180,7 @@ const Header = () => {
                 <div>
                   <p className="font-medium">{user.name || user.username || "User"}</p>
                   <p className="text-sm text-gray-400">
-                    {user.username || (isAdminUser(user) ? 'Administrator' : '')}
+                    {user.username || ''}
                   </p>
                 </div>
               </div>
@@ -237,7 +234,7 @@ const Header = () => {
                 </Link>
 
                 <Link
-                  to={isAdminUser(user) ? "/admin/dashboard" : "/user/dashboard"}
+                  to="/user/dashboard"
                   onClick={closeMobileMenu}
                   className="block px-4 py-3 rounded-md bg-lime-400 text-black hover:bg-lime-500 transition font-medium"
                 >

@@ -4,6 +4,7 @@ import { AppContext } from '../../../context/Context';
 const BadJobCriteria = () => {
   const { formData, setFormData, prevStep, nextStep, steps } = useContext(AppContext);
   const [selected, setSelected] = useState(formData.badJobCriteria || []);
+  const selectedPlatform = formData.selectedPlatform || 'upwork';
   
   const criteria = [
     { text: "Looking for employee",  },
@@ -13,6 +14,7 @@ const BadJobCriteria = () => {
     { text: "Non english job",  },
     { text: "Startups",  },
     { text: "Not well described",},
+    { text: "Too many bids already" },
     { text: "Rating less than 4.0",  },
     { text: "Total spent less than $1,000"},
     { text: "Low hire rate", },
@@ -32,10 +34,12 @@ const BadJobCriteria = () => {
         <div className="w-full flex flex-col items-center justify-center text-white">
           <div className="w-full p-10 shadow-lg">
             <h2 className="text-2xl font-bold text-lime-300 mb-2">
-              Step 4 – bad job criteria
+              Step 4 – {selectedPlatform === 'freelancer' ? 'skip risky projects' : 'bad job criteria'}
             </h2>
             <p className="text-gray-300 mb-6">
-              Write down what you don't like in jobs, to filter them.
+              {selectedPlatform === 'freelancer'
+                ? 'Exclude low-signal projects before generating bid proposals.'
+                : "Write down what you don't like in jobs, to filter them."}
             </p>
 
             <div className="bg-black/80 text-white py-2 px-4 mb-6 rounded-lg">

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { User, Play, Loader2 } from 'lucide-react';
-import { reviewVideoAPI } from '../../utils/api';
+import { reviewVideoAPI } from '../../services/reviewVideoService';
 
 const TestimonialSection = () => {
   const [video, setVideo] = useState(null);

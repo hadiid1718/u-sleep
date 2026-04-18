@@ -1,6 +1,6 @@
 import React, { useContext } from 'react'
 import { Link } from 'react-router-dom';
-import { authAPI } from '../../utils/api';
+import { authAPI } from '../../services/authService';
 import { AppContext } from '../../context/Context';
 
 const NoUser = () => {

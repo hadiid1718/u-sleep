@@ -6,12 +6,17 @@ import SuccessPopup from '../SuccessPopup';
 import FeedbackModal from '../models/FeedBackModel';
 import CaseStudyModal from '../models/CaseStudyModel';
 import { AppContext } from '../../context/Context';
-import { proposalAPI } from '../../utils/api';
+import { proposalAPI } from '../../services/proposalService';
 import useSubscription from '../../hooks/useSubscription';
 import UpgradeBanner from '../billing/UpgradeBanner';
 
 const JobResponseGenerator = ({ job }) => {
-  const { generateProposal, pollProposal, currentProposal } = useContext(AppContext);
+  const {
+    generateProposal,
+    pollProposal,
+    currentProposal,
+    freelancerProposalWorkflow,
+  } = useContext(AppContext);
   const {
     usagePercentage,
     shouldShowUpgradeWarning,
@@ -26,6 +31,7 @@ const JobResponseGenerator = ({ job }) => {
   const [showCaseStudyModal, setShowCaseStudyModal] = useState(false);
   const [responseText, setResponseText] = useState('');
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const isFreelancerJob = job?.source === 'freelancer_api';
 
   // Generate proposal on mount using the real API
   useEffect(() => {
@@ -117,9 +123,26 @@ const JobResponseGenerator = ({ job }) => {
     <div className=" p-8">
       <div className="max-w-xl mx-auto">
         <div className="text-center mb-12">
-          <h1 className="text-white text-5xl font-bold mb-3">Job Response Generated</h1>
-          <p className="text-gray-400 text-lg">Here's your AI-generated response for this job</p>
+          <h1 className="text-white text-5xl font-bold mb-3">
+            {isFreelancerJob ? 'Bid Proposal Generated' : 'Job Response Generated'}
+          </h1>
+          <p className="text-gray-400 text-lg">
+            {isFreelancerJob
+              ? "Here's your AI-generated Freelancer bid cover letter"
+              : "Here's your AI-generated response for this job"}
+          </p>
         </div>
+
+        {isFreelancerJob && freelancerProposalWorkflow?.steps?.length > 0 && (
+          <div className="mb-6 rounded-xl border border-cyan-500/40 bg-cyan-950/20 p-4 text-left">
+            <p className="text-cyan-300 font-semibold mb-2">Freelancer Bid Steps</p>
+            <div className="space-y-1 text-sm text-gray-300">
+              {freelancerProposalWorkflow.steps.map(step => (
+                <p key={step.id}>• {step.title}</p>
+              ))}
+            </div>
+          </div>
+        )}
 
         {shouldShowUpgradeWarning && (
           <div className="mb-6">
@@ -145,6 +168,7 @@ const JobResponseGenerator = ({ job }) => {
             onUpgrade={handleUpgradeClick}
             responseText={responseText}
             job={job}
+            workflow={isFreelancerJob ? freelancerProposalWorkflow : null}
           />
         </div>
       </div>

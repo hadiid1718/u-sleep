@@ -17,12 +17,32 @@ const HeroSection = () => {
     setSteps, 
     user, 
     error,
+    freelancerWorkflow,
     jobSearching,
     formData,
   } = useContext(AppContext);
 
   const selectedPlatform = formData?.selectedPlatform || 'upwork';
   const platformLabel = selectedPlatform === 'freelancer' ? 'Freelancer' : 'Upwork';
+
+  const stepLabels =
+    selectedPlatform === 'freelancer'
+      ? [
+          'Platform',
+          'Project keywords',
+          'Bid guardrails',
+          'Risk filters',
+          'Bidder mode',
+          'Profile + connect',
+        ]
+      : [
+          'Platform',
+          'Keywords',
+          'Rates',
+          'Bad job filters',
+          'Role',
+          'Profile URL',
+        ];
 
   return (
     <section className="bg-gradient-to-br bg-black min-h-screen flex items-center px-6 relative">
@@ -56,7 +76,9 @@ const HeroSection = () => {
                 />
               ))}
             </div>
-            <p className="text-center text-gray-400">Step {steps} of 6</p>
+            <p className="text-center text-gray-400">
+              Step {steps} of 6 • {stepLabels[steps - 1]}
+            </p>
           </div>
         )}
 
@@ -73,11 +95,28 @@ const HeroSection = () => {
           {jobSearching ? (
             <div className="text-center py-12">
               <Loader2 className="animate-spin h-16 w-16 text-lime-400 mx-auto mb-4" />
-              <p className="text-white text-xl">Fetching jobs from {platformLabel}...</p>
+              <p className="text-white text-xl">
+                Fetching {selectedPlatform === 'freelancer' ? 'projects' : 'jobs'} from {platformLabel}...
+              </p>
               <p className="text-gray-400 mt-2">Analyzing with AI... This may take a few moments</p>
             </div>
           ) : (
             <>
+              {selectedPlatform === 'freelancer' &&
+                steps <= 6 &&
+                freelancerWorkflow?.steps?.length > 0 && (
+                  <div className="mb-6 p-4 rounded-xl border border-cyan-500/40 bg-cyan-950/20 text-left">
+                    <p className="text-cyan-300 font-semibold mb-2">
+                      Freelancer Workflow Snapshot
+                    </p>
+                    <div className="space-y-1 text-sm text-gray-300">
+                      {freelancerWorkflow.steps.slice(0, 3).map(step => (
+                        <p key={step.id}>• {step.title}</p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
               {/* Step 1 - Platform */}
               {steps === 1 && <PlatformSelect />}
 

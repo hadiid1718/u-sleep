@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from "react";
-import { jobAPI, proposalAPI } from "../utils/api";
+import { jobAPI } from '../services/jobService';
+import { proposalAPI } from '../services/proposalService';
 
 export const AppContext = createContext(null);
 
@@ -121,6 +122,7 @@ export const ContextProvider = ({ children }) => {
   ========================== */
   const [jobResults, setJobResults] = useState([]);
   const [jobDiagnostics, setJobDiagnostics] = useState(null);
+  const [freelancerWorkflow, setFreelancerWorkflow] = useState(null);
   const [dashboardJobs, setDashboardJobs] = useState([]);
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [jobSearching, setJobSearching] = useState(false);
@@ -170,6 +172,7 @@ export const ContextProvider = ({ children }) => {
       if (result.success) {
         setJobResults(result.data?.data?.jobs || []);
         setJobDiagnostics(result.data?.data?.diagnostics || null);
+        setFreelancerWorkflow(result.data?.data?.workflow || null);
 
         if ((result.data?.data?.jobs || []).length === 0) {
           setError(result.data?.data?.message || 'No jobs found matching your criteria');
@@ -179,6 +182,7 @@ export const ContextProvider = ({ children }) => {
       } else {
         setJobResults([]);
         setJobDiagnostics(result.error?.details?.diagnostics || null);
+        setFreelancerWorkflow(null);
         setError(getJobErrorMessage(result, 'Failed to search jobs'));
         return result;
       }
@@ -201,6 +205,7 @@ export const ContextProvider = ({ children }) => {
       if (result.success) {
         setJobResults(result.data?.data?.jobs || []);
         setJobDiagnostics(result.data?.data?.diagnostics || null);
+        setFreelancerWorkflow(result.data?.data?.workflow || null);
 
         if ((result.data?.data?.jobs || []).length === 0) {
           setError(result.data?.data?.message || 'No jobs found matching your criteria');
@@ -210,6 +215,7 @@ export const ContextProvider = ({ children }) => {
       } else {
         setJobResults([]);
         setJobDiagnostics(result.error?.details?.diagnostics || null);
+        setFreelancerWorkflow(null);
         setError(getJobErrorMessage(result, 'Failed to search jobs'));
         return result;
       }
@@ -284,6 +290,8 @@ export const ContextProvider = ({ children }) => {
   const [proposals, setProposals] = useState([]);
   const [proposalStats, setProposalStats] = useState(null);
   const [currentProposal, setCurrentProposal] = useState(null);
+  const [freelancerProposalWorkflow, setFreelancerProposalWorkflow] =
+    useState(null);
   const [proposalLoading, setProposalLoading] = useState(false);
 
   // Generate proposal for a job
@@ -293,8 +301,10 @@ export const ContextProvider = ({ children }) => {
       const result = await proposalAPI.generateProposal(jobId, aiService);
       if (result.success) {
         setCurrentProposal(result.data?.data || null);
+        setFreelancerProposalWorkflow(result.data?.data?.workflow || null);
         return result;
       } else {
+        setFreelancerProposalWorkflow(null);
         setError(result.error?.message || "Failed to generate proposal");
         return result;
       }
@@ -355,6 +365,40 @@ export const ContextProvider = ({ children }) => {
     }
   };
 
+  useEffect(() => {
+    const loadFreelancerWorkflow = async () => {
+      if ((formData?.selectedPlatform || 'upwork') !== 'freelancer') {
+        setFreelancerWorkflow(null);
+        return;
+      }
+
+      const rateType =
+        formData?.hourlyRate && !formData?.fixedRate
+          ? 'hourly'
+          : formData?.fixedRate && !formData?.hourlyRate
+            ? 'fixed'
+            : '';
+
+      const response = await jobAPI.getFreelancerWorkflow({
+        keywords: formData?.keywords || [],
+        selectedRole: formData?.accountType || '',
+        rateType,
+      });
+
+      if (response.success) {
+        setFreelancerWorkflow(response.data?.data || null);
+      }
+    };
+
+    loadFreelancerWorkflow();
+  }, [
+    formData?.selectedPlatform,
+    formData?.accountType,
+    formData?.hourlyRate,
+    formData?.fixedRate,
+    JSON.stringify(formData?.keywords || []),
+  ]);
+
   return (
     <AppContext.Provider
       value={{
@@ -390,6 +434,7 @@ export const ContextProvider = ({ children }) => {
         setJobResults,
         jobDiagnostics,
         setJobDiagnostics,
+        freelancerWorkflow,
         dashboardJobs,
         dashboardLoading,
         jobSearching,
@@ -403,6 +448,7 @@ export const ContextProvider = ({ children }) => {
         proposals,
         proposalStats,
         currentProposal,
+        freelancerProposalWorkflow,
         proposalLoading,
         setCurrentProposal,
         generateProposal,

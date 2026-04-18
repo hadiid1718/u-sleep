@@ -5,6 +5,7 @@ const Rates = () => {
   const { formData, setFormData, nextStep, prevStep, steps } = useContext(AppContext);
   const [hourlyRate, setHourlyRate] = useState(formData.hourlyRate || "");
   const [fixedRate, setFixedRate] = useState(formData.fixedRate || "");
+  const selectedPlatform = formData.selectedPlatform || 'upwork';
 
   const handleNext = () => {
     setFormData({ ...formData, hourlyRate, fixedRate });
@@ -19,13 +20,19 @@ const Rates = () => {
         <div className='max-w-4xl mx-auto text-center relative z-10 w-full text-white'>
           <div className='mb-6'>
             <h1 className='text-4xl font-bold'>
-              <span className='text-lime-400'>Step 3</span> - Your Rates
+              <span className='text-lime-400'>Step 3</span> - {
+                selectedPlatform === 'freelancer' ? 'Bid Guardrails' : 'Your Rates'
+              }
             </h1>
-            <p className='text-gray-500 mt-6'>Define Your Rates</p>
+            <p className='text-gray-500 mt-6'>
+              {selectedPlatform === 'freelancer'
+                ? 'Set minimum values so AI keeps bids in your comfort zone.'
+                : 'Define your rates'}
+            </p>
           </div>
           <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mb-6'>
             <div className='bg-black p-6 rounded-xl border border-gray-700'>
-              <h2>Your min Hourly rate</h2>
+              <h2>{selectedPlatform === 'freelancer' ? 'Minimum hourly bid' : 'Your min hourly rate'}</h2>
               <div className='flex items-center justify-center text-lg text-white bg-gray-800 px-4 py-2 rounded-lg'>
                 <span className='text-lime-400 font-semibold'>$</span>{" "}
                 <input 
@@ -40,7 +47,7 @@ const Rates = () => {
               </div>
             </div>
             <div className='bg-black p-6 rounded-xl border border-gray-700'>
-              <h2>Your min fix price rate</h2>
+              <h2>{selectedPlatform === 'freelancer' ? 'Minimum fixed bid' : 'Your min fixed price rate'}</h2>
               <div className='flex items-center justify-center text-lg text-white bg-gray-800 px-4 py-2 rounded-lg'>
                 <span className='text-lime-400 font-semibold'>$</span>
                 <input 

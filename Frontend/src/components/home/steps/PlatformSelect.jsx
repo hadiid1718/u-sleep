@@ -10,7 +10,7 @@ const platforms = [
   {
     id: 'freelancer',
     title: 'Freelancer',
-    description: 'Search Freelancer.com projects and generate AI proposals',
+    description: 'Search Freelancer projects, shortlist opportunities, and generate bid-ready proposals',
   },
 ];
 

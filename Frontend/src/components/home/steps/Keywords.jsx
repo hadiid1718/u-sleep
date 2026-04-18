@@ -28,9 +28,17 @@ const Keywords = () => {
         <div className="max-w-4xl mx-auto text-center relative z-10 w-full">
           <div className='mb-4'>
             <h3 className="text-white text-4xl font-bold mb-4">
-              <span className='text-lime-400'>Step 2</span> - write your keywords
+              <span className='text-lime-400'>Step 2</span> - {
+                selectedPlatform === 'freelancer'
+                  ? 'target project keywords'
+                  : 'write your keywords'
+              }
             </h3>
-            <p className='text-gray-500'>Use the same keywords you target on {selectedPlatform === 'freelancer' ? 'Freelancer.com' : 'Upwork'}.</p>
+            <p className='text-gray-500'>
+              {selectedPlatform === 'freelancer'
+                ? 'Use the exact services and niches you bid on in Freelancer search.'
+                : `Use the same keywords you target on ${selectedPlatform === 'freelancer' ? 'Freelancer.com' : 'Upwork'}.`}
+            </p>
           </div>
           <div className='flex flex-col justify-center items-center md:flex-row lg:flex-row  gap-4'>
             <input

@@ -1,7 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { AppContext } from '../../../context/Context';
 import { useNavigate } from 'react-router-dom';
-import { authAPI } from '../../../utils/api';
+import { authAPI } from '../../../services/authService';
 
 const ProfileUrl = () => {
   const {
@@ -89,10 +89,15 @@ const ProfileUrl = () => {
         <div className="max-w-4xl w-full">
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              <span className="text-green-400">Step 6 -</span> share your {selectedPlatform === 'freelancer' ? 'Freelancer.com' : 'Upwork'} profile link
+              <span className="text-green-400">Step 6 -</span>{' '}
+              {selectedPlatform === 'freelancer'
+                ? 'connect profile and launch project fetch'
+                : `share your ${selectedPlatform === 'freelancer' ? 'Freelancer.com' : 'Upwork'} profile link`}
             </h1>
             <p className="text-gray-300 text-lg max-w-3xl mx-auto leading-relaxed">
-              This helps AI understand your services and generate better job responses.
+              {selectedPlatform === 'freelancer'
+                ? 'This helps AI generate bid-ready cover letters aligned to your Freelancer profile.'
+                : 'This helps AI understand your services and generate better job responses.'}
             </p>
           </div>
 
@@ -174,7 +179,7 @@ const ProfileUrl = () => {
           onClick={handleContinue}
           className="bg-lime-400 hover:bg-lime-300 text-black p-2 lg:px-6 lg:py-2 rounded-lg font-bold"
         >
-          Continue 
+          {selectedPlatform === 'freelancer' ? 'Fetch Freelancer Projects' : 'Continue'}
         </button>
       </div>
     </>

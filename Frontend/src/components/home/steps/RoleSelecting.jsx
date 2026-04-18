@@ -19,10 +19,15 @@ const RoleSelecting = () => {
           <div className="max-w-4xl w-full">
             <div className="text-center mb-12">
               <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-                <span className="text-lime-400">Step 5 -</span> are you agency founder or freelancer?
+                <span className="text-lime-400">Step 5 -</span>{' '}
+                {selectedPlatform === 'freelancer'
+                  ? 'choose your bidding mode'
+                  : 'are you agency founder or freelancer?'}
               </h1>
               <p className="text-gray-300 text-lg">
-                It helps fine-tune {selectedPlatform === 'freelancer' ? 'Freelancer.com' : 'Upwork'} job filtering.
+                {selectedPlatform === 'freelancer'
+                  ? 'This helps tailor freelancer-style cover letters and bid positioning.'
+                  : 'It helps fine-tune Upwork job filtering.'}
               </p>
             </div>
 
