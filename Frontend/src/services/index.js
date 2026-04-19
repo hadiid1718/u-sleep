@@ -6,6 +6,7 @@ export { proposalAPI } from './proposalService';
 export { comparisonAPI } from './comparisonService';
 export { reviewVideoAPI } from './reviewVideoService';
 export { getProducts } from './productService';
+export { notificationAPI } from './notificationService';
 
 export {
   API_BASE_URL,

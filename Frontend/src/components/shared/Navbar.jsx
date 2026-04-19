@@ -1,6 +1,7 @@
 import { useContext, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AppContext } from "../../context/Context";
+import NotificationDrawer from "./NotificationDrawer";
 
 const Header = () => {
   const { user, handleLogout } = useContext(AppContext);
@@ -24,77 +25,79 @@ const Header = () => {
           <span className="text-lime-400">U</span> sleep
         </Link>
 
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center space-x-6">
-          {!user ? (
-            <>
-              <Link
-                to="/billing"
-                className="text-white hover:text-lime-400 transition"
-              >
-                Billing
-              </Link>
+        <div className="flex items-center gap-3">
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center space-x-6">
+            {!user ? (
+              <>
+                <Link
+                  to="/billing"
+                  className="text-white hover:text-lime-400 transition"
+                >
+                  Billing
+                </Link>
 
-              <Link
-                to="/demo-scheduling"
-                className="bg-lime-400 text-black px-4 py-2 rounded-md hover:bg-lime-500 transition"
-              >
-                Schedule Demo
-              </Link>
+                <Link
+                  to="/demo-scheduling"
+                  className="bg-lime-400 text-black px-4 py-2 rounded-md hover:bg-lime-500 transition"
+                >
+                  Schedule Demo
+                </Link>
 
-              <Link
-                to="/user/sign-up"
-                className="bg-lime-400 text-black px-4 py-2 rounded-md hover:bg-lime-500 transition"
-              >
-                Sign Up
-              </Link>
+                <Link
+                  to="/user/sign-up"
+                  className="bg-lime-400 text-black px-4 py-2 rounded-md hover:bg-lime-500 transition"
+                >
+                  Sign Up
+                </Link>
 
-              <Link
-                to="/user/sign-in"
-                className="border border-gray-400 bg-gray-200 text-gray-900 px-4 py-2 rounded-md hover:bg-gray-300 transition"
-              >
-                Sign In
-              </Link>
-            </>
-          ) : (
-            <>
-              <span className="text-white">
-                Welcome, {user.name || user.username || user.email || "User"}!
-              </span>
+                <Link
+                  to="/user/sign-in"
+                  className="border border-gray-400 bg-gray-200 text-gray-900 px-4 py-2 rounded-md hover:bg-gray-300 transition"
+                >
+                  Sign In
+                </Link>
+              </>
+            ) : (
+              <>
+                <span className="text-white">
+                  Welcome, {user.name || user.username || user.email || "User"}!
+                </span>
 
-              <Link
-                to="/billing"
-                className="text-white hover:text-lime-400 transition"
-              >
-                Billing
-              </Link>
+                <Link
+                  to="/billing"
+                  className="text-white hover:text-lime-400 transition"
+                >
+                  Billing
+                </Link>
 
-              <Link
-                to="/demo-scheduling"
-                className="bg-lime-400 text-black px-4 py-2 rounded-md hover:bg-lime-500 transition"
-              >
-                Schedule Demo
-              </Link>
+                <Link
+                  to="/demo-scheduling"
+                  className="bg-lime-400 text-black px-4 py-2 rounded-md hover:bg-lime-500 transition"
+                >
+                  Schedule Demo
+                </Link>
 
-              <Link
-                to="/user/dashboard"
-                className="bg-lime-400 text-black px-3 py-1 rounded hover:bg-lime-500 transition"
-              >
-                Dashboard
-              </Link>
+                <Link
+                  to="/user/dashboard"
+                  className="bg-lime-400 text-black px-3 py-1 rounded hover:bg-lime-500 transition"
+                >
+                  Dashboard
+                </Link>
 
-              <button
-                onClick={handleLogoutClick}
-                className="border border-lime-400 px-3 py-1 text-white hover:bg-lime-400 hover:text-black transition rounded"
-              >
-                Logout
-              </button>
-            </>
-          )}
-        </nav>
+                <button
+                  onClick={handleLogoutClick}
+                  className="border border-lime-400 px-3 py-1 text-white hover:bg-lime-400 hover:text-black transition rounded"
+                >
+                  Logout
+                </button>
+              </>
+            )}
+          </nav>
 
-        {/* Mobile Menu Button */}
-        
+          {user && <NotificationDrawer user={user} />}
+
+          {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             className="md:hidden text-white focus:outline-none"
@@ -132,6 +135,7 @@ const Header = () => {
               </svg>
             )}
           </button>
+        </div>
       </header>
 
       {/* Mobile Sidebar Overlay */}

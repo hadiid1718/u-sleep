@@ -15,10 +15,25 @@ import RequireJobs from './components/jobs/RequireJobs.jsx'
 import BillingPage from './pages/Billing/BillingPage.jsx'
 import BillingSuccessPage from './pages/Billing/BillingSuccessPage.jsx'
 import BillingCancelledPage from './pages/Billing/BillingCancelledPage.jsx'
+import AdminLogin from './pages/admin/AdminLogin.jsx'
+import AdminDashboard from './pages/admin/AdminDashboard.jsx'
+import RequireAdmin from './components/admin/RequireAdmin.jsx'
 
 const queryClient = new QueryClient()
 
 const router = createBrowserRouter([
+  {
+    path: "/admin/login",
+    element: <AdminLogin />,
+  },
+  {
+    path: "/admin/dashboard",
+    element: (
+      <RequireAdmin>
+        <AdminDashboard />
+      </RequireAdmin>
+    ),
+  },
   {
     path: "/",
     element: <App />,

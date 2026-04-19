@@ -5,6 +5,61 @@ import { ExternalLink, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AppContext } from "../context/Context";
 
+const extractSkillsFromDescription = (description) => {
+  if (typeof description !== "string" || !description.trim()) return [];
+
+  const skills = [];
+
+  const inlinePattern =
+    /(?:required\s*skills?|skills\s*required|tech\s*stack|requirements?)\s*:\s*([^\n]+)/gi;
+  for (const match of description.matchAll(inlinePattern)) {
+    const raw = match[1] || "";
+    raw
+      .split(/,|\||\/|•|;/)
+      .map((item) =>
+        item
+          .trim()
+          .replace(/^[-*\d.)\s]+/, "")
+          .replace(/[.,;:]+$/, "")
+      )
+      .filter(Boolean)
+      .forEach((item) => skills.push(item));
+  }
+
+  const blockPattern =
+    /(?:required\s*skills?|skills\s*required|requirements?)\s*:?\s*\n((?:\s*[-*•]\s*[^\n]+\n?){1,10})/gi;
+  for (const match of description.matchAll(blockPattern)) {
+    const rawBlock = match[1] || "";
+    rawBlock
+      .split("\n")
+      .map((line) =>
+        line
+          .trim()
+          .replace(/^[-*•\d.)\s]+/, "")
+          .replace(/[.,;:]+$/, "")
+      )
+      .filter(Boolean)
+      .forEach((item) => skills.push(item));
+  }
+
+  const uniqueSkills = [];
+  const seen = new Set();
+
+  for (const skill of skills) {
+    const normalized = skill.toLowerCase();
+    if (!seen.has(normalized) && skill.length <= 60) {
+      seen.add(normalized);
+      uniqueSkills.push(skill);
+    }
+  }
+
+  return uniqueSkills.slice(0, 12);
+};
+
+const getJobIdentifier = (job) => {
+  return job?._id || job?.id || job?.upworkJobId || job?.sourceJobId || null;
+};
+
 /* =======================
    COMPONENT
 ======================= */
@@ -34,7 +89,6 @@ const JobResultPage = () => {
   });
   const totalJobs = jobs.length;
   const currentJob = jobs[currentJobIndex];
-  const techStack = Array.isArray(currentJob?.skills) ? currentJob.skills : [];
 
   useEffect(() => {
     if (jobs.length === 0) {
@@ -67,7 +121,7 @@ const JobResultPage = () => {
       return;
     }
 
-    const jobId = currentJob?._id || currentJob?.id;
+    const jobId = getJobIdentifier(currentJob);
     if (!jobId) {
       alert('Unable to reject this job because job id is missing. Please refresh and search again.');
       return;
@@ -83,7 +137,7 @@ const JobResultPage = () => {
   };
 
   const handleMatch = async () => {
-    const jobId = currentJob?._id || currentJob?.id;
+    const jobId = getJobIdentifier(currentJob);
     if (jobId) {
       await matchJob(jobId);
     }
@@ -92,7 +146,7 @@ const JobResultPage = () => {
   };
 
   const handleTranslateDescription = async () => {
-    const jobId = currentJob?._id || currentJob?.id;
+    const jobId = getJobIdentifier(currentJob);
     const targetLanguage = formData?.selectedLanguage || 'English';
 
     if (!jobId || !targetLanguage) return;
@@ -224,6 +278,10 @@ const JobResultPage = () => {
   const sourceLabel = currentJob?.source === 'freelancer_api' ? 'Freelancer' : 'Upwork';
   const displayedDescription =
     currentJob?.translatedDescription || currentJob?.description;
+  const explicitSkills = Array.isArray(currentJob?.skills) ? currentJob.skills : [];
+  const descriptionSkills = extractSkillsFromDescription(displayedDescription);
+  const requiredSkills =
+    explicitSkills.length > 0 ? explicitSkills : descriptionSkills;
   const showTranslateButton =
     sourceLabel === 'Freelancer' && Boolean(formData?.selectedLanguage);
 
@@ -299,10 +357,10 @@ const JobResultPage = () => {
           </div>
 
           <div className="mb-7">
-            <h3 className="text-gray-900 dark:text-white font-semibold mb-2">Tech Stack</h3>
-            {techStack.length > 0 ? (
+            <h3 className="text-gray-900 dark:text-white font-semibold mb-2">Required Skills</h3>
+            {requiredSkills.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {techStack.map((skill, index) => (
+                {requiredSkills.map((skill, index) => (
                   <span
                     key={`${skill}-${index}`}
                     className="px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
@@ -313,7 +371,7 @@ const JobResultPage = () => {
               </div>
             ) : (
               <p className="text-gray-500 dark:text-gray-400 text-sm">
-                Tech stack is not specified for this job.
+                Required skills are not specified for this job.
               </p>
             )}
           </div>

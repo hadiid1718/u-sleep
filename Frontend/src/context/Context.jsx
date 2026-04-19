@@ -131,6 +131,23 @@ export const ContextProvider = ({ children }) => {
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [jobSearching, setJobSearching] = useState(false);
 
+  const getJobIdentifiers = (job) => {
+    return [job?._id, job?.id, job?.upworkJobId, job?.sourceJobId]
+      .filter(Boolean)
+      .map(String);
+  };
+
+  const isSameJob = (job, jobIdentifier, updatedJob = null) => {
+    const targetIds = [jobIdentifier, ...getJobIdentifiers(updatedJob)]
+      .filter(Boolean)
+      .map(String);
+
+    if (targetIds.length === 0) return false;
+
+    const currentIds = getJobIdentifiers(job);
+    return targetIds.some((id) => currentIds.includes(id));
+  };
+
   const getJobErrorMessage = (result, fallbackMessage) => {
     const diagnostics = result?.error?.details?.diagnostics;
     const code = result?.error?.details?.code;
@@ -257,14 +274,19 @@ export const ContextProvider = ({ children }) => {
     try {
       const result = await jobAPI.markJobAsMatched(jobId);
       if (result.success) {
+        const updatedJob = result.data?.data;
         setJobResults((prev) =>
           prev.map((j) =>
-            (j._id || j.id) === jobId ? { ...j, matchStatus: "matched" } : j
+            isSameJob(j, jobId, updatedJob)
+              ? { ...j, ...(updatedJob || {}), matchStatus: "matched" }
+              : j
           )
         );
         setDashboardJobs((prev) =>
           prev.map((j) =>
-            (j._id || j.id) === jobId ? { ...j, matchStatus: "matched" } : j
+            isSameJob(j, jobId, updatedJob)
+              ? { ...j, ...(updatedJob || {}), matchStatus: "matched" }
+              : j
           )
         );
       }
@@ -280,14 +302,19 @@ export const ContextProvider = ({ children }) => {
     try {
       const result = await jobAPI.markJobAsRejected(jobId, reason);
       if (result.success) {
+        const updatedJob = result.data?.data;
         setJobResults((prev) =>
           prev.map((j) =>
-            (j._id || j.id) === jobId ? { ...j, matchStatus: "rejected" } : j
+            isSameJob(j, jobId, updatedJob)
+              ? { ...j, ...(updatedJob || {}), matchStatus: "rejected" }
+              : j
           )
         );
         setDashboardJobs((prev) =>
           prev.map((j) =>
-            (j._id || j.id) === jobId ? { ...j, matchStatus: "rejected" } : j
+            isSameJob(j, jobId, updatedJob)
+              ? { ...j, ...(updatedJob || {}), matchStatus: "rejected" }
+              : j
           )
         );
       }
@@ -310,18 +337,22 @@ export const ContextProvider = ({ children }) => {
 
       if (result.success) {
         const updatedJob = result.data?.data?.job;
-        const updatedJobId = updatedJob?._id || updatedJob?.id;
+        const updatedJobId =
+          updatedJob?._id ||
+          updatedJob?.id ||
+          updatedJob?.upworkJobId ||
+          updatedJob?.sourceJobId;
 
         if (updatedJobId) {
           setJobResults(prev =>
             prev.map(job =>
-              (job._id || job.id) === updatedJobId ? updatedJob : job
+              isSameJob(job, updatedJobId, updatedJob) ? updatedJob : job
             )
           );
 
           setDashboardJobs(prev =>
             prev.map(job =>
-              (job._id || job.id) === updatedJobId ? updatedJob : job
+              isSameJob(job, updatedJobId, updatedJob) ? updatedJob : job
             )
           );
         }

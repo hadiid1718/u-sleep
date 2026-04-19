@@ -88,7 +88,7 @@ const Dashboard = () => {
   };
 
   const handleJobAction = async (job, action = 'match') => {
-    const jobId = job?._id || job?.id;
+    const jobId = job?._id || job?.id || job?.upworkJobId || job?.sourceJobId;
     if (!jobId) return;
 
     if (action === 'review') {
