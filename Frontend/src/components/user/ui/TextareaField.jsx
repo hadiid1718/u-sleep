@@ -4,7 +4,7 @@ export const TextareaField = ({ label, value, onChange, placeholder, rows = 5, c
   <div>
     <label className="block text-gray-300 mb-2 font-medium">{label}</label>
     <textarea
-      value={value}
+      value={value ?? ''}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       rows={rows}

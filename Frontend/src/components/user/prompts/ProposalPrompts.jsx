@@ -38,10 +38,11 @@ export const ProposalPrompts = ({
       <div className="mb-4">
         <label className="block text-gray-300 mb-2 font-medium">Model</label>
         <select
-          value={formData.model}
+          value={formData.model || ''}
           onChange={(e) => onInputChange('model', e.target.value)}
           className="w-full bg-gradient-to-r from-gray-700 to-gray-800 text-white p-3 rounded-lg border border-gray-600 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20 transition-all duration-200"
         >
+          <option value="" disabled>Select model</option>
           <option value="GPT-4o Mini">GPT-4o Mini</option>
           <option value="GPT-4">GPT-4</option>
           <option value="GPT-3.5 Turbo">GPT-3.5 Turbo</option>

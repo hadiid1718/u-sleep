@@ -32,13 +32,11 @@ const GeneratedResponse = ({
     refreshSubscription,
   } = useSubscription();
 
-  const defaultResponse = `Hi, what specific features or functionalities do you envision for your real-time video communication platform? Have you identified any particular challenges or requirements for integrating AI captions?
-
-Similar project: We developed a real-time video communication solution with group call functionalities and AI captioning for a client, enhancing user engagement.
-
-What time are you available tomorrow for a quick call?`;
-
-  const displayText = responseText || currentProposal?.content || defaultResponse;
+  const displayText =
+    responseText ||
+    currentProposal?.content ||
+    currentProposal?.defaultResponse ||
+    'Proposal content is being prepared...';
   const proposalId = currentProposal?.proposalId || currentProposal?._id;
   const isFreelancerJob = job?.source === 'freelancer_api';
 
@@ -180,9 +178,9 @@ What time are you available tomorrow for a quick call?`;
   };
 
   return (
-    <div className="bg-gray-900 border border-gray-700 rounded-2xl p-8">
+    <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-2xl p-6 sm:p-7 shadow-sm transition-colors">
       <div className="flex flex-col items-center justify-center gap-4 mb-8">
-        <h3 className="text-white text-2xl font-bold">
+        <h3 className="text-gray-900 dark:text-white text-2xl font-bold text-center">
           {isFreelancerJob ? 'Generated Bid Cover Letter' : 'Generated Response'}
         </h3>
 
@@ -207,7 +205,7 @@ What time are you available tomorrow for a quick call?`;
         <div className="flex gap-3">
           <button
             onClick={handleCopy}
-            className="flex items-center gap-2 bg-gray-900 border border-white text-white px-5 py-2.5 rounded-lg hover:bg-gray-800 transition font-medium"
+            className="flex items-center gap-2 bg-gray-100 dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white px-5 py-2.5 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition font-medium"
           >
             <Copy size={18} />
             {copied ? 'Copied!' : 'Copy'}
@@ -220,7 +218,7 @@ What time are you available tomorrow for a quick call?`;
                 sent
                   ? 'bg-green-600 text-white cursor-default'
                   : sending
-                    ? 'bg-gray-600 text-gray-300 cursor-wait'
+                    ? 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300 cursor-wait'
                     : 'bg-lime-400 text-gray-900 hover:bg-lime-500'
               }`}
             >
@@ -240,13 +238,13 @@ What time are you available tomorrow for a quick call?`;
       </div>
 
       {isFreelancerJob && (
-        <div className="mb-6 rounded-xl border border-cyan-500/40 bg-cyan-950/20 p-4">
-          <p className="text-cyan-300 text-sm font-semibold mb-3">
+        <div className="mb-6 rounded-xl border border-cyan-300 dark:border-cyan-500/40 bg-cyan-50 dark:bg-cyan-950/20 p-4 transition-colors">
+          <p className="text-cyan-800 dark:text-cyan-300 text-sm font-semibold mb-3">
             Freelancer Bid Details
           </p>
 
           {workflow?.suggestedBid && (
-            <p className="mb-2 text-sm text-gray-300">
+            <p className="mb-2 text-sm text-gray-700 dark:text-gray-300">
               Suggested bid range: {workflow.suggestedBid.suggestedMin || 'N/A'} -{' '}
               {workflow.suggestedBid.suggestedMax || 'N/A'}{' '}
               {workflow.suggestedBid.mode === 'hourly' ? 'per hour' : 'total'}
@@ -260,7 +258,7 @@ What time are you available tomorrow for a quick call?`;
                   key={option.id}
                   type="button"
                   onClick={() => handleQuickBidSelect(option.value)}
-                  className="rounded-md border border-cyan-500/60 bg-cyan-900/20 px-3 py-1 text-xs font-semibold text-cyan-200 hover:bg-cyan-900/40"
+                  className="rounded-md border border-cyan-400 dark:border-cyan-500/60 bg-cyan-100 dark:bg-cyan-900/20 px-3 py-1 text-xs font-semibold text-cyan-700 dark:text-cyan-200 hover:bg-cyan-200 dark:hover:bg-cyan-900/40 transition-colors"
                 >
                   {option.label}: ${option.value}
                 </button>
@@ -269,7 +267,7 @@ What time are you available tomorrow for a quick call?`;
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <label className="text-sm text-gray-300">
+            <label className="text-sm text-gray-700 dark:text-gray-300">
               Bid amount (USD)
               <input
                 type="number"
@@ -280,12 +278,12 @@ What time are you available tomorrow for a quick call?`;
                   setBidAmount(event.target.value);
                   setBidFormError('');
                 }}
-                className="mt-1 w-full rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-white focus:border-cyan-400 focus:outline-none"
+                className="mt-1 w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white focus:border-cyan-500 focus:outline-none"
                 placeholder="Enter your bid"
               />
             </label>
 
-            <label className="text-sm text-gray-300">
+            <label className="text-sm text-gray-700 dark:text-gray-300">
               Estimated duration
               <input
                 type="text"
@@ -294,13 +292,13 @@ What time are you available tomorrow for a quick call?`;
                   setEstimatedDuration(event.target.value);
                   setBidFormError('');
                 }}
-                className="mt-1 w-full rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-white focus:border-cyan-400 focus:outline-none"
+                className="mt-1 w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white focus:border-cyan-500 focus:outline-none"
                 placeholder="e.g., 7 days"
               />
             </label>
           </div>
 
-          <label className="mt-3 block text-sm text-gray-300">
+          <label className="mt-3 block text-sm text-gray-700 dark:text-gray-300">
             Delivery date (optional alternative)
             <input
               type="date"
@@ -309,23 +307,23 @@ What time are you available tomorrow for a quick call?`;
                 setDeliveryDate(event.target.value);
                 setBidFormError('');
               }}
-              className="mt-1 w-full rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-white focus:border-cyan-400 focus:outline-none"
+              className="mt-1 w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-white focus:border-cyan-500 focus:outline-none"
             />
           </label>
 
           {bidFormError && (
-            <p className="mt-3 text-sm text-red-300">{bidFormError}</p>
+            <p className="mt-3 text-sm text-red-600 dark:text-red-300">{bidFormError}</p>
           )}
         </div>
       )}
 
-      <div className="text-gray-300 text-base leading-relaxed space-y-5 mb-8 whitespace-pre-line">
+      <div className="text-gray-700 dark:text-gray-300 text-base leading-relaxed space-y-5 mb-8 whitespace-pre-line">
         {displayText}
       </div>
 
       <button
         onClick={onUpgrade}
-        className="w-full bg-gray-900 border-2 border-lime-400 text-lime-400 py-4 rounded-lg hover:bg-gray-800 transition mb-8 font-semibold text-base"
+        className="w-full bg-white dark:bg-slate-900 border-2 border-lime-500 text-lime-700 dark:text-lime-400 py-4 rounded-lg hover:bg-lime-50 dark:hover:bg-slate-800 transition mb-8 font-semibold text-base"
       >
         Want to upgrade your response? Add case studies
       </button>
@@ -333,7 +331,7 @@ What time are you available tomorrow for a quick call?`;
       <div className="grid grid-cols-2 gap-4">
         <button
           onClick={onDislike}
-          className="bg-gray-700 hover:bg-gray-600 text-white py-4 rounded-lg flex items-center justify-center gap-2 transition font-semibold text-base"
+          className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white py-4 rounded-lg flex items-center justify-center gap-2 transition font-semibold text-base"
         >
           I don't like it
         </button>

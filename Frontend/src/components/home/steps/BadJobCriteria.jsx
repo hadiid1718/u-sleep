@@ -1,9 +1,13 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { AppContext } from '../../../context/Context';
 
 const BadJobCriteria = () => {
   const { formData, setFormData, prevStep, nextStep, steps } = useContext(AppContext);
   const [selected, setSelected] = useState(formData.badJobCriteria || []);
+    useEffect(() => {
+      setSelected(Array.isArray(formData.badJobCriteria) ? formData.badJobCriteria : []);
+    }, [formData.badJobCriteria]);
+
   const selectedPlatform = formData.selectedPlatform || 'upwork';
   
   const criteria = [
@@ -25,7 +29,7 @@ const BadJobCriteria = () => {
       ? selected.filter((item) => item !== text)
       : [...selected, text];
     setSelected(newSelected);
-    setFormData({ ...formData, badJobCriteria: newSelected });
+    setFormData(prev => ({ ...prev, badJobCriteria: newSelected }));
   };
 
   return (
@@ -38,8 +42,8 @@ const BadJobCriteria = () => {
             </h2>
             <p className="text-gray-300 mb-6">
               {selectedPlatform === 'freelancer'
-                ? 'Exclude low-signal projects before generating bid proposals.'
-                : "Write down what you don't like in jobs, to filter them."}
+                ? 'Selected items are treated as red flags and removed from fetched projects.'
+                : 'Selected items are treated as red flags and removed from fetched jobs.'}
             </p>
 
             <div className="bg-black/80 text-white py-2 px-4 mb-6 rounded-lg">

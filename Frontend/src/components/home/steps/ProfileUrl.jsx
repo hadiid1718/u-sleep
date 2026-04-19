@@ -15,6 +15,12 @@ const ProfileUrl = () => {
   } = useContext(AppContext);
 
   const [profileLink, setProfileLink] = useState(formData.profileUrl || '');
+  const [selectedLanguage, setSelectedLanguage] = useState(
+    formData.selectedLanguage || 'English'
+  );
+  const [autoTranslateDescription, setAutoTranslateDescription] = useState(
+    Boolean(formData.autoTranslateDescription)
+  );
   const [showError, setShowError] = useState(false);
   const selectedPlatform = formData.selectedPlatform || 'upwork';
 
@@ -37,6 +43,8 @@ const ProfileUrl = () => {
       selectedRole: data.accountType || null,
       upworkProfileUrl: data.profileUrl || '',
       freelancerProfileUrl: data.profileUrl || '',
+      selectedLanguage: data.selectedLanguage || 'English',
+      autoTranslateDescription: Boolean(data.autoTranslateDescription),
     };
 
     if (rateType) payload.rateType = rateType;
@@ -47,7 +55,12 @@ const ProfileUrl = () => {
   };
 
   const handleContinue = async () => {
-    const updatedData = { ...formData, profileUrl: profileLink };
+    const updatedData = {
+      ...formData,
+      profileUrl: profileLink,
+      selectedLanguage,
+      autoTranslateDescription,
+    };
     setFormData(updatedData);
 
     if (!user) {
@@ -137,13 +150,51 @@ const ProfileUrl = () => {
             </div>
 
             {selectedPlatform === 'freelancer' && (
-              <div className="text-center mb-8 text-sm">
-                <button
-                  onClick={handleFreelancerConnect}
-                  className="border-2 border-lime-400 text-lime-400 hover:bg-lime-400 hover:text-gray-900 font-semibold py-3 px-6 rounded-lg transition"
-                >
-                  {user ? 'Connect Freelancer Account (OAuth)' : 'Sign in with Freelancer OAuth'}
-                </button>
+              <div className="mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5 text-left">
+                  <div>
+                    <label className="block text-gray-300 text-sm mb-2">
+                      Preferred freelancer language
+                    </label>
+                    <select
+                      value={selectedLanguage}
+                      onChange={e => setSelectedLanguage(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-800 border-2 border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-lime-400 focus:border-lime-400"
+                    >
+                      <option>English</option>
+                      <option>Indonesian</option>
+                      <option>Spanish</option>
+                      <option>French</option>
+                      <option>German</option>
+                      <option>Portuguese</option>
+                      <option>Arabic</option>
+                      <option>Hindi</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-end">
+                    <label className="flex items-center gap-3 text-sm text-gray-300 bg-gray-800/70 border border-gray-700 rounded-lg px-4 py-3 w-full">
+                      <input
+                        type="checkbox"
+                        checked={autoTranslateDescription}
+                        onChange={e =>
+                          setAutoTranslateDescription(e.target.checked)
+                        }
+                        className="h-4 w-4 rounded border-gray-600 bg-gray-900 text-lime-400 focus:ring-lime-400"
+                      />
+                      Auto-translate project descriptions during search
+                    </label>
+                  </div>
+                </div>
+
+                <div className="text-center text-sm">
+                  <button
+                    onClick={handleFreelancerConnect}
+                    className="border-2 border-lime-400 text-lime-400 hover:bg-lime-400 hover:text-gray-900 font-semibold py-3 px-6 rounded-lg transition"
+                  >
+                    {user ? 'Connect Freelancer Account (OAuth)' : 'Sign in with Freelancer OAuth'}
+                  </button>
+                </div>
               </div>
             )}
 

@@ -139,7 +139,7 @@ export const FeedConfiguration = ({
             <div>
               <label className="block text-gray-300 mb-2 font-medium">Excluded countries</label>
               <select
-                value={formData.excludedCountries}
+                value={formData.excludedCountries || ''}
                 onChange={(e) => onInputChange('excludedCountries', e.target.value)}
                 className="w-full bg-gradient-to-r from-gray-700 to-gray-800 text-white p-3 rounded-lg border border-gray-600 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20 transition-all duration-200"
               >
@@ -152,7 +152,7 @@ export const FeedConfiguration = ({
             <div>
               <label className="block text-gray-300 mb-2 font-medium">Included countries</label>
               <select
-                value={formData.includedCountries}
+                value={formData.includedCountries || ''}
                 onChange={(e) => onInputChange('includedCountries', e.target.value)}
                 className="w-full bg-gradient-to-r from-gray-700 to-gray-800 text-white p-3 rounded-lg border border-gray-600 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20 transition-all duration-200"
               >

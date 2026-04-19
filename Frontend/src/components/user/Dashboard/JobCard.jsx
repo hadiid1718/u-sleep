@@ -2,13 +2,14 @@ import React from 'react';
 import { ExternalLink, MapPin, Clock, DollarSign, Users, CheckCircle, XCircle, Send, Star, Zap } from 'lucide-react';
 
 export const JobCard = ({ job, formData, onAction }) => {
-  const jobId = job._id || job.id;
   const status = job.matchStatus || job.status || 'pending';
   const matchScore = job.aiAnalysis?.matchScore || job.score || 0;
   const greenFlags = job.aiAnalysis?.greenFlags || [];
   const redFlags = job.aiAnalysis?.redFlags || [];
   const recommendation = job.aiAnalysis?.recommendation || '';
   const skills = job.skills || [];
+  const previewDescription =
+    job.shortDescription || job.translatedDescription || job.description;
 
   const budgetDisplay = job.budgetType === 'fixed'
     ? `$${(job.budget?.amount || 0).toLocaleString()}`
@@ -74,7 +75,7 @@ export const JobCard = ({ job, formData, onAction }) => {
               )}
             </div>
             <p className="text-gray-400 text-sm leading-relaxed line-clamp-1">
-              {job.shortDescription || job.description?.substring(0, 120) || 'No description available'}
+              {previewDescription?.substring(0, 120) || 'No description available'}
             </p>
           </div>
 
@@ -159,9 +160,16 @@ export const JobCard = ({ job, formData, onAction }) => {
                 View
               </a>
             )}
+            <button
+              onClick={() => onAction(job, 'review')}
+              className="flex items-center gap-1.5 text-xs font-semibold bg-gray-700/70 text-gray-200 px-3 py-1.5 rounded-lg border border-gray-600/40 hover:bg-gray-600 transition-all duration-200"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              Open Result
+            </button>
             {(status === 'pending') && (
               <button
-                onClick={() => onAction(jobId)}
+                onClick={() => onAction(job, 'match')}
                 className="flex items-center gap-1.5 text-xs font-semibold bg-gradient-to-r from-lime-400 to-emerald-500 text-gray-900 px-3.5 py-1.5 rounded-lg shadow-md shadow-lime-400/10 hover:shadow-lime-400/30 hover:scale-105 active:scale-95 transition-all duration-200"
               >
                 <CheckCircle className="w-3.5 h-3.5" />

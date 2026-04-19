@@ -80,6 +80,8 @@ export const ContextProvider = ({ children }) => {
     badJobCriteria: [],
     accountType: "",
     profileUrl: "",
+    selectedLanguage: 'English',
+    autoTranslateDescription: false,
   });
 
   const resetForm = () => {
@@ -92,6 +94,8 @@ export const ContextProvider = ({ children }) => {
       badJobCriteria: [],
       accountType: "",
       profileUrl: "",
+      selectedLanguage: 'English',
+      autoTranslateDescription: false,
     });
   };
 
@@ -229,7 +233,7 @@ export const ContextProvider = ({ children }) => {
   };
 
   // Fetch filtered/cached jobs for dashboard
-  const fetchDashboardJobs = async ({ page = 1, limit = 20, status = 'pending' } = {}) => {
+  const fetchDashboardJobs = async ({ page = 1, limit = 20, status = 'all' } = {}) => {
     setDashboardLoading(true);
     try {
       const result = await jobAPI.getFilteredJobs({ page, limit, status });
@@ -258,6 +262,11 @@ export const ContextProvider = ({ children }) => {
             (j._id || j.id) === jobId ? { ...j, matchStatus: "matched" } : j
           )
         );
+        setDashboardJobs((prev) =>
+          prev.map((j) =>
+            (j._id || j.id) === jobId ? { ...j, matchStatus: "matched" } : j
+          )
+        );
       }
       return result;
     } catch (err) {
@@ -276,10 +285,53 @@ export const ContextProvider = ({ children }) => {
             (j._id || j.id) === jobId ? { ...j, matchStatus: "rejected" } : j
           )
         );
+        setDashboardJobs((prev) =>
+          prev.map((j) =>
+            (j._id || j.id) === jobId ? { ...j, matchStatus: "rejected" } : j
+          )
+        );
       }
       return result;
     } catch (err) {
       setError(err.message);
+      return { success: false, error: { message: err.message } };
+    }
+  };
+
+  const translateJobDescription = async (
+    jobId,
+    targetLanguage,
+    { aiService = 'gemini' } = {}
+  ) => {
+    try {
+      const result = await jobAPI.translateJobDescription(jobId, targetLanguage, {
+        aiService,
+      });
+
+      if (result.success) {
+        const updatedJob = result.data?.data?.job;
+        const updatedJobId = updatedJob?._id || updatedJob?.id;
+
+        if (updatedJobId) {
+          setJobResults(prev =>
+            prev.map(job =>
+              (job._id || job.id) === updatedJobId ? updatedJob : job
+            )
+          );
+
+          setDashboardJobs(prev =>
+            prev.map(job =>
+              (job._id || job.id) === updatedJobId ? updatedJob : job
+            )
+          );
+        }
+      } else {
+        setError(result.error?.message || 'Failed to translate description');
+      }
+
+      return result;
+    } catch (err) {
+      setError(err.message || 'Failed to translate description');
       return { success: false, error: { message: err.message } };
     }
   };
@@ -318,17 +370,44 @@ export const ContextProvider = ({ children }) => {
 
   // Poll for proposal content (since generation is async)
   const pollProposal = async (proposalId, maxAttempts = 10, interval = 2000) => {
+    let latestProposal = null;
+
     for (let i = 0; i < maxAttempts; i++) {
       const result = await proposalAPI.getProposal(proposalId);
       if (result.success) {
         const proposal = result.data?.data;
-        if (proposal?.content && proposal.content !== '' && !proposal.content.startsWith('Error')) {
+        latestProposal = proposal;
+
+        if (proposal?.content && proposal.content !== '') {
           setCurrentProposal(proposal);
           return result;
         }
       }
       await new Promise((resolve) => setTimeout(resolve, interval));
     }
+
+    const fallbackResponse =
+      latestProposal?.defaultResponse ||
+      currentProposal?.defaultResponse ||
+      '';
+
+    if (fallbackResponse) {
+      const fallbackProposal = {
+        ...(latestProposal || currentProposal || {}),
+        content: fallbackResponse,
+        aiModel: latestProposal?.aiModel || 'fallback-template',
+      };
+
+      setCurrentProposal(fallbackProposal);
+
+      return {
+        success: true,
+        data: {
+          data: fallbackProposal,
+        },
+      };
+    }
+
     return { success: false, error: { message: 'Proposal generation timed out' } };
   };
 
@@ -443,6 +522,7 @@ export const ContextProvider = ({ children }) => {
         fetchDashboardJobs,
         matchJob,
         rejectJob,
+        translateJobDescription,
 
         /* Proposals */
         proposals,

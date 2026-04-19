@@ -17,7 +17,6 @@ const HeroSection = () => {
     setSteps, 
     user, 
     error,
-    freelancerWorkflow,
     jobSearching,
     formData,
   } = useContext(AppContext);
@@ -102,21 +101,6 @@ const HeroSection = () => {
             </div>
           ) : (
             <>
-              {selectedPlatform === 'freelancer' &&
-                steps <= 6 &&
-                freelancerWorkflow?.steps?.length > 0 && (
-                  <div className="mb-6 p-4 rounded-xl border border-cyan-500/40 bg-cyan-950/20 text-left">
-                    <p className="text-cyan-300 font-semibold mb-2">
-                      Freelancer Workflow Snapshot
-                    </p>
-                    <div className="space-y-1 text-sm text-gray-300">
-                      {freelancerWorkflow.steps.slice(0, 3).map(step => (
-                        <p key={step.id}>• {step.title}</p>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
               {/* Step 1 - Platform */}
               {steps === 1 && <PlatformSelect />}
 

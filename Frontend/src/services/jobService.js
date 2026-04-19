@@ -82,7 +82,7 @@ export const jobAPI = {
     });
   },
 
-  getFilteredJobs: async ({ page = 1, limit = 20, status = 'pending' } = {}) => {
+  getFilteredJobs: async ({ page = 1, limit = 20, status = 'all' } = {}) => {
     const params = new URLSearchParams();
     params.append('page', page);
     params.append('limit', limit);
@@ -101,6 +101,31 @@ export const jobAPI = {
     }
     return apiRequest(`/jobs/${jobId}`, {
       method: 'GET',
+    });
+  },
+
+  translateJobDescription: async (
+    jobId,
+    targetLanguage,
+    { aiService = 'gemini' } = {}
+  ) => {
+    if (!jobId) {
+      return {
+        success: false,
+        error: { message: 'Job ID is required', statusCode: 400 },
+      };
+    }
+
+    if (!targetLanguage || !String(targetLanguage).trim()) {
+      return {
+        success: false,
+        error: { message: 'targetLanguage is required', statusCode: 400 },
+      };
+    }
+
+    return apiRequest(`/jobs/${jobId}/translate-description`, {
+      method: 'POST',
+      body: JSON.stringify({ targetLanguage, aiService }),
     });
   },
 

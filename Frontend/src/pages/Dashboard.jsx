@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AppContext } from '../context/Context';
 import { Sidebar } from '../components/user/layout/Sidebar';
 import { MobileHeader } from '../components/user/layout/MobileHeader';
@@ -17,10 +18,10 @@ const Dashboard = () => {
     fetchDashboardJobs,
     matchJob,
     rejectJob,
-    fetchUserProposals,
+    setJobResults,
     fetchProposalStats,
-    proposalStats,
   } = useContext(AppContext);
+  const navigate = useNavigate();
 
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -62,14 +63,55 @@ const Dashboard = () => {
     }
   }, [user]);
 
-  const handleJobAction = async (jobId, action = 'match') => {
+  const extractJobPrefill = (job) => {
+    const minHourlyRate =
+      job?.hourlyRate?.min ??
+      (job?.budgetType === 'hourly' ? job?.budget?.min : null) ??
+      '';
+    const minFixedRate =
+      job?.budgetType === 'fixed' ? (job?.budget?.amount ?? '') : '';
+
+    return {
+      minHourlyRate: minHourlyRate === null ? '' : String(minHourlyRate),
+      minFixedRate: minFixedRate === null ? '' : String(minFixedRate),
+      clientMinSpend:
+        job?.clientInfo?.totalSpent !== null &&
+        job?.clientInfo?.totalSpent !== undefined
+          ? String(job.clientInfo.totalSpent)
+          : '',
+      clientMinRating:
+        job?.clientInfo?.rating !== null &&
+        job?.clientInfo?.rating !== undefined
+          ? String(job.clientInfo.rating)
+          : '',
+    };
+  };
+
+  const handleJobAction = async (job, action = 'match') => {
+    const jobId = job?._id || job?.id;
+    if (!jobId) return;
+
+    if (action === 'review') {
+      setJobResults([job]);
+      navigate('/job-result');
+      return;
+    }
+
     if (action === 'reject') {
       await rejectJob(jobId);
     } else {
-      await matchJob(jobId);
+      const result = await matchJob(jobId);
+      if (result?.success) {
+        setFormData(prev => ({
+          ...prev,
+          ...extractJobPrefill(job),
+        }));
+        setActiveMenu('prompts');
+      }
     }
+
     // Refresh the job list
-    fetchDashboardJobs();
+    await fetchDashboardJobs({ status: 'all' });
   };
 
   const handleMenuClick = (menuId) => {
