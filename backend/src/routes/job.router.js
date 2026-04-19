@@ -8,6 +8,7 @@ import {
   searchJobsWithAIAnalysis,
   getJobSearchDiagnostics,
   getFreelancerWorkflow,
+  translateJobDescription,
 } from '../controller/job.controller.js';
 import authorize from '../middleware/auth.middleware.js';
 
@@ -49,6 +50,12 @@ jobRouter.get('/filtered', authorize, getFilteredJobs);
  * Get single job details
  */
 jobRouter.get('/:jobId', authorize, getJobDetail);
+
+/**
+ * POST /api/v1/jobs/:jobId/translate-description
+ * Translate job description to selected language
+ */
+jobRouter.post('/:jobId/translate-description', authorize, translateJobDescription);
 
 /**
  * PUT /api/v1/jobs/:jobId/match

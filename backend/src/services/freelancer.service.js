@@ -190,16 +190,16 @@ class FreelancerService {
       sourceJobId: String(projectId),
       title: this.normalizeText(rawJob?.title) || 'Untitled Project',
       description: this.normalizeText(
-        rawJob?.preview_description || rawJob?.description
+        rawJob?.description || rawJob?.preview_description
       ),
       shortDescription: this.normalizeText(
-        rawJob?.preview_description || rawJob?.description
+        rawJob?.description || rawJob?.preview_description
       ).substring(0, 200),
       category: rawJob?.type || rawJob?.project_type || null,
       skills: Array.isArray(rawJob?.jobs)
         ? rawJob.jobs
-            .map(j => this.normalizeText(j?.name || j?.seo_url || j))
-            .filter(Boolean)
+          .map(j => this.normalizeText(j?.name || j?.seo_url || j))
+          .filter(Boolean)
         : [],
       proposalsCount: Number(
         rawJob?.bid_stats?.bid_count || rawJob?.bid_count || 0
@@ -215,10 +215,10 @@ class FreelancerService {
       },
       hourlyRate: hasHourly
         ? {
-            min: Number(minHourly || maxHourly || 0),
-            max: Number(maxHourly || minHourly || 0),
-            currency: rawJob?.currency?.code || 'USD',
-          }
+          min: Number(minHourly || maxHourly || 0),
+          max: Number(maxHourly || minHourly || 0),
+          currency: rawJob?.currency?.code || 'USD',
+        }
         : null,
       clientInfo: {
         name: owner?.username || owner?.display_name || null,
@@ -377,8 +377,125 @@ class FreelancerService {
     });
   }
 
+  parseNumeric(value) {
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+
+    const normalized = String(value).replace(/,/g, '');
+    const match = normalized.match(/(\d+(?:\.\d+)?)/);
+    return match ? Number(match[1]) : null;
+  }
+
+  parseHireRate(value) {
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value > 1 ? value : value * 100;
+    }
+
+    const normalized = String(value).toLowerCase().trim();
+    const numeric = this.parseNumeric(normalized);
+    if (numeric === null) return null;
+
+    if (normalized.includes('%')) return numeric;
+    return numeric > 1 ? numeric : numeric * 100;
+  }
+
+  isLikelyNonEnglish(text) {
+    const value = this.normalizeText(text).toLowerCase();
+    if (!value) return false;
+
+    const hasNonLatin = /[^\x00-\x7F]/.test(value);
+    const englishHints =
+      /\b(the|and|for|with|you|your|job|project|need|looking|required|experience|developer|design|build)\b/.test(
+        value
+      );
+
+    if (hasNonLatin && !englishHints) return true;
+    return false;
+  }
+
   jobMatchesBadCriteria(job, criteria) {
     const lowerCriteria = String(criteria || '').toLowerCase();
+    const titleAndDescription = `${job?.title || ''} ${job?.description || ''}`;
+    const text = titleAndDescription.toLowerCase();
+    const rating = this.parseNumeric(job?.clientInfo?.rating) ?? 0;
+    const totalSpent = this.parseNumeric(job?.clientInfo?.totalSpent) ?? 0;
+    const hireRate = this.parseHireRate(job?.clientInfo?.hireRate);
+    const descriptionLength = String(job?.description || '').trim().length;
+
+    if (lowerCriteria.includes('looking for employee')) {
+      if (
+        /\b(employee|full[ -]?time|permanent|monthly salary|salary|long[ -]?term)\b/.test(
+          text
+        )
+      ) {
+        return true;
+      }
+    }
+
+    if (lowerCriteria.includes('quick task')) {
+      if (
+        /\b(quick task|small task|tiny task|few hours|one[- ]?time task|simple fix)\b/.test(
+          text
+        )
+      ) {
+        return true;
+      }
+    }
+
+    if (lowerCriteria.includes('tutoring')) {
+      if (/\b(tutor|tutoring|lesson|teach|teaching|coach|mentoring)\b/.test(text)) {
+        return true;
+      }
+    }
+
+    if (lowerCriteria.includes('urgent task')) {
+      if (/\b(urgent|asap|immediately|right away|today|within hours)\b/.test(text)) {
+        return true;
+      }
+    }
+
+    if (lowerCriteria.includes('non english job')) {
+      if (this.isLikelyNonEnglish(titleAndDescription)) {
+        return true;
+      }
+    }
+
+    if (lowerCriteria.includes('startups')) {
+      if (/\b(startup|start-up|founder|early[- ]?stage|mvp)\b/.test(text)) {
+        return true;
+      }
+    }
+
+    if (lowerCriteria.includes('not well described')) {
+      if (descriptionLength < 120) {
+        return true;
+      }
+    }
+
+    if (lowerCriteria.includes('too many bids already')) {
+      if ((job?.proposalsCount || 0) > 20) {
+        return true;
+      }
+    }
+
+    if (lowerCriteria.includes('rating less than 4.0')) {
+      if (rating > 0 && rating < 4) {
+        return true;
+      }
+    }
+
+    if (lowerCriteria.includes('total spent less than $1,000')) {
+      if (totalSpent >= 0 && totalSpent < 1000) {
+        return true;
+      }
+    }
+
+    if (lowerCriteria.includes('low hire rate')) {
+      if (hireRate !== null && hireRate < 50) {
+        return true;
+      }
+    }
 
     if (
       lowerCriteria.includes('low budget') &&
@@ -389,14 +506,14 @@ class FreelancerService {
 
     if (
       lowerCriteria.includes('low rating') &&
-      (job.clientInfo?.rating || 0) < 4.5
+      rating < 4.5
     ) {
       return true;
     }
 
     if (
       lowerCriteria.includes('unclear description') &&
-      (!job.description || job.description.length < 50)
+      (!job.description || descriptionLength < 50)
     ) {
       return true;
     }

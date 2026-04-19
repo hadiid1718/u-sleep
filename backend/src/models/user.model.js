@@ -93,6 +93,15 @@ const userSchema = new mongoose.Schema(
         type: String,
         trim: true,
       },
+      selectedLanguage: {
+        type: String,
+        trim: true,
+        default: 'English',
+      },
+      autoTranslateDescription: {
+        type: Boolean,
+        default: false,
+      },
     },
 
     freelancerAuth: {

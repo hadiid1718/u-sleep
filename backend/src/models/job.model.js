@@ -33,8 +33,28 @@ const jobSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    descriptionLanguage: {
+      type: String,
+      default: null,
+    },
     shortDescription: {
       type: String,
+    },
+    translatedDescription: {
+      type: String,
+      default: null,
+    },
+    translatedDescriptionLanguage: {
+      type: String,
+      default: null,
+    },
+    translationProvider: {
+      type: String,
+      default: null,
+    },
+    descriptionTranslatedAt: {
+      type: Date,
+      default: null,
     },
 
     // Job Details

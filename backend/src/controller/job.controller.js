@@ -3,6 +3,9 @@ import User from '../models/user.model.js';
 import upworkService from '../services/upwork.service.js';
 import freelancerService from '../services/freelancer.service.js';
 import freelancerWorkflowService from '../services/freelancerWorkflow.service.js';
+import aiService from '../services/ai.service.js';
+
+const MAX_AUTO_TRANSLATED_DESCRIPTIONS = 10;
 
 const normalizeSelectedRole = role => {
   if (!role) return null;
@@ -25,6 +28,20 @@ const normalizeBadCriteria = criteria => {
   if (Array.isArray(criteria)) return criteria;
   if (typeof criteria === 'string' && criteria.trim()) return [criteria];
   return [];
+};
+
+const normalizeSelectedLanguage = language => {
+  const normalized = String(language || '').trim();
+  return normalized || null;
+};
+
+const shouldAutoTranslate = value => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    return ['true', '1', 'yes', 'on'].includes(value.trim().toLowerCase());
+  }
+
+  return false;
 };
 
 const buildPlatformPreferences = (payload, user) => {
@@ -54,6 +71,14 @@ const buildPlatformPreferences = (payload, user) => {
       payload?.freelancerProfileUrl ??
       jobPreferences.freelancerProfileUrl ??
       null,
+    selectedLanguage: normalizeSelectedLanguage(
+      payload?.selectedLanguage ?? jobPreferences.selectedLanguage
+    ),
+    autoTranslateDescription: shouldAutoTranslate(
+      payload?.autoTranslateDescription ??
+        jobPreferences.autoTranslateDescription ??
+        false
+    ),
     rateType: payload?.rateType ?? jobPreferences.rateType ?? null,
     hourlyRateRange:
       payload?.hourlyRateRange ?? jobPreferences.hourlyRateRange ?? null,
@@ -104,6 +129,150 @@ const persistJobsIfPossible = async (jobs, userId) => {
   });
 
   return true;
+};
+
+const attachPersistedJobMetadataIfPossible = async (jobs, userId) => {
+  if (
+    !upworkService.isDatabaseAvailable() ||
+    !Array.isArray(jobs) ||
+    jobs.length === 0
+  ) {
+    return jobs;
+  }
+
+  const upworkJobIds = jobs
+    .map(job => String(job?.upworkJobId || '').trim())
+    .filter(Boolean);
+
+  if (upworkJobIds.length === 0) {
+    return jobs;
+  }
+
+  try {
+    const persistedJobs = await Job.find({
+      userId,
+      upworkJobId: { $in: upworkJobIds },
+      isActive: true,
+    })
+      .select(
+        '_id upworkJobId matchStatus rejectionReason translatedDescription descriptionLanguage translatedDescriptionLanguage translationProvider descriptionTranslatedAt'
+      )
+      .lean();
+
+    const persistedByUpworkJobId = new Map(
+      persistedJobs.map(job => [String(job.upworkJobId), job])
+    );
+
+    return jobs.map(job => {
+      const key = String(job?.upworkJobId || '').trim();
+      const persisted = persistedByUpworkJobId.get(key);
+
+      if (!persisted) return job;
+
+      return {
+        ...job,
+        _id: persisted._id,
+        id: String(persisted._id),
+        matchStatus: persisted.matchStatus || job.matchStatus || 'pending',
+        rejectionReason:
+          persisted.rejectionReason || job.rejectionReason || undefined,
+        translatedDescription:
+          persisted.translatedDescription || job.translatedDescription,
+        descriptionLanguage:
+          persisted.descriptionLanguage || job.descriptionLanguage,
+        translatedDescriptionLanguage:
+          persisted.translatedDescriptionLanguage ||
+          job.translatedDescriptionLanguage,
+        translationProvider:
+          persisted.translationProvider || job.translationProvider,
+        descriptionTranslatedAt:
+          persisted.descriptionTranslatedAt || job.descriptionTranslatedAt,
+      };
+    });
+  } catch (error) {
+    console.error('Failed to attach persisted job metadata:', error);
+    return jobs;
+  }
+};
+
+const applyDescriptionTranslationToJob = (job, translationResult) => {
+  const translatedJob = {
+    ...job,
+    descriptionLanguage: translationResult.sourceLanguage,
+    translatedDescriptionLanguage: translationResult.targetLanguage,
+    translationProvider: translationResult.provider,
+  };
+
+  if (translationResult.isTranslated) {
+    translatedJob.translatedDescription = translationResult.translatedText;
+    translatedJob.descriptionTranslatedAt = new Date();
+  }
+
+  return translatedJob;
+};
+
+const maybeAutoTranslateFreelancerDescriptions = async (
+  jobs,
+  preferences,
+  preferredAiService = 'gemini'
+) => {
+  if (!Array.isArray(jobs) || jobs.length === 0) {
+    return { jobs, summary: null };
+  }
+
+  if (
+    String(preferences?.selectedPlatform || '').toLowerCase() !== 'freelancer'
+  ) {
+    return { jobs, summary: null };
+  }
+
+  const targetLanguage = normalizeSelectedLanguage(preferences?.selectedLanguage);
+  if (!targetLanguage || !preferences?.autoTranslateDescription) {
+    return { jobs, summary: null };
+  }
+
+  const translatedJobs = [...jobs];
+  let translatedCount = 0;
+  let attemptedCount = 0;
+
+  for (let i = 0; i < translatedJobs.length; i += 1) {
+    if (attemptedCount >= MAX_AUTO_TRANSLATED_DESCRIPTIONS) {
+      break;
+    }
+
+    const job = translatedJobs[i];
+    const description = String(job?.description || '').trim();
+    if (!description) continue;
+
+    attemptedCount += 1;
+
+    try {
+      const translation = await aiService.translateTextIfNeeded({
+        text: description,
+        targetLanguage,
+        aiService: preferredAiService,
+      });
+
+      translatedJobs[i] = applyDescriptionTranslationToJob(job, translation);
+      if (translation.isTranslated) translatedCount += 1;
+    } catch {
+      translatedJobs[i] = {
+        ...job,
+        translationProvider: 'none',
+      };
+    }
+  }
+
+  return {
+    jobs: translatedJobs,
+    summary: {
+      enabled: true,
+      targetLanguage,
+      translatedCount,
+      attemptedCount,
+      maxAutoTranslatedDescriptions: MAX_AUTO_TRANSLATED_DESCRIPTIONS,
+    },
+  };
 };
 
 /**
@@ -163,7 +332,18 @@ export const searchJobs = async (req, res, next) => {
       );
     }
 
+    const translationResult = await maybeAutoTranslateFreelancerDescriptions(
+      filteredJobs,
+      preferences,
+      req.body?.aiService || 'gemini'
+    );
+    filteredJobs = translationResult.jobs;
+
     await persistJobsIfPossible(filteredJobs, userId);
+    filteredJobs = await attachPersistedJobMetadataIfPossible(
+      filteredJobs,
+      userId
+    );
 
     const workflow = buildFreelancerWorkflow({
       preferences,
@@ -179,6 +359,7 @@ export const searchJobs = async (req, res, next) => {
         jobs: filteredJobs,
         totalFound: filteredJobs.length,
         diagnostics,
+        descriptionTranslation: translationResult.summary,
         workflow,
       },
     });
@@ -193,7 +374,7 @@ export const searchJobs = async (req, res, next) => {
  */
 export const getFilteredJobs = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20, status = 'pending' } = req.query;
+    const { page = 1, limit = 20, status = 'all' } = req.query;
     const userId =
       req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
@@ -205,21 +386,23 @@ export const getFilteredJobs = async (req, res, next) => {
 
     const skip = (page - 1) * limit;
 
-    // Get jobs from cache
-    const jobs = await Job.find({
+    const normalizedStatus = String(status || 'all').trim().toLowerCase();
+    const query = {
       userId,
-      matchStatus: status,
       isActive: true,
-    })
+    };
+
+    if (normalizedStatus && normalizedStatus !== 'all') {
+      query.matchStatus = normalizedStatus;
+    }
+
+    // Get jobs from cache
+    const jobs = await Job.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
-    const total = await Job.countDocuments({
-      userId,
-      matchStatus: status,
-      isActive: true,
-    });
+    const total = await Job.countDocuments(query);
 
     // Add AI analysis if not already present
     const jobsWithAnalysis = jobs.map(job => ({
@@ -433,7 +616,7 @@ export const searchJobsWithAIAnalysis = async (req, res, next) => {
     }
 
     // AI Scoring (simple scoring without external API for performance)
-    const jobsWithScores = filteredJobs.map(job => {
+    let jobsWithScores = filteredJobs.map(job => {
       const score = calculateMatchScore(job, user);
       return {
         ...job,
@@ -457,8 +640,19 @@ export const searchJobsWithAIAnalysis = async (req, res, next) => {
       (a, b) => b.aiAnalysis.matchScore - a.aiAnalysis.matchScore
     );
 
+    const translationResult = await maybeAutoTranslateFreelancerDescriptions(
+      jobsWithScores,
+      preferences,
+      req.body?.aiService || 'gemini'
+    );
+    jobsWithScores = translationResult.jobs;
+
     // Save to database
     await persistJobsIfPossible(jobsWithScores, userId);
+    jobsWithScores = await attachPersistedJobMetadataIfPossible(
+      jobsWithScores,
+      userId
+    );
 
     // Update user stats
     await User.findByIdAndUpdate(userId, {
@@ -478,6 +672,7 @@ export const searchJobsWithAIAnalysis = async (req, res, next) => {
         jobs: jobsWithScores,
         totalFound: jobsWithScores.length,
         diagnostics,
+        descriptionTranslation: translationResult.summary,
         workflow,
         message: `Total Jobs Found: ${jobsWithScores.length}`,
       },
@@ -550,6 +745,84 @@ export const getJobSearchDiagnostics = async (req, res, next) => {
         ok: true,
         jobsFound: jobs.length,
         diagnostics,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Translate a single job description into freelancer selected language.
+ */
+export const translateJobDescription = async (req, res, next) => {
+  try {
+    const { jobId } = req.params;
+    const { targetLanguage, aiService: preferredAIService = 'gemini' } =
+      req.body;
+    const userId =
+      req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
+
+    if (!userId) {
+      const error = new Error('User not authenticated');
+      error.statusCode = 401;
+      throw error;
+    }
+
+    const normalizedTargetLanguage = normalizeSelectedLanguage(targetLanguage);
+    if (!normalizedTargetLanguage) {
+      const error = new Error('targetLanguage is required');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const job = await Job.findById(jobId);
+    if (!job) {
+      const error = new Error('Job not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (job.userId && job.userId.toString() !== userId) {
+      const error = new Error('Unauthorized');
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const originalDescription = String(job.description || '').trim();
+    if (!originalDescription) {
+      const error = new Error('Job description is empty and cannot be translated');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const translation = await aiService.translateTextIfNeeded({
+      text: originalDescription,
+      targetLanguage: normalizedTargetLanguage,
+      aiService: preferredAIService,
+    });
+
+    job.descriptionLanguage = translation.sourceLanguage;
+    job.translatedDescriptionLanguage = translation.targetLanguage;
+    job.translationProvider = translation.provider;
+
+    if (translation.isTranslated) {
+      job.translatedDescription = translation.translatedText;
+      job.descriptionTranslatedAt = new Date();
+    } else {
+      job.translatedDescription = null;
+    }
+
+    await job.save();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        job,
+        translation: {
+          ...translation,
+          originalText: originalDescription,
+        },
       },
     });
   } catch (error) {

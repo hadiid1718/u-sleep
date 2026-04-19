@@ -11,6 +11,8 @@ const normalizePlatform = platform => {
   return normalized === 'freelancer' ? 'freelancer' : 'upwork';
 };
 
+const getDefaultProposalResponse = () => aiService.getDefaultProposalResponse();
+
 /**
  * Generate proposal for a job
  * Asynchronous operation - returns placeholder immediately
@@ -101,10 +103,11 @@ export const generateProposal = async (req, res, next) => {
     // Return immediately with message
     const workflow = isFreelancerJob
       ? freelancerWorkflowService.buildProposalWorkflowContext({
-          job: job.toObject(),
-          bidInput: req.body,
-        })
+        job: job.toObject(),
+        bidInput: req.body,
+      })
       : null;
+    const defaultResponse = getDefaultProposalResponse();
 
     res.status(200).json({
       success: true,
@@ -113,6 +116,7 @@ export const generateProposal = async (req, res, next) => {
         proposalId: proposal._id,
         status: 'generating',
         jobId,
+        defaultResponse,
         workflow,
       },
     });
@@ -131,29 +135,42 @@ async function generateProposalAsync(
   preferredAIService
 ) {
   try {
+    const defaultResponse = getDefaultProposalResponse();
     const generatedContent = await aiService.generateProposal({
       aiService: preferredAIService,
       job: job.toObject(),
       user: user.toObject(),
     });
+    const normalizedGenerated = String(generatedContent || '').trim();
+    const normalizedDefault = String(defaultResponse || '').trim();
+    const usedFallbackTemplate =
+      normalizedGenerated.length === 0 ||
+      normalizedGenerated === normalizedDefault;
 
     // Update proposal with generated content
     await Proposal.findByIdAndUpdate(proposalId, {
       $set: {
-        content: generatedContent,
-        aiModel:
-          preferredAIService === 'gemini' ? 'gemini-2.0-flash' : 'gpt-4-turbo',
+        content: usedFallbackTemplate ? defaultResponse : generatedContent,
+        aiModel: usedFallbackTemplate
+          ? 'fallback-template'
+          : preferredAIService === 'gemini'
+            ? 'gemini-2.0-flash'
+            : 'gpt-4-turbo',
         generatedAt: new Date(),
         contentType: 'original',
       },
     });
   } catch (error) {
     console.error('Proposal generation failed:', error);
-    // Update proposal status to show error
+    const defaultResponse = getDefaultProposalResponse();
+
+    // Persist default content as a reliable fallback
     await Proposal.findByIdAndUpdate(proposalId, {
       $set: {
-        status: 'draft',
-        content: `Error generating proposal: ${error.message}. Please try again.`,
+        content: defaultResponse,
+        aiModel: 'fallback-template',
+        generatedAt: new Date(),
+        contentType: 'original',
       },
     });
   }
@@ -185,9 +202,14 @@ export const getProposal = async (req, res, next) => {
       throw error;
     }
 
+    const defaultResponse = getDefaultProposalResponse();
+
     res.status(200).json({
       success: true,
-      data: proposal,
+      data: {
+        ...proposal.toObject(),
+        defaultResponse,
+      },
     });
   } catch (error) {
     next(error);
@@ -357,9 +379,9 @@ export const sendProposal = async (req, res, next) => {
         proposal,
         workflow: isFreelancerJob
           ? freelancerWorkflowService.buildProposalWorkflowContext({
-              job: proposalJob,
-              bidInput: { bidAmount, estimatedDuration, deliveryDate },
-            })
+            job: proposalJob,
+            bidInput: { bidAmount, estimatedDuration, deliveryDate },
+          })
           : null,
       },
     });
@@ -703,16 +725,16 @@ export const getTopTemplates = async (req, res, next) => {
 
     const matchStage = isAdmin
       ? {
-          status: {
-            $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
-          },
-        }
+        status: {
+          $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
+        },
+      }
       : {
-          userId: req.user?._id || req.user?.id,
-          status: {
-            $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
-          },
-        };
+        userId: req.user?._id || req.user?.id,
+        status: {
+          $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
+        },
+      };
 
     const results = await Proposal.aggregate([
       { $match: matchStage },
