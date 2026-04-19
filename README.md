@@ -63,7 +63,7 @@ job_finder_ai/
 │   │   ├── arcjet.js             # Arcjet security config
 │   │   └── env.js                # Environment variable exports
 │   ├── controller/
-│   │   ├── auth.controller.js    # Auth logic (User & Admin)
+│   │   ├── auth.controller.js    # User auth + OAuth logic
 │   │   ├── user.controller.js    # User CRUD + flag/unflag
 │   │   ├── demo.controller.js    # Demo scheduling (paginated)
 │   │   ├── job.controller.js     # Job listing & matching
@@ -76,7 +76,6 @@ job_finder_ai/
 │   │   └── arcject.middleware.js # Arcjet security middleware
 │   ├── models/
 │   │   ├── user.model.js         # User schema (prefs, stats, flagging)
-│   │   ├── admin.model.js        # Admin schema
 │   │   ├── demo.model.js         # Demo schema
 │   │   ├── job.model.js          # Job schema
 │   │   └── proposal.model.js     # Proposal schema
@@ -102,33 +101,11 @@ job_finder_ai/
     │   │   ├── HomePage.jsx
     │   │   ├── SignIn.jsx
     │   │   ├── SignUp.jsx
-    │   │   ├── AdminSignIn.jsx
     │   │   ├── Dashboard.jsx
-    │   │   ├── AdminDashboard.jsx
     │   │   ├── JobResultPage.jsx
     │   │   └── CountDown.jsx
     │   ├── components/
     │   │   ├── home/             # Landing page sections
-    │   │   ├── admin/
-    │   │   │   ├── Management/   # Admin management panels
-    │   │   │   │   ├── UserManagementSection.jsx
-    │   │   │   │   ├── DemoManagementSection.jsx
-    │   │   │   │   ├── AnalyticsSection.jsx
-    │   │   │   │   ├── ComplianceSection.jsx
-    │   │   │   │   ├── RevenueSection.jsx
-    │   │   │   │   ├── SettingsSection.jsx
-    │   │   │   │   ├── SystemHealthSection.jsx
-    │   │   │   │   └── MessageManagementSection.jsx
-    │   │   │   └── utils/        # Reusable admin components
-    │   │   │       ├── DataTable.jsx
-    │   │   │       ├── DemoCard.jsx
-    │   │   │       ├── DemoFilter.jsx
-    │   │   │       ├── DemoStatusform.jsx
-    │   │   │       ├── EmptyState.jsx
-    │   │   │       ├── LoadingState.jsx
-    │   │   │       ├── MatricCard.jsx
-    │   │   │       ├── Model.jsx
-    │   │   │       └── UserForm.jsx
     │   │   ├── jobs/             # Job listing & response components
     │   │   ├── user/             # User dashboard, settings, prompts
     │   │   ├── shared/           # Navbar, Footer, LoadingScreen
@@ -163,8 +140,6 @@ FRONTEND_URL=http://localhost:5173
 DB_URI=mongodb://localhost:27017/job_finder_ai
 JWT_SECRET=your_jwt_secret_key_here
 JWT_EXPIRES_IN=7d
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=admin123
 
 # Security
 ARCJET_KEY=your_arcjet_key
@@ -245,8 +220,6 @@ Frontend runs on `http://localhost:5173`
 | POST | `/sign-up` | Register new user | No |
 | POST | `/sign-in` | Sign in user | No |
 | POST | `/sign-out` | Sign out user | No |
-| POST | `/admin/login` | Admin login | No |
-| GET | `/admin/profile` | Get admin profile | Yes |
 | GET | `/freelancer/connect` | Start Freelancer OAuth flow | Optional |
 | GET | `/freelancer/callback` | Freelancer OAuth callback | No |
 
@@ -283,15 +256,9 @@ Frontend runs on `http://localhost:5173`
 ### Proposal Routes (`/api/v1/proposals`)
 - AI-powered proposal generation and management
 
-## Default Admin Credentials
-
-Created on startup from environment variables:
-- **Username**: value of `ADMIN_USERNAME` (default: `admin`)
-- **Password**: value of `ADMIN_PASSWORD` (default: `admin123`)
-
 ## Authentication Flow
 
-1. User/Admin submits credentials
+1. User submits credentials
 2. Backend validates and generates JWT token
 3. Token stored in `localStorage` as `token`
 4. Token sent as `Bearer {token}` in `Authorization` header
@@ -299,9 +266,8 @@ Created on startup from environment variables:
 
 **Token payload:**
 - Users: `{ userId, ... }`
-- Admins: `{ adminId, role, ... }`
 
-## Frontend API Services (`src/utils/api.js`)
+## Frontend API Services (`src/services`)
 
 All API calls go through a centralized `apiRequest` wrapper that handles auth headers, error responses, and token management.
 
@@ -310,8 +276,6 @@ All API calls go through a centralized `apiRequest` wrapper that handles auth he
 authAPI.signUp(name, email, password)
 authAPI.signIn(email, password)
 authAPI.signOut()
-authAPI.adminLogin(username, password)
-authAPI.getAdminProfile()
 
 // Demos
 demoAPI.getAvailableDates()
@@ -344,14 +308,12 @@ setToken(token) / clearToken() / getToken()
 | `/` | Home page |
 | `/user/sign-in` | User sign in |
 | `/user/sign-up` | User sign up |
-| `/admin/sign-in` | Admin sign in |
 | `/demo-scheduling` | Demo scheduling |
 
 ### Protected
 | Path | Page |
 |------|------|
 | `/user/dashboard` | User dashboard |
-| `/admin/dashboard` | Admin dashboard |
 | `/job-result` | Job results |
 
 ## Running the Application
