@@ -4,6 +4,7 @@ import User from '../models/user.model.js';
 import UsageRecord from '../models/usageRecord.model.js';
 import aiService from '../services/ai.service.js';
 import freelancerWorkflowService from '../services/freelancerWorkflow.service.js';
+import notificationService from '../services/notification.service.js';
 import { toMonthKey } from '../utils/subscriptionPlans.js';
 
 const normalizePlatform = platform => {
@@ -78,7 +79,7 @@ export const generateProposal = async (req, res, next) => {
         (job?.source?.includes('freelancer') ? 'freelancer' : 'upwork')
     );
 
-    await UsageRecord.findOneAndUpdate(
+    const usageRecord = await UsageRecord.findOneAndUpdate(
       { userId, month: usageMonth },
       {
         $inc: { aiProposalsUsed: 1 },
@@ -95,6 +96,12 @@ export const generateProposal = async (req, res, next) => {
       }
     );
 
+    await notificationService.notifyUsageThresholdIfNeeded({
+      userId,
+      month: usageRecord?.month || usageMonth,
+      featureName: 'monthly proposals',
+    });
+
     // Generate proposal asynchronously (non-blocking)
     generateProposalAsync(proposal._id, job, user, preferredAIService).catch(
       error => console.error('Background proposal generation error:', error)
@@ -103,9 +110,9 @@ export const generateProposal = async (req, res, next) => {
     // Return immediately with message
     const workflow = isFreelancerJob
       ? freelancerWorkflowService.buildProposalWorkflowContext({
-        job: job.toObject(),
-        bidInput: req.body,
-      })
+          job: job.toObject(),
+          bidInput: req.body,
+        })
       : null;
     const defaultResponse = getDefaultProposalResponse();
 
@@ -372,6 +379,12 @@ export const sendProposal = async (req, res, next) => {
       }
     );
 
+    await notificationService.notifyProposalSent({
+      userId,
+      proposal,
+      job: proposalJob,
+    });
+
     res.status(200).json({
       success: true,
       message: 'Proposal sent successfully',
@@ -379,9 +392,9 @@ export const sendProposal = async (req, res, next) => {
         proposal,
         workflow: isFreelancerJob
           ? freelancerWorkflowService.buildProposalWorkflowContext({
-            job: proposalJob,
-            bidInput: { bidAmount, estimatedDuration, deliveryDate },
-          })
+              job: proposalJob,
+              bidInput: { bidAmount, estimatedDuration, deliveryDate },
+            })
           : null,
       },
     });
@@ -452,6 +465,31 @@ export const updateProposalStatus = async (req, res, next) => {
     }
 
     await proposal.save();
+
+    if (status === 'sent') {
+      const relatedJob = await Job.findById(proposal.jobId)
+        .select('title source')
+        .lean();
+
+      await notificationService.notifyProposalSent({
+        userId,
+        proposal,
+        job: relatedJob,
+      });
+    }
+
+    if (status === 'rejected') {
+      const relatedJob = await Job.findById(proposal.jobId)
+        .select('title source')
+        .lean();
+
+      await notificationService.notifyProposalRejected({
+        userId,
+        proposal,
+        job: relatedJob,
+        reason: notes,
+      });
+    }
 
     if (Object.keys(statUpdates).length > 0) {
       await User.findByIdAndUpdate(userId, { $inc: statUpdates });
@@ -725,16 +763,16 @@ export const getTopTemplates = async (req, res, next) => {
 
     const matchStage = isAdmin
       ? {
-        status: {
-          $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
-        },
-      }
+          status: {
+            $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
+          },
+        }
       : {
-        userId: req.user?._id || req.user?.id,
-        status: {
-          $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
-        },
-      };
+          userId: req.user?._id || req.user?.id,
+          status: {
+            $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
+          },
+        };
 
     const results = await Proposal.aggregate([
       { $match: matchStage },

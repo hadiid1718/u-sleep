@@ -1,9 +1,11 @@
 import Job from '../models/job.model.js';
 import User from '../models/user.model.js';
+import mongoose from 'mongoose';
 import upworkService from '../services/upwork.service.js';
 import freelancerService from '../services/freelancer.service.js';
 import freelancerWorkflowService from '../services/freelancerWorkflow.service.js';
 import aiService from '../services/ai.service.js';
+import notificationService from '../services/notification.service.js';
 
 const MAX_AUTO_TRANSLATED_DESCRIPTIONS = 10;
 
@@ -90,6 +92,38 @@ const buildPlatformPreferences = (payload, user) => {
 const getPlatformService = selectedPlatform => {
   const platform = String(selectedPlatform || 'upwork').toLowerCase();
   return platform === 'freelancer' ? freelancerService : upworkService;
+};
+
+const buildJobLookupQuery = jobIdentifier => {
+  const normalizedIdentifier = String(jobIdentifier || '').trim();
+  if (!normalizedIdentifier) return null;
+
+  const orConditions = [
+    { upworkJobId: normalizedIdentifier },
+    { sourceJobId: normalizedIdentifier },
+  ];
+
+  if (mongoose.Types.ObjectId.isValid(normalizedIdentifier)) {
+    orConditions.unshift({ _id: normalizedIdentifier });
+  }
+
+  return { $or: orConditions };
+};
+
+const buildScopedJobLookupQuery = (jobIdentifier, userId) => {
+  const baseLookup = buildJobLookupQuery(jobIdentifier);
+  if (!baseLookup) return null;
+
+  if (!userId) return baseLookup;
+
+  return {
+    $and: [
+      baseLookup,
+      {
+        $or: [{ userId }, { userId: null }, { userId: { $exists: false } }],
+      },
+    ],
+  };
 };
 
 const buildFreelancerWorkflow = ({
@@ -226,7 +260,9 @@ const maybeAutoTranslateFreelancerDescriptions = async (
     return { jobs, summary: null };
   }
 
-  const targetLanguage = normalizeSelectedLanguage(preferences?.selectedLanguage);
+  const targetLanguage = normalizeSelectedLanguage(
+    preferences?.selectedLanguage
+  );
   if (!targetLanguage || !preferences?.autoTranslateDescription) {
     return { jobs, summary: null };
   }
@@ -386,7 +422,9 @@ export const getFilteredJobs = async (req, res, next) => {
 
     const skip = (page - 1) * limit;
 
-    const normalizedStatus = String(status || 'all').trim().toLowerCase();
+    const normalizedStatus = String(status || 'all')
+      .trim()
+      .toLowerCase();
     const query = {
       userId,
       isActive: true,
@@ -441,18 +479,18 @@ export const getJobDetail = async (req, res, next) => {
     const userId =
       req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
-    const job = await Job.findById(jobId);
+    const lookupQuery = buildScopedJobLookupQuery(jobId, userId);
+    if (!lookupQuery) {
+      const error = new Error('Job ID is required');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const job = await Job.findOne(lookupQuery);
 
     if (!job) {
       const error = new Error('Job not found');
       error.statusCode = 404;
-      throw error;
-    }
-
-    // Verify user owns this job view
-    if (job.userId && job.userId.toString() !== userId) {
-      const error = new Error('Unauthorized');
-      error.statusCode = 403;
       throw error;
     }
 
@@ -474,8 +512,15 @@ export const markJobAsMatched = async (req, res, next) => {
     const userId =
       req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
-    const job = await Job.findByIdAndUpdate(
-      jobId,
+    const lookupQuery = buildScopedJobLookupQuery(jobId, userId);
+    if (!lookupQuery) {
+      const error = new Error('Job ID is required');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const job = await Job.findOneAndUpdate(
+      lookupQuery,
       {
         $set: {
           matchStatus: 'matched',
@@ -516,8 +561,15 @@ export const markJobAsRejected = async (req, res, next) => {
     const userId =
       req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
-    const job = await Job.findByIdAndUpdate(
-      jobId,
+    const lookupQuery = buildScopedJobLookupQuery(jobId, userId);
+    if (!lookupQuery) {
+      const error = new Error('Job ID is required');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const job = await Job.findOneAndUpdate(
+      lookupQuery,
       {
         $set: {
           matchStatus: 'rejected',
@@ -654,6 +706,13 @@ export const searchJobsWithAIAnalysis = async (req, res, next) => {
       userId
     );
 
+    await notificationService.notifyNewJobMatches({
+      userId,
+      user,
+      jobs: jobsWithScores,
+      maxNotifications: 6,
+    });
+
     // Update user stats
     await User.findByIdAndUpdate(userId, {
       $inc: { 'stats.jobsViewed': jobsWithScores.length },
@@ -776,22 +835,25 @@ export const translateJobDescription = async (req, res, next) => {
       throw error;
     }
 
-    const job = await Job.findById(jobId);
+    const lookupQuery = buildScopedJobLookupQuery(jobId, userId);
+    if (!lookupQuery) {
+      const error = new Error('Job ID is required');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const job = await Job.findOne(lookupQuery);
     if (!job) {
       const error = new Error('Job not found');
       error.statusCode = 404;
       throw error;
     }
 
-    if (job.userId && job.userId.toString() !== userId) {
-      const error = new Error('Unauthorized');
-      error.statusCode = 403;
-      throw error;
-    }
-
     const originalDescription = String(job.description || '').trim();
     if (!originalDescription) {
-      const error = new Error('Job description is empty and cannot be translated');
+      const error = new Error(
+        'Job description is empty and cannot be translated'
+      );
       error.statusCode = 400;
       throw error;
     }

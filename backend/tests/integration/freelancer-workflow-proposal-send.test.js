@@ -130,7 +130,10 @@ test('GET /api/v1/jobs/freelancer/workflow returns search workflow guidance', as
   assert.equal(response.body.data.platform, 'freelancer');
   assert.equal(response.body.data.workflowType, 'job-discovery');
   assert.equal(response.body.data.searchContext.rateType, 'hourly');
-  assert.deepEqual(response.body.data.searchContext.keywords, ['react', 'node']);
+  assert.deepEqual(response.body.data.searchContext.keywords, [
+    'react',
+    'node',
+  ]);
   assert.ok(Array.isArray(response.body.data.steps));
   assert.ok(response.body.data.steps.length >= 4);
 });

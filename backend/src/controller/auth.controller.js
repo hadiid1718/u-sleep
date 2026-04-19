@@ -22,6 +22,9 @@ import {
   FREELANCER_OAUTH_SCOPE,
   FREELANCER_OAUTH_ADVANCED_SCOPES,
   FREELANCER_OAUTH_PROMPT,
+  ADMIN_EMAIL,
+  ADMIN_PASSWORD,
+  ADMIN_JWT_EXPIRES_IN,
 } from '../config/env.js';
 
 const GOOGLE_OAUTH_AUTHORIZE_URL =
@@ -35,6 +38,25 @@ const createUserToken = userId =>
   jwt.sign({ userId }, JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN,
   });
+
+const normalizeEmail = email => String(email || '').trim().toLowerCase();
+const ADMIN_EMAIL_NORMALIZED = normalizeEmail(ADMIN_EMAIL);
+
+const isAdminEmail = email =>
+  Boolean(ADMIN_EMAIL_NORMALIZED) &&
+  normalizeEmail(email) === ADMIN_EMAIL_NORMALIZED;
+
+const createAdminToken = () =>
+  jwt.sign(
+    {
+      role: 'admin',
+      email: ADMIN_EMAIL_NORMALIZED,
+    },
+    JWT_SECRET,
+    {
+      expiresIn: ADMIN_JWT_EXPIRES_IN || JWT_EXPIRES_IN,
+    }
+  );
 
 const sanitizeUser = user => ({
   _id: user._id,
@@ -121,6 +143,11 @@ export const signUp = async (req, res, next) => {
   try {
     //Logic to create a new User
     const { name, email, password } = req.body;
+    if (isAdminEmail(email)) {
+      const error = new Error('Admin email cannot be used for user sign up');
+      error.statusCode = 403;
+      throw error;
+    }
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       const error = new Error(
@@ -173,6 +200,11 @@ export const signUp = async (req, res, next) => {
 export const signIn = async (req, res, next) => {
   try {
     const { email, password } = req.body;
+    if (isAdminEmail(email)) {
+      const error = new Error('Admin account must sign in from the admin portal');
+      error.statusCode = 403;
+      throw error;
+    }
     const user = await User.findOne({ email });
     if (!user) {
       const error = new Error('No user exist with this email');
@@ -218,6 +250,66 @@ export const signOut = async (req, res, next) => {
       success: true,
       message: 'User signed out successfully',
     }); // Invalidate the token on the client side by clearing it from storage
+  } catch (error) {
+    next(error);
+  }
+};
+
+//----------------------- Admin Auth ----------------------//
+
+export const adminSignIn = async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+      const error = new Error('Admin credentials are not configured');
+      error.statusCode = 500;
+      throw error;
+    }
+
+    if (!email || !password) {
+      const error = new Error('Email and password are required');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (!isAdminEmail(email)) {
+      const error = new Error('Invalid admin credentials');
+      error.statusCode = 401;
+      throw error;
+    }
+
+    const normalizedPassword = String(password);
+    let passwordMatches = false;
+
+    if (String(ADMIN_PASSWORD).startsWith('$2')) {
+      passwordMatches = await bcrypt.compare(
+        normalizedPassword,
+        String(ADMIN_PASSWORD)
+      );
+    } else {
+      passwordMatches = normalizedPassword === String(ADMIN_PASSWORD);
+    }
+
+    if (!passwordMatches) {
+      const error = new Error('Invalid admin credentials');
+      error.statusCode = 401;
+      throw error;
+    }
+
+    const token = createAdminToken();
+
+    res.status(200).json({
+      success: true,
+      message: 'Admin signed in successfully',
+      data: {
+        token,
+        admin: {
+          email: ADMIN_EMAIL_NORMALIZED,
+          role: 'admin',
+        },
+      },
+    });
   } catch (error) {
     next(error);
   }

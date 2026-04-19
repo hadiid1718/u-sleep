@@ -44,6 +44,26 @@ const userSchema = new mongoose.Schema(
       default: '',
     },
 
+    notificationPreferences: {
+      emailEnabled: {
+        type: Boolean,
+        default: true,
+      },
+      inAppEnabled: {
+        type: Boolean,
+        default: true,
+      },
+      emailFrequency: {
+        type: String,
+        enum: ['instant', 'daily', 'weekly'],
+        default: 'instant',
+      },
+      instantHighPriorityOnly: {
+        type: Boolean,
+        default: false,
+      },
+    },
+
     // Job Matching Preferences
     jobPreferences: {
       keywords: {
@@ -144,6 +164,25 @@ const userSchema = new mongoose.Schema(
     flaggedAt: {
       type: Date,
       default: null,
+    },
+    accountStatus: {
+      type: String,
+      enum: ['active', 'suspended', 'blocked'],
+      default: 'active',
+    },
+    statusReason: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    statusUpdatedAt: {
+      type: Date,
+      default: null,
+    },
+    violationCount: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
 
     // Subscription

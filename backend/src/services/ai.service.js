@@ -304,7 +304,12 @@ ${text}
       throw new Error('Translation response is not valid JSON');
     }
 
-    return this.normalizeTranslationResult(parsed, sourceText, target, provider);
+    return this.normalizeTranslationResult(
+      parsed,
+      sourceText,
+      target,
+      provider
+    );
   }
 
   /**

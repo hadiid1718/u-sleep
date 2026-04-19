@@ -198,8 +198,8 @@ class FreelancerService {
       category: rawJob?.type || rawJob?.project_type || null,
       skills: Array.isArray(rawJob?.jobs)
         ? rawJob.jobs
-          .map(j => this.normalizeText(j?.name || j?.seo_url || j))
-          .filter(Boolean)
+            .map(j => this.normalizeText(j?.name || j?.seo_url || j))
+            .filter(Boolean)
         : [],
       proposalsCount: Number(
         rawJob?.bid_stats?.bid_count || rawJob?.bid_count || 0
@@ -215,10 +215,10 @@ class FreelancerService {
       },
       hourlyRate: hasHourly
         ? {
-          min: Number(minHourly || maxHourly || 0),
-          max: Number(maxHourly || minHourly || 0),
-          currency: rawJob?.currency?.code || 'USD',
-        }
+            min: Number(minHourly || maxHourly || 0),
+            max: Number(maxHourly || minHourly || 0),
+            currency: rawJob?.currency?.code || 'USD',
+          }
         : null,
       clientInfo: {
         name: owner?.username || owner?.display_name || null,
@@ -404,7 +404,9 @@ class FreelancerService {
     const value = this.normalizeText(text).toLowerCase();
     if (!value) return false;
 
-    const hasNonLatin = /[^\x00-\x7F]/.test(value);
+    const hasNonLatin = Array.from(value).some(
+      char => (char.codePointAt(0) || 0) > 127
+    );
     const englishHints =
       /\b(the|and|for|with|you|your|job|project|need|looking|required|experience|developer|design|build)\b/.test(
         value
@@ -444,13 +446,17 @@ class FreelancerService {
     }
 
     if (lowerCriteria.includes('tutoring')) {
-      if (/\b(tutor|tutoring|lesson|teach|teaching|coach|mentoring)\b/.test(text)) {
+      if (
+        /\b(tutor|tutoring|lesson|teach|teaching|coach|mentoring)\b/.test(text)
+      ) {
         return true;
       }
     }
 
     if (lowerCriteria.includes('urgent task')) {
-      if (/\b(urgent|asap|immediately|right away|today|within hours)\b/.test(text)) {
+      if (
+        /\b(urgent|asap|immediately|right away|today|within hours)\b/.test(text)
+      ) {
         return true;
       }
     }
@@ -504,10 +510,7 @@ class FreelancerService {
       return true;
     }
 
-    if (
-      lowerCriteria.includes('low rating') &&
-      rating < 4.5
-    ) {
+    if (lowerCriteria.includes('low rating') && rating < 4.5) {
       return true;
     }
 

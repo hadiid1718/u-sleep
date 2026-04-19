@@ -17,6 +17,7 @@ import {
   toMonthKey,
   isUnlimitedPlan,
 } from '../utils/subscriptionPlans.js';
+import notificationService from '../services/notification.service.js';
 
 const getAuthUserId = req =>
   String(
@@ -400,6 +401,8 @@ const handleCheckoutSessionCompleted = async event => {
   );
   if (!userId) return;
 
+  const existingSubscription = await Subscription.findOne({ userId }).lean();
+
   const stripeSubscription = await stripe.subscriptions.retrieve(
     session.subscription
   );
@@ -416,6 +419,20 @@ const handleCheckoutSessionCompleted = async event => {
     currentPeriodEnd: toDateFromUnix(stripeSubscription.current_period_end),
     cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
   });
+
+  if (!existingSubscription || existingSubscription.plan !== planId) {
+    await notificationService.notifyBillingPlanChange({
+      userId,
+      oldPlan: existingSubscription?.plan
+        ? getPlanConfig(existingSubscription.plan)?.name ||
+          existingSubscription.plan
+        : 'No Plan',
+      newPlan: getPlanConfig(planId)?.name || planId,
+      effectiveDate: new Date(),
+      proratedAmount: Number(session.amount_total || 0) / 100,
+      currency: String(session.currency || 'usd').toUpperCase(),
+    });
+  }
 };
 
 const handleCustomerSubscriptionUpdated = async event => {
@@ -433,6 +450,8 @@ const handleCustomerSubscriptionUpdated = async event => {
 
   if (!existing) return;
 
+  const previousPlan = existing.plan;
+
   await upsertSubscriptionForUser({
     userId: existing.userId,
     stripeCustomerId: stripeSubscription.customer,
@@ -442,6 +461,18 @@ const handleCustomerSubscriptionUpdated = async event => {
     currentPeriodEnd: toDateFromUnix(stripeSubscription.current_period_end),
     cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
   });
+
+  if (previousPlan !== planId) {
+    await notificationService.notifyBillingPlanChange({
+      userId: existing.userId,
+      oldPlan: getPlanConfig(previousPlan)?.name || previousPlan,
+      newPlan: getPlanConfig(planId)?.name || planId,
+      effectiveDate: new Date(),
+      currency: String(
+        stripeSubscription?.items?.data?.[0]?.price?.currency || 'usd'
+      ).toUpperCase(),
+    });
+  }
 };
 
 const handleCustomerSubscriptionDeleted = async event => {
@@ -466,14 +497,28 @@ const handleInvoicePaymentFailed = async event => {
 
   if (!stripeSubscriptionId) return;
 
-  await Subscription.findOneAndUpdate(
+  const subscription = await Subscription.findOneAndUpdate(
     { stripeSubscriptionId },
     {
       $set: {
         status: 'past_due',
       },
-    }
+    },
+    { new: true }
   );
+
+  if (!subscription) return;
+
+  await notificationService.notifyBillingPaymentFailed({
+    userId: subscription.userId,
+    plan: getPlanConfig(subscription.plan)?.name || subscription.plan,
+    amount: Number(invoice.amount_due || 0) / 100,
+    currency: String(invoice.currency || 'usd').toUpperCase(),
+    reason:
+      invoice?.last_finalization_error?.message ||
+      'Payment could not be processed',
+    dueDate: toDateFromUnix(invoice.next_payment_attempt),
+  });
 };
 
 const monthFromInvoice = invoice => {
@@ -516,6 +561,15 @@ const handleInvoicePaymentSucceeded = async event => {
       setDefaultsOnInsert: true,
     }
   );
+
+  await notificationService.notifyBillingPaymentSuccess({
+    userId: subscription.userId,
+    plan: getPlanConfig(subscription.plan)?.name || subscription.plan,
+    amount: Number(invoice.amount_paid || 0) / 100,
+    currency: String(invoice.currency || 'usd').toUpperCase(),
+    billingPeriod: month,
+    invoiceUrl: invoice.hosted_invoice_url || null,
+  });
 };
 
 export const handleStripeWebhook = async (req, res) => {

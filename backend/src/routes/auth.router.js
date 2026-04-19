@@ -9,6 +9,7 @@ import {
   handleUpworkOAuthCallback,
   startFreelancerOAuth,
   handleFreelancerOAuthCallback,
+  adminSignIn,
 } from '../controller/auth.controller.js';
 import authorize from '../middleware/auth.middleware.js';
 
@@ -18,6 +19,7 @@ const authRouter = Router();
 authRouter.post('/sign-up', signUp);
 authRouter.post('/sign-in', signIn);
 authRouter.post('/sign-out', signOut);
+authRouter.post('/admin/sign-in', adminSignIn);
 authRouter.get('/google', startGoogleOAuth);
 authRouter.get('/google/callback', handleGoogleOAuthCallback);
 

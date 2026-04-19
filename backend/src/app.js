@@ -15,10 +15,12 @@ import comparisonRouter from './routes/comparison.router.js';
 import reviewVideoRouter from './routes/reviewVideo.router.js';
 import billingRouter from './routes/billing.router.js';
 import webhookRouter from './routes/webhook.router.js';
-import { subscriptionWorkflow } from './workflows/subscription.workflow.js';
+import notificationRouter from './routes/notification.router.js';
+import adminRouter from './routes/admin.router.js';
 import cookieParser from 'cookie-parser';
 import errorMiddleware from './middleware/error.middleware.js';
 import arcjetMiddleware from './middleware/arcject.middleware.js';
+import metricsMiddleware from './middleware/metrics.middleware.js';
 
 const app = express();
 
@@ -44,6 +46,7 @@ app.use(cookieParser());
 app.use('/webhooks', webhookRouter);
 app.use(arcjetMiddleware);
 app.use(helmet());
+app.use(metricsMiddleware);
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/users', userRouter);
@@ -54,9 +57,8 @@ app.use('/api/v1/products', productRouter);
 app.use('/api/v1/comparisons', comparisonRouter);
 app.use('/api/v1/review-video', reviewVideoRouter);
 app.use('/api/v1/billing', billingRouter);
-
-// Upstash Workflow endpoint – subscription expiry reminders
-app.use('/api/v1/workflows/subscription', subscriptionWorkflow);
+app.use('/api/v1/notifications', notificationRouter);
+app.use('/api/v1/admin', adminRouter);
 
 app.use(errorMiddleware);
 

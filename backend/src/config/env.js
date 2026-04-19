@@ -19,6 +19,9 @@ export const {
   DB_URI,
   JWT_SECRET,
   JWT_EXPIRES_IN,
+  ADMIN_EMAIL,
+  ADMIN_PASSWORD,
+  ADMIN_JWT_EXPIRES_IN,
   ARCJET_KEY,
   ARCJET_ENV,
 
@@ -51,13 +54,6 @@ export const {
   STRIPE_PRO_PRICE_ID,
   STRIPE_AGENCY_PRICE_ID,
   CLIENT_URL,
-
-  // Upstash
-  QSTASH_URL,
-  QSTASH_TOKEN,
-
-  // App URL (for workflow triggers)
-  APP_URL,
 
   // Nodemailer (SMTP)
   EMAIL_HOST,

@@ -240,6 +240,101 @@ class UpworkService {
       .filter(Boolean);
   }
 
+  extractSkills(rawJob) {
+    const candidates = [];
+
+    const skillSources = [
+      rawJob?.skills,
+      rawJob?.skillNames,
+      rawJob?.skill_names,
+      rawJob?.ontologySkills,
+      rawJob?.tags,
+      rawJob?.technologies,
+      rawJob?.attributes?.skills,
+      rawJob?.attributes?.requiredSkills,
+      rawJob?.requirements?.skills,
+      rawJob?.requiredSkills,
+      rawJob?.skillsRequired,
+    ];
+
+    for (const source of skillSources) {
+      if (Array.isArray(source)) {
+        candidates.push(...this.normalizeSkillList(source));
+        continue;
+      }
+
+      if (typeof source === 'string') {
+        candidates.push(
+          ...source
+            .split(/,|\||;/)
+            .map(skill => this.normalizeText(skill))
+            .filter(Boolean)
+        );
+      }
+    }
+
+    const unique = [];
+    const seen = new Set();
+
+    for (const skill of candidates) {
+      const key = skill.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      unique.push(skill);
+    }
+
+    if (unique.length > 0) {
+      return unique;
+    }
+
+    const textSources = [
+      rawJob?.description,
+      rawJob?.snippet,
+      rawJob?.summary,
+      rawJob?.jobDescription,
+      rawJob?.job_description,
+    ];
+
+    for (const text of textSources) {
+      const extracted = this.extractSkillsFromText(text);
+      if (extracted.length > 0) {
+        return extracted;
+      }
+    }
+
+    return [];
+  }
+
+  extractSkillsFromText(text) {
+    if (typeof text !== 'string' || !text.trim()) return [];
+
+    const candidates = [];
+    const linePattern =
+      /(?:required\s*skills?|skills\s*required|tech\s*stack|requirements?)\s*:\s*([^\n]+)/gi;
+
+    for (const match of text.matchAll(linePattern)) {
+      const line = match[1] || '';
+      candidates.push(
+        ...line
+          .split(/,|\||\/|;|•/)
+          .map(value => this.normalizeText(value))
+          .filter(Boolean)
+      );
+    }
+
+    const unique = [];
+    const seen = new Set();
+
+    for (const skill of candidates) {
+      const key = skill.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      unique.push(skill);
+    }
+
+    return unique.slice(0, 12);
+  }
+
   toInternalJob(rawJob, idx) {
     const title =
       rawJob?.title ||
@@ -317,7 +412,7 @@ class UpworkService {
         this.normalizeText(description) || 'No description available.',
       shortDescription: this.normalizeText(description || '').substring(0, 200),
       category: rawJob?.category || rawJob?.categoryName || null,
-      skills: this.normalizeSkillList(rawJob?.skills || rawJob?.skillNames),
+      skills: this.extractSkills(rawJob),
       proposalsCount: Number.isFinite(proposalCount) ? proposalCount : 0,
       duration: rawJob?.duration || rawJob?.jobDuration || null,
       workloadHoursPerWeek:
@@ -552,7 +647,9 @@ class UpworkService {
     const value = this.normalizeText(text).toLowerCase();
     if (!value) return false;
 
-    const hasNonLatin = /[^\x00-\x7F]/.test(value);
+    const hasNonLatin = Array.from(value).some(
+      char => (char.codePointAt(0) || 0) > 127
+    );
     const englishHints =
       /\b(the|and|for|with|you|your|job|project|need|looking|required|experience|developer|design|build)\b/.test(
         value
@@ -592,13 +689,17 @@ class UpworkService {
     }
 
     if (lowerCriteria.includes('tutoring')) {
-      if (/\b(tutor|tutoring|lesson|teach|teaching|coach|mentoring)\b/.test(text)) {
+      if (
+        /\b(tutor|tutoring|lesson|teach|teaching|coach|mentoring)\b/.test(text)
+      ) {
         return true;
       }
     }
 
     if (lowerCriteria.includes('urgent task')) {
-      if (/\b(urgent|asap|immediately|right away|today|within hours)\b/.test(text)) {
+      if (
+        /\b(urgent|asap|immediately|right away|today|within hours)\b/.test(text)
+      ) {
         return true;
       }
     }
@@ -645,7 +746,10 @@ class UpworkService {
       }
     }
 
-    if (lowerCriteria.includes('low budget') && (job.budget?.amount || 0) < 500) {
+    if (
+      lowerCriteria.includes('low budget') &&
+      (job.budget?.amount || 0) < 500
+    ) {
       return true;
     }
     if (
@@ -711,12 +815,20 @@ class UpworkService {
       if (this.cacheEnabled) {
         cachedJobs = await this.getCachedJobs(preferences, filters);
         if (cachedJobs.length > 0) {
-          diagnostics.cache.hit = true;
-          diagnostics.source = 'cache';
-          return {
-            jobs: cachedJobs,
-            diagnostics,
-          };
+          const cacheHasSkillData = cachedJobs.some(
+            job => Array.isArray(job?.skills) && job.skills.length > 0
+          );
+
+          if (cacheHasSkillData) {
+            diagnostics.cache.hit = true;
+            diagnostics.source = 'cache';
+            return {
+              jobs: cachedJobs,
+              diagnostics,
+            };
+          }
+
+          diagnostics.cache.staleReason = 'missing_skills';
         }
       }
 

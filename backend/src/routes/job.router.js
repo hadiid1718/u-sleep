@@ -55,7 +55,11 @@ jobRouter.get('/:jobId', authorize, getJobDetail);
  * POST /api/v1/jobs/:jobId/translate-description
  * Translate job description to selected language
  */
-jobRouter.post('/:jobId/translate-description', authorize, translateJobDescription);
+jobRouter.post(
+  '/:jobId/translate-description',
+  authorize,
+  translateJobDescription
+);
 
 /**
  * PUT /api/v1/jobs/:jobId/match
