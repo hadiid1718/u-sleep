@@ -2,6 +2,7 @@ import Proposal from '../models/proposal.model.js';
 import Job from '../models/job.model.js';
 import User from '../models/user.model.js';
 import UsageRecord from '../models/usageRecord.model.js';
+import mongoose from 'mongoose';
 import aiService from '../services/ai.service.js';
 import freelancerWorkflowService from '../services/freelancerWorkflow.service.js';
 import notificationService from '../services/notification.service.js';
@@ -14,13 +15,39 @@ const normalizePlatform = platform => {
 
 const getDefaultProposalResponse = () => aiService.getDefaultProposalResponse();
 
+const buildJobLookupQuery = (jobIdentifier, userId) => {
+  const normalizedIdentifier = String(jobIdentifier || '').trim();
+  if (!normalizedIdentifier) return null;
+
+  const orConditions = [
+    { upworkJobId: normalizedIdentifier },
+    { sourceJobId: normalizedIdentifier },
+  ];
+
+  if (mongoose.Types.ObjectId.isValid(normalizedIdentifier)) {
+    orConditions.unshift({ _id: normalizedIdentifier });
+  }
+
+  const lookup = { $or: orConditions };
+  if (!userId) return lookup;
+
+  return {
+    $and: [
+      lookup,
+      {
+        $or: [{ userId }, { userId: null }, { userId: { $exists: false } }],
+      },
+    ],
+  };
+};
+
 /**
  * Generate proposal for a job
  * Asynchronous operation - returns placeholder immediately
  */
 export const generateProposal = async (req, res, next) => {
   try {
-    const { jobId } = req.params;
+    const { jobId: jobIdentifier } = req.params;
     const { aiService: preferredAIService = 'openai' } = req.body;
     const userId =
       req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
@@ -32,7 +59,14 @@ export const generateProposal = async (req, res, next) => {
     }
 
     // Get job
-    const job = await Job.findById(jobId);
+    const lookupQuery = buildJobLookupQuery(jobIdentifier, userId);
+    if (!lookupQuery) {
+      const error = new Error('Job ID is required');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const job = await Job.findOne(lookupQuery);
     if (!job) {
       const error = new Error('Job not found');
       error.statusCode = 404;
@@ -54,8 +88,10 @@ export const generateProposal = async (req, res, next) => {
       throw error;
     }
 
+    const jobObjectId = job._id;
+
     // Check if proposal already exists
-    let proposal = await Proposal.findOne({ jobId, userId });
+    let proposal = await Proposal.findOne({ jobId: jobObjectId, userId });
 
     const isFreelancerJob = String(job?.source || '').includes('freelancer');
 
@@ -63,7 +99,7 @@ export const generateProposal = async (req, res, next) => {
       // Create draft proposal
       proposal = await Proposal.create({
         userId,
-        jobId,
+        jobId: jobObjectId,
         upworkJobId: job.upworkJobId,
         content: '',
         status: 'draft',
@@ -110,9 +146,9 @@ export const generateProposal = async (req, res, next) => {
     // Return immediately with message
     const workflow = isFreelancerJob
       ? freelancerWorkflowService.buildProposalWorkflowContext({
-          job: job.toObject(),
-          bidInput: req.body,
-        })
+        job: job.toObject(),
+        bidInput: req.body,
+      })
       : null;
     const defaultResponse = getDefaultProposalResponse();
 
@@ -122,7 +158,7 @@ export const generateProposal = async (req, res, next) => {
       data: {
         proposalId: proposal._id,
         status: 'generating',
-        jobId,
+        jobId: jobObjectId,
         defaultResponse,
         workflow,
       },
@@ -392,9 +428,9 @@ export const sendProposal = async (req, res, next) => {
         proposal,
         workflow: isFreelancerJob
           ? freelancerWorkflowService.buildProposalWorkflowContext({
-              job: proposalJob,
-              bidInput: { bidAmount, estimatedDuration, deliveryDate },
-            })
+            job: proposalJob,
+            bidInput: { bidAmount, estimatedDuration, deliveryDate },
+          })
           : null,
       },
     });
@@ -763,16 +799,16 @@ export const getTopTemplates = async (req, res, next) => {
 
     const matchStage = isAdmin
       ? {
-          status: {
-            $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
-          },
-        }
+        status: {
+          $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
+        },
+      }
       : {
-          userId: req.user?._id || req.user?.id,
-          status: {
-            $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
-          },
-        };
+        userId: req.user?._id || req.user?.id,
+        status: {
+          $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
+        },
+      };
 
     const results = await Proposal.aggregate([
       { $match: matchStage },

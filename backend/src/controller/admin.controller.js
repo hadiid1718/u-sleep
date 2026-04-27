@@ -21,7 +21,7 @@ const sanitizeUser = user => ({
 });
 
 const getOrCreateSettings = async adminEmail => {
-  let settings = await AdminSetting.findOne().lean();
+  const settings = await AdminSetting.findOne().lean();
   if (settings) return settings;
 
   const created = await AdminSetting.create({

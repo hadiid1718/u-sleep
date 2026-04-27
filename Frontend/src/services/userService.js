@@ -1,6 +1,33 @@
 import { apiRequest } from './core/apiClient';
 
 export const userAPI = {
+  getDashboardData: async () => {
+    return apiRequest('/users/me/dashboard', {
+      method: 'GET',
+    });
+  },
+
+  updateDashboardSettings: async settings => {
+    return apiRequest('/users/me/settings', {
+      method: 'PATCH',
+      body: JSON.stringify(settings || {}),
+    });
+  },
+
+  updatePromptSettings: async prompts => {
+    return apiRequest('/users/me/prompts', {
+      method: 'PATCH',
+      body: JSON.stringify(prompts || {}),
+    });
+  },
+
+  updateNotificationMeta: async payload => {
+    return apiRequest('/users/me/notifications', {
+      method: 'PATCH',
+      body: JSON.stringify(payload || {}),
+    });
+  },
+
   getAllUsers: async ({ page = 1, limit = 10, search = '' } = {}) => {
     const params = new URLSearchParams();
     params.append('page', page);

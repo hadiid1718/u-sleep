@@ -18,6 +18,7 @@ import BillingCancelledPage from './pages/Billing/BillingCancelledPage.jsx'
 import AdminLogin from './pages/admin/AdminLogin.jsx'
 import AdminDashboard from './pages/admin/AdminDashboard.jsx'
 import RequireAdmin from './components/admin/RequireAdmin.jsx'
+import ProposalGeneratorPage from './pages/ProposalGeneratorPage.jsx'
 
 const queryClient = new QueryClient()
 
@@ -61,6 +62,10 @@ const router = createBrowserRouter([
       {
         path: "/job-result",
         element: <RequireJobs><JobSelectionPage /></RequireJobs>
+      },
+      {
+        path: "/job-result/:jobId/proposal",
+        element: <ProposalGeneratorPage />
       },
       {
         path: "/billing",

@@ -19,8 +19,8 @@ const BadJobCriteria = () => {
     { text: "Startups",  },
     { text: "Not well described",},
     { text: "Too many bids already" },
-    { text: "Rating less than 4.0",  },
-    { text: "Total spent less than $1,000"},
+    { text: "Rating less than 4",  },
+    { text: "Spent less than $1,000"},
     { text: "Low hire rate", },
   ];
 

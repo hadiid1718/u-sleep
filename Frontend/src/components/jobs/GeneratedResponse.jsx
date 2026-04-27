@@ -12,6 +12,7 @@ const GeneratedResponse = ({
   onDislike,
   onUpgrade,
   responseText,
+  generationError = '',
   job,
   workflow,
 }) => {
@@ -32,13 +33,12 @@ const GeneratedResponse = ({
     refreshSubscription,
   } = useSubscription();
 
-  const displayText =
-    responseText ||
-    currentProposal?.content ||
-    currentProposal?.defaultResponse ||
-    'Proposal content is being prepared...';
   const proposalId = currentProposal?.proposalId || currentProposal?._id;
   const isFreelancerJob = job?.source === 'freelancer_api';
+  const usedFallbackTemplate = currentProposal?.aiModel === 'fallback-template';
+  const displayText = usedFallbackTemplate
+    ? ''
+    : responseText || currentProposal?.content || '';
 
   const initialBidAmount = useMemo(() => {
     const draftBidAmount = workflow?.draftBidInput?.bidAmount;
@@ -317,8 +317,15 @@ const GeneratedResponse = ({
         </div>
       )}
 
+      {(generationError || usedFallbackTemplate) && (
+        <div className="mb-6 rounded-xl border border-amber-300 dark:border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 p-4 text-sm text-amber-800 dark:text-amber-200">
+          {generationError ||
+            'AI generation returned a fallback template. Please verify your AI API keys and try again.'}
+        </div>
+      )}
+
       <div className="text-gray-700 dark:text-gray-300 text-base leading-relaxed space-y-5 mb-8 whitespace-pre-line">
-        {displayText}
+        {displayText || 'No proposal has been generated yet.'}
       </div>
 
       <button

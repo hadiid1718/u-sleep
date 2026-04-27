@@ -12,12 +12,33 @@ const getAuthUserId = req =>
     req.user?._id || req.user?.id || req.admin?._id || req.admin?.id || ''
   );
 
+const shouldBypassSubscription = () =>
+  process.env.NODE_ENV === 'development' &&
+  process.env.DEV_BYPASS_SUBSCRIPTION === 'true';
+
 const usageMetering = async (req, res, next) => {
   try {
     const userId = getAuthUserId(req);
 
     if (!userId) {
       return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    if (shouldBypassSubscription()) {
+      req.subscription = req.subscription || {
+        status: 'active',
+        plan: 'agency',
+        proposalLimit: -1,
+        platformLimit: 2,
+        autoSendEnabled: true,
+      };
+      req.currentUsageRecord = req.currentUsageRecord || {
+        aiProposalsUsed: 0,
+        autoSendUsed: 0,
+        platformsConnected: [],
+      };
+      req.usageMonth = req.usageMonth || toMonthKey();
+      return next();
     }
 
     const subscription =

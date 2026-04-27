@@ -38,6 +38,94 @@ class FreelancerService {
       .filter(Boolean);
   }
 
+  normalizeKeyword(value) {
+    const normalized = this.normalizeText(value).toLowerCase();
+    if (!normalized) return '';
+    return normalized.replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+
+  stripSpaces(value) {
+    return String(value || '').replace(/\s+/g, '');
+  }
+
+  jobMatchesKeywords(job, keywords) {
+    if (!Array.isArray(keywords) || keywords.length === 0) return true;
+
+    const rawHaystack = `${job?.title || ''} ${job?.description || ''} ${(job?.skills || []).join(' ')}`
+      .toLowerCase()
+      .trim();
+    const normalizedHaystack = this.normalizeKeyword(rawHaystack);
+    const compactHaystack = this.stripSpaces(rawHaystack);
+
+    return keywords.some(keyword => {
+      const rawKeyword = String(keyword || '').toLowerCase().trim();
+      if (!rawKeyword) return false;
+
+      const normalizedKeyword = this.normalizeKeyword(rawKeyword);
+      const compactKeyword = this.stripSpaces(rawKeyword);
+
+      return (
+        rawHaystack.includes(rawKeyword) ||
+        (normalizedKeyword && normalizedHaystack.includes(normalizedKeyword)) ||
+        (compactKeyword && compactHaystack.includes(compactKeyword))
+      );
+    });
+  }
+
+  applyKeywordFilter(jobs, keywords) {
+    const normalizedKeywords = this.normalizeKeywords(keywords);
+    if (normalizedKeywords.length === 0) return jobs;
+
+    return jobs.filter(job => this.jobMatchesKeywords(job, normalizedKeywords));
+  }
+
+  parseNumeric(value) {
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+
+    const normalized = String(value).replace(/,/g, '');
+    const match = normalized.match(/(\d+(?:\.\d+)?)/);
+    return match ? Number(match[1]) : null;
+  }
+
+  parseHireRate(value) {
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value > 1 ? value : value * 100;
+    }
+
+    const normalized = String(value).toLowerCase().trim();
+    const numeric = this.parseNumeric(normalized);
+    if (numeric === null) return null;
+
+    if (normalized.includes('%')) return numeric;
+    return numeric > 1 ? numeric : numeric * 100;
+  }
+
+  isLikelyNonEnglish(text) {
+    const value = this.normalizeText(text).toLowerCase();
+    if (!value) return false;
+
+    const hasNonLatin = Array.from(value).some(
+      char => (char.codePointAt(0) || 0) > 127
+    );
+    const englishHints =
+      /\b(the|and|for|with|you|your|job|project|need|looking|required|experience|developer|design|build)\b/.test(
+        value
+      );
+
+    if (hasNonLatin && !englishHints) return true;
+    return false;
+  }
+
+  extractNumericThreshold(criteria, matchers = []) {
+    if (!criteria) return null;
+    if (!matchers.some(matcher => criteria.includes(matcher))) return null;
+
+    const numeric = this.parseNumeric(criteria);
+    return Number.isFinite(numeric) ? numeric : null;
+  }
+
   normalizeRole(role) {
     if (!role) return null;
     const normalized = this.normalizeText(role).toLowerCase();
@@ -198,8 +286,8 @@ class FreelancerService {
       category: rawJob?.type || rawJob?.project_type || null,
       skills: Array.isArray(rawJob?.jobs)
         ? rawJob.jobs
-            .map(j => this.normalizeText(j?.name || j?.seo_url || j))
-            .filter(Boolean)
+          .map(j => this.normalizeText(j?.name || j?.seo_url || j))
+          .filter(Boolean)
         : [],
       proposalsCount: Number(
         rawJob?.bid_stats?.bid_count || rawJob?.bid_count || 0
@@ -215,10 +303,10 @@ class FreelancerService {
       },
       hourlyRate: hasHourly
         ? {
-            min: Number(minHourly || maxHourly || 0),
-            max: Number(maxHourly || minHourly || 0),
-            currency: rawJob?.currency?.code || 'USD',
-          }
+          min: Number(minHourly || maxHourly || 0),
+          max: Number(maxHourly || minHourly || 0),
+          currency: rawJob?.currency?.code || 'USD',
+        }
         : null,
       clientInfo: {
         name: owner?.username || owner?.display_name || null,
@@ -377,45 +465,6 @@ class FreelancerService {
     });
   }
 
-  parseNumeric(value) {
-    if (value === null || value === undefined) return null;
-    if (typeof value === 'number' && Number.isFinite(value)) return value;
-
-    const normalized = String(value).replace(/,/g, '');
-    const match = normalized.match(/(\d+(?:\.\d+)?)/);
-    return match ? Number(match[1]) : null;
-  }
-
-  parseHireRate(value) {
-    if (value === null || value === undefined) return null;
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return value > 1 ? value : value * 100;
-    }
-
-    const normalized = String(value).toLowerCase().trim();
-    const numeric = this.parseNumeric(normalized);
-    if (numeric === null) return null;
-
-    if (normalized.includes('%')) return numeric;
-    return numeric > 1 ? numeric : numeric * 100;
-  }
-
-  isLikelyNonEnglish(text) {
-    const value = this.normalizeText(text).toLowerCase();
-    if (!value) return false;
-
-    const hasNonLatin = Array.from(value).some(
-      char => (char.codePointAt(0) || 0) > 127
-    );
-    const englishHints =
-      /\b(the|and|for|with|you|your|job|project|need|looking|required|experience|developer|design|build)\b/.test(
-        value
-      );
-
-    if (hasNonLatin && !englishHints) return true;
-    return false;
-  }
-
   jobMatchesBadCriteria(job, criteria) {
     const lowerCriteria = String(criteria || '').toLowerCase();
     const titleAndDescription = `${job?.title || ''} ${job?.description || ''}`;
@@ -485,16 +534,25 @@ class FreelancerService {
       }
     }
 
-    if (lowerCriteria.includes('rating less than 4.0')) {
-      if (rating > 0 && rating < 4) {
-        return true;
-      }
+    const ratingThreshold = this.extractNumericThreshold(lowerCriteria, [
+      'rating less than',
+      'rating below',
+      'rating under',
+    ]);
+
+    if (ratingThreshold !== null && rating < ratingThreshold) {
+      return true;
     }
 
-    if (lowerCriteria.includes('total spent less than $1,000')) {
-      if (totalSpent >= 0 && totalSpent < 1000) {
-        return true;
-      }
+    const spentThreshold = this.extractNumericThreshold(lowerCriteria, [
+      'total spent less than',
+      'spent less than',
+      'spent under',
+      'spent below',
+    ]);
+
+    if (spentThreshold !== null && totalSpent < spentThreshold) {
+      return true;
     }
 
     if (lowerCriteria.includes('low hire rate')) {

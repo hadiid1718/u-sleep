@@ -81,6 +81,34 @@ export const notificationAPI = {
       body: JSON.stringify(group ? { group } : {}),
     });
   },
+
+  updatePreferences: async preferences => {
+    return apiRequest('/notifications/preferences', {
+      method: 'PATCH',
+      body: JSON.stringify(preferences || {}),
+    });
+  },
+
+  sendDigestNow: async (frequency = 'daily') => {
+    return apiRequest('/notifications/digest/send', {
+      method: 'POST',
+      body: JSON.stringify({ frequency }),
+    });
+  },
+
+  syncPendingProposals: async (minHours = 48) => {
+    return apiRequest('/notifications/sync/proposals-pending', {
+      method: 'POST',
+      body: JSON.stringify({ minHours }),
+    });
+  },
+
+  syncBillingNotifications: async () => {
+    return apiRequest('/notifications/sync/billing', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  },
 };
 
 export default notificationAPI;

@@ -153,10 +153,8 @@ const JobDetails = ({ job: propJob }) => {
           </span>
         </p>
         <p>Reviews: <span className="text-gray-900 dark:text-white">{totalReviews}</span></p>
-        <p>Total hires: <span className="text-gray-900 dark:text-white">{totalHires}</span></p>
         <p className="flex items-center gap-1">
           Rating:
-          <Star size={16} className="text-yellow-400 fill-yellow-400" />
           <span className="text-gray-900 dark:text-white">{rating}</span>
         </p>
         <p>Total spent: <span className="text-gray-900 dark:text-white">${(totalSpent || 0).toLocaleString()}</span></p>

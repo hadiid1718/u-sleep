@@ -39,6 +39,47 @@ class UpworkService {
       .filter(Boolean);
   }
 
+  normalizeKeyword(value) {
+    const normalized = this.normalizeText(value).toLowerCase();
+    if (!normalized) return '';
+    return normalized.replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+
+  stripSpaces(value) {
+    return String(value || '').replace(/\s+/g, '');
+  }
+
+  jobMatchesKeywords(job, keywords) {
+    if (!Array.isArray(keywords) || keywords.length === 0) return true;
+
+    const rawHaystack = `${job?.title || ''} ${job?.description || ''} ${(job?.skills || []).join(' ')}`
+      .toLowerCase()
+      .trim();
+    const normalizedHaystack = this.normalizeKeyword(rawHaystack);
+    const compactHaystack = this.stripSpaces(rawHaystack);
+
+    return keywords.some(keyword => {
+      const rawKeyword = String(keyword || '').toLowerCase().trim();
+      if (!rawKeyword) return false;
+
+      const normalizedKeyword = this.normalizeKeyword(rawKeyword);
+      const compactKeyword = this.stripSpaces(rawKeyword);
+
+      return (
+        rawHaystack.includes(rawKeyword) ||
+        (normalizedKeyword && normalizedHaystack.includes(normalizedKeyword)) ||
+        (compactKeyword && compactHaystack.includes(compactKeyword))
+      );
+    });
+  }
+
+  applyKeywordFilter(jobs, keywords) {
+    const normalizedKeywords = this.normalizeKeywords(keywords);
+    if (normalizedKeywords.length === 0) return jobs;
+
+    return jobs.filter(job => this.jobMatchesKeywords(job, normalizedKeywords));
+  }
+
   normalizeRole(role) {
     if (!role) return null;
     const normalized = this.normalizeText(role).toLowerCase();
@@ -643,6 +684,14 @@ class UpworkService {
     return numeric > 1 ? numeric : numeric * 100;
   }
 
+  extractNumericThreshold(criteria, matchers = []) {
+    if (!criteria) return null;
+    if (!matchers.some(matcher => criteria.includes(matcher))) return null;
+
+    const numeric = this.parseNumeric(criteria);
+    return Number.isFinite(numeric) ? numeric : null;
+  }
+
   isLikelyNonEnglish(text) {
     const value = this.normalizeText(text).toLowerCase();
     if (!value) return false;
@@ -728,16 +777,25 @@ class UpworkService {
       }
     }
 
-    if (lowerCriteria.includes('rating less than 4.0')) {
-      if (rating > 0 && rating < 4) {
-        return true;
-      }
+    const ratingThreshold = this.extractNumericThreshold(lowerCriteria, [
+      'rating less than',
+      'rating below',
+      'rating under',
+    ]);
+
+    if (ratingThreshold !== null && rating < ratingThreshold) {
+      return true;
     }
 
-    if (lowerCriteria.includes('total spent less than $1,000')) {
-      if (totalSpent >= 0 && totalSpent < 1000) {
-        return true;
-      }
+    const spentThreshold = this.extractNumericThreshold(lowerCriteria, [
+      'total spent less than',
+      'spent less than',
+      'spent under',
+      'spent below',
+    ]);
+
+    if (spentThreshold !== null && totalSpent < spentThreshold) {
+      return true;
     }
 
     if (lowerCriteria.includes('low hire rate')) {

@@ -411,6 +411,18 @@ export const ContextProvider = ({ children }) => {
 
         if (proposal?.content && proposal.content !== '') {
           setCurrentProposal(proposal);
+
+          if (proposal?.aiModel === 'fallback-template') {
+            return {
+              success: false,
+              error: {
+                message:
+                  'AI generation failed and a fallback template was used.',
+              },
+              data: { data: proposal },
+            };
+          }
+
           return result;
         }
       }
@@ -432,7 +444,11 @@ export const ContextProvider = ({ children }) => {
       setCurrentProposal(fallbackProposal);
 
       return {
-        success: true,
+        success: false,
+        error: {
+          message:
+            'Proposal generation timed out and a fallback template was returned.',
+        },
         data: {
           data: fallbackProposal,
         },

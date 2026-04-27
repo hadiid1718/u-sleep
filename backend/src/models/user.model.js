@@ -64,6 +64,86 @@ const userSchema = new mongoose.Schema(
       },
     },
 
+    dashboardConfig: {
+      companyName: {
+        type: String,
+        trim: true,
+        default: '',
+      },
+      timezone: {
+        type: String,
+        trim: true,
+        default: 'UTC',
+      },
+      telegramChatId: {
+        type: String,
+        trim: true,
+        default: '',
+      },
+      feedName: {
+        type: String,
+        trim: true,
+        default: 'Primary Feed',
+      },
+      feedActive: {
+        type: Boolean,
+        default: true,
+      },
+      allowNoBudget: {
+        type: Boolean,
+        default: true,
+      },
+      speciality: {
+        type: String,
+        trim: true,
+        default: '',
+      },
+      freelancer: {
+        type: String,
+        trim: true,
+        default: '',
+      },
+      clientMinSpend: {
+        type: Number,
+        min: 0,
+        default: 0,
+      },
+      clientMinRating: {
+        type: Number,
+        min: 0,
+        max: 5,
+        default: 0,
+      },
+      excludedCountries: {
+        type: [String],
+        default: [],
+      },
+      includedCountries: {
+        type: [String],
+        default: [],
+      },
+      model: {
+        type: String,
+        default: 'GPT-4o Mini',
+      },
+      proposalPrompts: {
+        type: [
+          {
+            title: {
+              type: String,
+              trim: true,
+              default: '',
+            },
+            content: {
+              type: String,
+              default: '',
+            },
+          },
+        ],
+        default: [],
+      },
+    },
+
     // Job Matching Preferences
     jobPreferences: {
       keywords: {

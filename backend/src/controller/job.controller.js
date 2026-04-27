@@ -368,6 +368,11 @@ export const searchJobs = async (req, res, next) => {
       );
     }
 
+    filteredJobs = platformService.applyKeywordFilter(
+      filteredJobs,
+      preferences.keywords
+    );
+
     const translationResult = await maybeAutoTranslateFreelancerDescriptions(
       filteredJobs,
       preferences,
@@ -665,6 +670,22 @@ export const searchJobsWithAIAnalysis = async (req, res, next) => {
         rate,
         preferences.rateType
       );
+    }
+
+    filteredJobs = platformService.applyKeywordFilter(
+      filteredJobs,
+      preferences.keywords
+    );
+
+    if (filteredJobs.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          jobs: [],
+          totalFound: 0,
+          message: 'No jobs found matching your criteria',
+        },
+      });
     }
 
     // AI Scoring (simple scoring without external API for performance)

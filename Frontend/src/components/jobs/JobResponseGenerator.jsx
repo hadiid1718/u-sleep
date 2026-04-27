@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import LoadingScreen from '../shared/LoadingScreen';
 import JobDetails from './JobDetail';
 import GeneratedResponse from './GeneratedResponse';
@@ -10,7 +10,7 @@ import { proposalAPI } from '../../services/proposalService';
 import useSubscription from '../../hooks/useSubscription';
 import UpgradeBanner from '../billing/UpgradeBanner';
 
-const JobResponseGenerator = ({ job }) => {
+const JobResponseGenerator = ({ job, aiService = 'openai' }) => {
   const {
     generateProposal,
     pollProposal,
@@ -31,45 +31,81 @@ const JobResponseGenerator = ({ job }) => {
   const [showCaseStudyModal, setShowCaseStudyModal] = useState(false);
   const [responseText, setResponseText] = useState('');
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [generationError, setGenerationError] = useState('');
   const isFreelancerJob = job?.source === 'freelancer_api';
+  const generationKeyRef = useRef('');
 
   // Generate proposal on mount using the real API
   useEffect(() => {
     const startGeneration = async () => {
-      const jobId = job?._id || job?.id;
+      setGenerationError('');
+      setResponseText('');
+      const jobId =
+        job?._id || job?.id || job?.upworkJobId || job?.sourceJobId;
       if (!jobId) {
-        // No real job ID — fall back to timer
-        const timer = setTimeout(() => setCurrentScreen('response'), 3000);
-        return () => clearTimeout(timer);
+        setGenerationError(
+          'Missing job identifier. Please refresh the job list and try again.'
+        );
+        setCurrentScreen('response');
+        return;
       }
 
-      try {
-        const result = await generateProposal(jobId);
-        if (result.success) {
-          const proposalId = result.data?.data?.proposalId;
-          const defaultResponse = result.data?.data?.defaultResponse || '';
+      const generationKey = `${jobId}:${aiService}`;
+      if (generationKeyRef.current === generationKey) {
+        return;
+      }
+      generationKeyRef.current = generationKey;
 
-          if (proposalId) {
-            const pollResult = await pollProposal(proposalId);
-            if (pollResult.success) {
-              setResponseText(pollResult.data?.data?.content || '');
-              await refreshSubscription();
-            } else if (defaultResponse) {
-              setResponseText(defaultResponse);
+      try {
+        const result = await generateProposal(jobId, aiService);
+        if (!result.success) {
+          setGenerationError(
+            result.error?.message || 'Proposal generation failed.'
+          );
+          return;
+        }
+
+        const proposalId = result.data?.data?.proposalId;
+        if (proposalId) {
+          const pollResult = await pollProposal(proposalId);
+          if (pollResult.success) {
+            const content = pollResult.data?.data?.content || '';
+            const aiModel = pollResult.data?.data?.aiModel || '';
+            setResponseText(content);
+
+            if (aiModel === 'fallback-template') {
+              setGenerationError(
+                'AI generation failed and a fallback template was used. Verify your AI API keys and try again.'
+              );
+            } else {
+              setGenerationError('');
             }
-          } else if (defaultResponse) {
-            setResponseText(defaultResponse);
+
+            await refreshSubscription();
+          } else {
+            setGenerationError(
+              pollResult.error?.message || 'Proposal generation timed out.'
+            );
           }
+        } else {
+          setGenerationError('Proposal ID missing from the server response.');
         }
       } catch (err) {
         console.error('Proposal generation error:', err);
+        setGenerationError(err.message || 'Proposal generation failed.');
       } finally {
         setCurrentScreen('response');
       }
     };
 
     startGeneration();
-  }, [job]);
+  }, [
+    job,
+    aiService,
+    generateProposal,
+    pollProposal,
+    refreshSubscription,
+  ]);
 
   const handleDislike = () => {
     setShowFeedbackModal(true);
@@ -173,6 +209,7 @@ const JobResponseGenerator = ({ job }) => {
             onDislike={handleDislike}
             onUpgrade={handleUpgradeClick}
             responseText={responseText}
+            generationError={generationError}
             job={job}
             workflow={isFreelancerJob ? freelancerProposalWorkflow : null}
           />

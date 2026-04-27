@@ -5,6 +5,7 @@ import {
   GOOGLE_GEMINI_MODEL,
   PROPOSAL_GENERATION_TIMEOUT,
 } from '../config/env.js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 /**
  * AI Proposal Generation Service
@@ -16,6 +17,9 @@ class AIProposalService {
     this.openaiModel = OPENAI_MODEL || 'gpt-4-turbo';
     this.geminiApiKey = GOOGLE_GEMINI_API_KEY;
     this.geminiModel = GOOGLE_GEMINI_MODEL || 'gemini-1.5-flash';
+    this.geminiClient = this.geminiApiKey
+      ? new GoogleGenerativeAI(this.geminiApiKey)
+      : null;
     this.timeout = parseInt(PROPOSAL_GENERATION_TIMEOUT) || 30000;
     this.defaultProposalResponse = `Hi, what specific features or functionalities do you envision for your real-time video communication platform? Have you identified any particular challenges or requirements for integrating AI captions?
 
@@ -82,6 +86,87 @@ What time are you available tomorrow for a quick call?`;
     } catch {
       return null;
     }
+  }
+
+  async withTimeout(promise, timeoutMessage) {
+    let timeoutId;
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(
+        () => reject(new Error(timeoutMessage)),
+        this.timeout
+      );
+    });
+
+    try {
+      const result = await Promise.race([promise, timeoutPromise]);
+      clearTimeout(timeoutId);
+      return result;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw error;
+    }
+  }
+
+  getGeminiClient() {
+    if (!this.geminiClient) {
+      throw new Error(
+        'Google Gemini is not configured. Set GOOGLE_GEMINI_API_KEY.'
+      );
+    }
+
+    return this.geminiClient;
+  }
+
+  getGeminiModel(systemInstruction = null) {
+    const client = this.getGeminiClient();
+    return client.getGenerativeModel({
+      model: this.geminiModel,
+      ...(systemInstruction ? { systemInstruction } : {}),
+    });
+  }
+
+  extractGeminiText(result) {
+    if (!result?.response) return '';
+
+    try {
+      if (typeof result.response.text === 'function') {
+        return result.response.text();
+      }
+    } catch {
+      return '';
+    }
+
+    return (
+      result.response?.candidates?.[0]?.content?.parts?.[0]?.text || ''
+    );
+  }
+
+  async generateWithGeminiSdk({
+    prompt,
+    systemInstruction,
+    generationConfig,
+    timeoutMessage,
+  }) {
+    const model = this.getGeminiModel(systemInstruction);
+    const request = model.generateContent({
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text: prompt,
+            },
+          ],
+        },
+      ],
+      generationConfig,
+    });
+
+    const result = await this.withTimeout(
+      request,
+      timeoutMessage || 'Gemini request timed out'
+    );
+    return this.extractGeminiText(result);
   }
 
   resolveTranslationProvider(preferred = 'gemini') {
@@ -204,64 +289,17 @@ ${text}
   }
 
   async translateWithGemini(prompt) {
-    const payload = {
-      contents: [
-        {
-          parts: [
-            {
-              text: prompt,
-            },
-          ],
-        },
-      ],
-      systemInstruction: {
-        parts: [
-          {
-            text: 'You are a translation assistant. Output strict JSON only, with no markdown.',
-          },
-        ],
-      },
+    return this.generateWithGeminiSdk({
+      prompt,
+      systemInstruction:
+        'You are a translation assistant. Output strict JSON only, with no markdown.',
       generationConfig: {
         temperature: 0.1,
         maxOutputTokens: 1500,
         topP: 0.9,
       },
-    };
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-    try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${this.geminiModel}:generateContent?key=${this.geminiApiKey}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-          signal: controller.signal,
-        }
-      );
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => null);
-        throw new Error(
-          `Gemini API Error: ${error?.error?.message || response.statusText}`
-        );
-      }
-
-      const data = await response.json();
-      return data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    } catch (error) {
-      clearTimeout(timeoutId);
-      if (error.name === 'AbortError') {
-        throw new Error('Translation timed out', { cause: error });
-      }
-      throw error;
-    }
+      timeoutMessage: 'Translation timed out',
+    });
   }
 
   async translateTextIfNeeded({ text, targetLanguage, aiService = 'gemini' }) {
@@ -425,21 +463,9 @@ Your proposals are:
    */
   async generateWithGemini(job, user, caseStudy) {
     const prompt = this.buildPrompt(job, user, caseStudy);
-
-    const payload = {
-      contents: [
-        {
-          parts: [
-            {
-              text: prompt,
-            },
-          ],
-        },
-      ],
-      systemInstruction: {
-        parts: [
-          {
-            text: `You are an expert Upwork proposal writer specializing in crafting high-converting, personalized proposals. 
+    return this.generateWithGeminiSdk({
+      prompt,
+      systemInstruction: `You are an expert Upwork proposal writer specializing in crafting high-converting, personalized proposals. 
 Your proposals are:
 - Professional yet conversational
 - Personalized to the specific job and client
@@ -447,50 +473,13 @@ Your proposals are:
 - Confident without being arrogant
 - Concise (3-5 short paragraphs)
 - Include a clear call-to-action`,
-          },
-        ],
-      },
       generationConfig: {
         temperature: 0.7,
         maxOutputTokens: 800,
         topP: 0.9,
       },
-    };
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-    try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${this.geminiModel}:generateContent?key=${this.geminiApiKey}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-          signal: controller.signal,
-        }
-      );
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(
-          `Gemini API Error: ${error.error?.message || response.statusText}`
-        );
-      }
-
-      const data = await response.json();
-      return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    } catch (error) {
-      clearTimeout(timeoutId);
-      if (error.name === 'AbortError') {
-        throw new Error('Proposal generation timed out', { cause: error });
-      }
-      throw error;
-    }
+      timeoutMessage: 'Proposal generation timed out',
+    });
   }
 
   /**
@@ -647,50 +636,14 @@ ${caseStudy}
    * Upgrade with Gemini
    */
   async upgradeWithGemini(upgradePrompt) {
-    const payload = {
-      contents: [
-        {
-          parts: [
-            {
-              text: upgradePrompt,
-            },
-          ],
-        },
-      ],
+    return this.generateWithGeminiSdk({
+      prompt: upgradePrompt,
       generationConfig: {
         temperature: 0.7,
         maxOutputTokens: 900,
       },
-    };
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-    try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${this.geminiModel}:generateContent?key=${this.geminiApiKey}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-          signal: controller.signal,
-        }
-      );
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`Gemini Error: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    } catch (error) {
-      clearTimeout(timeoutId);
-      throw error;
-    }
+      timeoutMessage: 'Proposal upgrade timed out',
+    });
   }
 }
 

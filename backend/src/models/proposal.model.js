@@ -23,7 +23,7 @@ const proposalSchema = new mongoose.Schema(
     // Proposal Content
     content: {
       type: String,
-      required: true,
+      default: '',
     },
     contentType: {
       type: String,
