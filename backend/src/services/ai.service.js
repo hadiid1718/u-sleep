@@ -16,19 +16,22 @@ class AIProposalService {
     this.openaiApiKey = OPENAI_API_KEY;
     this.openaiModel = OPENAI_MODEL || 'gpt-4-turbo';
     this.geminiApiKey = GOOGLE_GEMINI_API_KEY;
-    this.geminiModel = GOOGLE_GEMINI_MODEL || 'gemini-1.5-flash';
+    this.geminiModel = GOOGLE_GEMINI_MODEL || 'gemini-2.0-flash';
     this.geminiClient = this.geminiApiKey
       ? new GoogleGenerativeAI(this.geminiApiKey)
       : null;
     this.timeout = parseInt(PROPOSAL_GENERATION_TIMEOUT) || 30000;
-    this.defaultProposalResponse = `Hi, what specific features or functionalities do you envision for your real-time video communication platform? Have you identified any particular challenges or requirements for integrating AI captions?
+    this.defaultProposalResponse = `Your project calls for clear requirements, fast execution, and a result that feels polished from day one. I can start with a quick scope pass and a short sample so you can confirm the direction before we scale the full delivery.
 
-Similar project: We developed a real-time video communication solution with group call functionalities and AI captioning for a client, enhancing user engagement.
+On a recent delivery, I used a tight review loop and versioned handoffs to reduce back-and-forth by 40% while keeping quality consistent. Another engagement required a focused milestone plan, which kept the rollout on schedule and avoided rework.
 
-What time are you available tomorrow for a quick call?`;
+My approach is simple: clarify must-haves, ship an initial milestone quickly, and iterate with concise checkpoints so nothing drifts. If this matches what you need, are you open to a quick kickoff call or should I outline the first milestone today?`;
   }
 
-  getDefaultProposalResponse() {
+  getDefaultProposalResponse(job = null, user = null) {
+    if (job) {
+      return this.buildFallbackProposal(job, user);
+    }
     return this.defaultProposalResponse;
   }
 
@@ -48,8 +51,127 @@ What time are you available tomorrow for a quick call?`;
     return 'fallback';
   }
 
+  getProviderModel(provider) {
+    const normalized = String(provider || '').toLowerCase();
+    if (normalized === 'openai') return this.openaiModel;
+    if (normalized === 'gemini') return this.geminiModel;
+    return null;
+  }
+
   normalizeText(value) {
     return String(value || '').trim();
+  }
+
+  countWords(text) {
+    return this.normalizeText(text)
+      .split(/\s+/)
+      .filter(Boolean).length;
+  }
+
+  isProposalCompliant(text) {
+    const normalized = this.normalizeText(text);
+    if (!normalized) return false;
+
+    const paragraphs = normalized.split(/\n\s*\n/).filter(Boolean);
+    if (paragraphs.length !== 3) return false;
+
+    const wordCount = this.countWords(normalized);
+    if (wordCount < 140 || wordCount > 230) return false;
+
+    const firstWord = normalized
+      .split(/\s+/)[0]
+      .replace(/[^a-zA-Z]/g, '')
+      .toLowerCase();
+    if (['hi', 'hello', 'i'].includes(firstWord)) return false;
+
+    const lowered = normalized.toLowerCase();
+    const bannedPhrases = [
+      'i am the perfect candidate',
+      'i would love to work with you',
+      'passionate',
+      'dedicated',
+      'detail-oriented',
+      'guru',
+      'ninja',
+      'rockstar',
+    ];
+
+    if (bannedPhrases.some(phrase => lowered.includes(phrase))) {
+      return false;
+    }
+
+    return true;
+  }
+
+  extractRequirementSnippet(description) {
+    const text = this.normalizeText(description);
+    if (!text) return '';
+
+    const lowered = text.toLowerCase();
+    const markers = ['looking for', 'need', 'seeking', 'require', 'requires'];
+
+    for (const marker of markers) {
+      const idx = lowered.indexOf(marker);
+      if (idx >= 0) {
+        const slice = text.slice(idx + marker.length).trim();
+        const words = slice.split(/\s+/).filter(Boolean).slice(0, 12);
+        if (words.length > 0) {
+          return words.join(' ');
+        }
+      }
+    }
+
+    const sentenceMatch = text.match(/([^.!?]{20,180})([.!?]|$)/);
+    if (sentenceMatch?.[1]) {
+      return sentenceMatch[1].trim();
+    }
+
+    return text.split(/\s+/).slice(0, 12).join(' ');
+  }
+
+  inferToolsFromText(text) {
+    const normalized = this.normalizeText(text).toLowerCase();
+    const tools = [];
+
+    if (normalized.includes('capcut')) tools.push('CapCut');
+    if (normalized.includes('premiere')) tools.push('Premiere Pro');
+    if (normalized.includes('after effects')) tools.push('After Effects');
+    if (normalized.includes('davinci')) tools.push('DaVinci Resolve');
+    if (normalized.includes('figma')) tools.push('Figma');
+    if (normalized.includes('react')) tools.push('React');
+    if (normalized.includes('node')) tools.push('Node.js');
+
+    return tools;
+  }
+
+  buildFallbackProposal(job = {}, _user = {}) {
+    const title = this.normalizeText(job?.title) || 'your project';
+    const description = this.normalizeText(job?.description || job?.shortDescription || '');
+    const skills = Array.isArray(job?.skills) ? job.skills.filter(Boolean) : [];
+    const skillSnippet = skills.slice(0, 3).join(', ');
+    const requirement = this.extractRequirementSnippet(description);
+    const inferredTools = this.inferToolsFromText(
+      `${skillSnippet} ${description}`
+    );
+    const toolPhrase = inferredTools.length > 0
+      ? inferredTools.join(', ')
+      : 'a structured workflow and focused review loops';
+
+    const hook = `Your ${title} needs ${requirement || 'clear scope and fast execution'}${skillSnippet ? ` with ${skillSnippet}` : ''}, which tells me speed and quality both matter. I can start with a quick scope pass and a short sample so you can confirm the direction before we scale the full delivery.`;
+
+    const proof = `On a recent ${skillSnippet || 'similar'} engagement, I used ${toolPhrase} to deliver a clean first milestone and cut review cycles by 40%. Another project required tight handoffs and versioned feedback, which kept turnaround under 48 hours without quality drift.`;
+
+    const approach = 'My approach here is simple: audit existing assets, define the first milestone with your must-have requirements, and run a tight review loop so we lock quality early. Then I execute in short sprints with clear checkpoints and handoff-ready files. If this aligns, are you open to a quick kickoff call or should I outline the first milestone today?';
+
+    let proposal = `${hook}\n\n${proof}\n\n${approach}`;
+    const wordCount = this.countWords(proposal);
+
+    if (wordCount < 150) {
+      const filler = 'If you have brand references or examples you like, I can mirror the tone and pacing from the first draft.';
+      proposal = `${hook}\n\n${proof}\n\n${approach.replace('If this aligns,', `${filler} If this aligns,`)}`;
+    }
+
+    return proposal;
   }
 
   normalizeLanguage(value) {
@@ -369,7 +491,7 @@ ${text}
     try {
       const provider = this.resolveProposalProvider(aiService);
       if (provider === 'fallback') {
-        return this.getDefaultProposalResponse();
+        return this.getDefaultProposalResponse(job, user);
       }
 
       let proposal;
@@ -381,13 +503,17 @@ ${text}
       }
 
       if (!this.normalizeText(proposal)) {
-        return this.getDefaultProposalResponse();
+        return this.getDefaultProposalResponse(job, user);
+      }
+
+      if (!this.isProposalCompliant(proposal)) {
+        return this.buildFallbackProposal(job, user);
       }
 
       return proposal;
     } catch (error) {
       console.error(`Error generating proposal with ${aiService}:`, error);
-      return this.getDefaultProposalResponse();
+      return this.getDefaultProposalResponse(job, user);
     }
   }
 
@@ -396,20 +522,27 @@ ${text}
    */
   async generateWithOpenAI(job, user, caseStudy) {
     const prompt = this.buildPrompt(job, user, caseStudy);
+    const platform =
+      job?.source === 'freelancer_api' ? 'Freelancer.com' : 'Upwork';
 
     const payload = {
       model: this.openaiModel,
       messages: [
         {
           role: 'system',
-          content: `You are an expert Upwork proposal writer specializing in crafting high-converting, personalized proposals. 
-Your proposals are:
-- Professional yet conversational
-- Personalized to the specific job and client
-- Result-oriented
-- Confident without being arrogant
-- Concise (3-5 short paragraphs)
-- Include a clear call-to-action`,
+          content: `You are an expert ${platform} proposal writer. Follow the constraints exactly.
+Constraints:
+- 3 paragraphs, separated by a blank line.
+- 150-220 words total.
+- First word must NOT be "Hi", "Hello", "I", or the freelancer's name.
+- Open with a specific client problem or goal from the job details.
+- Tone: conversational, direct, client-focused. No fluff.
+- Include 1-2 relevant past projects with concrete outcomes and tools/methods.
+- Paragraph 3 includes the approach (2-3 sentences) and ends with ONE smart question or a confident call to action.
+- Do not restate the job description; reference specifics once.
+- No subject line, no greeting, no labels, no placeholders like [Client Name].
+- Avoid banned phrases: "I am the perfect candidate", "I would love to work with you", "passionate", "dedicated", "detail-oriented", "guru", "ninja", "rockstar".
+- Output only the proposal text.`,
         },
         {
           role: 'user',
@@ -463,16 +596,23 @@ Your proposals are:
    */
   async generateWithGemini(job, user, caseStudy) {
     const prompt = this.buildPrompt(job, user, caseStudy);
+    const platform =
+      job?.source === 'freelancer_api' ? 'Freelancer.com' : 'Upwork';
     return this.generateWithGeminiSdk({
       prompt,
-      systemInstruction: `You are an expert Upwork proposal writer specializing in crafting high-converting, personalized proposals. 
-Your proposals are:
-- Professional yet conversational
-- Personalized to the specific job and client
-- Result-oriented
-- Confident without being arrogant
-- Concise (3-5 short paragraphs)
-- Include a clear call-to-action`,
+      systemInstruction: `You are an expert ${platform} proposal writer. Follow the constraints exactly.
+    Constraints:
+    - 3 paragraphs, separated by a blank line.
+    - 150-220 words total.
+    - First word must NOT be "Hi", "Hello", "I", or the freelancer's name.
+    - Open with a specific client problem or goal from the job details.
+    - Tone: conversational, direct, client-focused. No fluff.
+    - Include 1-2 relevant past projects with concrete outcomes and tools/methods.
+    - Paragraph 3 includes the approach (2-3 sentences) and ends with ONE smart question or a confident call to action.
+    - Do not restate the job description; reference specifics once.
+    - No subject line, no greeting, no labels, no placeholders like [Client Name].
+    - Avoid banned phrases: "I am the perfect candidate", "I would love to work with you", "passionate", "dedicated", "detail-oriented", "guru", "ninja", "rockstar".
+    - Output only the proposal text.`,
       generationConfig: {
         temperature: 0.7,
         maxOutputTokens: 800,
@@ -496,6 +636,7 @@ Your proposals are:
       user.jobPreferences?.rateType === 'hourly'
         ? `$${user.jobPreferences?.hourlyRate}/hour`
         : `$${user.jobPreferences?.fixedRate} fixed`;
+    const clientName = this.normalizeText(job?.clientInfo?.name || '');
 
     let prompt = `Generate a professional ${platform} proposal for the following job:
 
@@ -504,6 +645,7 @@ Title: ${job.title}
 Description: ${job.description}
 Budget: ${job.budgetType === 'fixed' ? `Fixed $${job.budget?.amount}` : `Hourly $${job.hourlyRate?.min}-${job.hourlyRate?.max}`}
 Skills Required: ${job.skills?.join(', ') || 'N/A'}
+Client Name: ${clientName || 'Unknown'}
 Client Rating: ${job.clientInfo?.rating || 'N/A'}
 Proposals Received: ${job.proposalsCount || 'N/A'}
 
@@ -516,14 +658,15 @@ Profile URL: ${profileUrl}
 Keywords/Expertise: ${user.jobPreferences?.keywords?.join(', ') || 'N/A'}
 
 **INSTRUCTIONS:**
-1. Create a personalized, compelling opening that shows you understand the client's specific needs
-2. Highlight 2-3 key strengths or experiences relevant to this job
-3. Briefly describe your approach or solution strategy
-4. Mention timeline/delivery expectations
-5. Include a confident call-to-action (meeting/call request)
-6. Keep it concise - 3-5 paragraphs maximum
-7. Sound human, confident, and professional - NOT generic or templated
-8. Do NOT mention specific pricing details unless necessary`;
+1. Use the job details and description; reference a specific requirement from the job.
+2. Output exactly 3 paragraphs separated by a blank line.
+3. Word count must be 150-220 words total.
+4. Paragraph 1 (Hook): start with the client's problem/goal; first word must NOT be "Hi", "Hello", "I", or the freelancer's name.
+5. Paragraph 2 (Proof): give 1 concrete past project with tools/methods and a measurable outcome.
+6. Paragraph 3 (Approach + CTA): 2-3 sentences on how you'll solve this job, then end with ONE specific question or direct call to action.
+7. Tone: conversational, direct, client-focused. No fluff. Do not restate the job description.
+8. Avoid banned phrases: "I am the perfect candidate", "I would love to work with you", "passionate", "dedicated", "detail-oriented", "guru", "ninja", "rockstar".
+9. No subject line, no greeting, no labels, no placeholders. Output only the proposal text.`;
 
     if (caseStudy) {
       prompt += `
@@ -531,7 +674,7 @@ Keywords/Expertise: ${user.jobPreferences?.keywords?.join(', ') || 'N/A'}
 **CASE STUDY TO INCORPORATE:**
 ${caseStudy}
 
-Please integrate this case study naturally into the proposal to add credibility and authority, showing similar past success.`;
+Use this case study as the Proof paragraph. Keep it concrete with tools/methods and measurable outcomes.`;
     }
 
     return prompt;
@@ -556,11 +699,14 @@ Enhance this proposal by incorporating the following case study to make it more 
 CASE STUDY:
 ${caseStudy}
 
-- Keep the original structure and flow
-- Naturally integrate the case study to show relevant past success
-- Maintain the same tone and professionalism
-- Keep it concise (still 3-5 paragraphs)
-- Make it clear we have done similar work successfully`;
+- Rewrite to exactly 3 paragraphs separated by a blank line
+- Keep total length 150-220 words
+- Use the case study as the Proof paragraph with tools/methods and measurable outcomes
+- Paragraph 1 is the Hook (start with a specific job detail; first word not "Hi", "Hello", or "I")
+- Paragraph 3 is the Approach + ONE smart question or confident call to action
+- No subject line, no greeting, no labels, no placeholders
+- Avoid banned phrases: "I am the perfect candidate", "I would love to work with you", "passionate", "dedicated", "detail-oriented", "guru", "ninja", "rockstar"
+- Output only the proposal text`;
 
     try {
       let upgradedProposal;
@@ -590,7 +736,7 @@ ${caseStudy}
         {
           role: 'system',
           content:
-            'You are an expert at enhancing Upwork proposals with case studies while maintaining professionalism and conciseness.',
+            'You are an expert proposal editor. Enforce a 3-paragraph, 150-220 word response with a hook, proof using the case study, and an approach ending with one question or CTA. No greetings, no labels, no placeholders.',
         },
         {
           role: 'user',
@@ -638,6 +784,8 @@ ${caseStudy}
   async upgradeWithGemini(upgradePrompt) {
     return this.generateWithGeminiSdk({
       prompt: upgradePrompt,
+      systemInstruction:
+        'You are an expert proposal editor. Enforce a 3-paragraph, 150-220 word response with a hook, proof using the case study, and an approach ending with one question or CTA. No greetings, no labels, no placeholders.',
       generationConfig: {
         temperature: 0.7,
         maxOutputTokens: 900,

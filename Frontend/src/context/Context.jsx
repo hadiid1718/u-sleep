@@ -400,7 +400,7 @@ export const ContextProvider = ({ children }) => {
   };
 
   // Poll for proposal content (since generation is async)
-  const pollProposal = async (proposalId, maxAttempts = 10, interval = 2000) => {
+  const pollProposal = async (proposalId, maxAttempts = 20, interval = 3000) => {
     let latestProposal = null;
 
     for (let i = 0; i < maxAttempts; i++) {
@@ -414,12 +414,11 @@ export const ContextProvider = ({ children }) => {
 
           if (proposal?.aiModel === 'fallback-template') {
             return {
-              success: false,
-              error: {
-                message:
-                  'AI generation failed and a fallback template was used.',
-              },
+              success: true,
               data: { data: proposal },
+              warning: {
+                message: 'AI generation returned a fallback template.',
+              },
             };
           }
 
@@ -444,13 +443,12 @@ export const ContextProvider = ({ children }) => {
       setCurrentProposal(fallbackProposal);
 
       return {
-        success: false,
-        error: {
-          message:
-            'Proposal generation timed out and a fallback template was returned.',
-        },
+        success: true,
         data: {
           data: fallbackProposal,
+        },
+        warning: {
+          message: 'Proposal generation timed out and a fallback template was returned.',
         },
       };
     }

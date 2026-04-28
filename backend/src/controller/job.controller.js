@@ -55,12 +55,31 @@ const buildPlatformPreferences = (payload, user) => {
   const selectedRole = normalizeSelectedRole(
     payload?.selectedRole || payload?.userRole || jobPreferences.userRole
   );
+  const payloadHourly = payload?.jobHourly ?? null;
+  const payloadFixed = payload?.projectFixedRate ?? null;
+  const hasHourlyInput = Number(payloadHourly) > 0;
+  const hasFixedInput = Number(payloadFixed) > 0;
+  const jobHourly = payloadHourly ?? jobPreferences.hourlyRate ?? null;
+  const projectFixedRate = payloadFixed ?? jobPreferences.fixedRate ?? null;
+
+  let rateType = payload?.rateType ?? null;
+  if (!rateType && !(hasHourlyInput && hasFixedInput)) {
+    rateType = jobPreferences.rateType ?? null;
+  }
+
+  const hourlyRateRange =
+    rateType === 'hourly'
+      ? payload?.hourlyRateRange ?? jobPreferences.hourlyRateRange ?? null
+      : null;
+  const fixedRateRange =
+    rateType === 'fixed'
+      ? payload?.fixedRateRange ?? jobPreferences.fixedRateRange ?? null
+      : null;
 
   return {
     keywords,
-    jobHourly: payload?.jobHourly ?? jobPreferences.hourlyRate ?? null,
-    projectFixedRate:
-      payload?.projectFixedRate ?? jobPreferences.fixedRate ?? null,
+    jobHourly,
+    projectFixedRate,
     badJobCriteria: normalizeBadCriteria(
       payload?.badJobCriteria ?? jobPreferences.badJobCriteria
     ),
@@ -81,12 +100,102 @@ const buildPlatformPreferences = (payload, user) => {
         jobPreferences.autoTranslateDescription ??
         false
     ),
-    rateType: payload?.rateType ?? jobPreferences.rateType ?? null,
-    hourlyRateRange:
-      payload?.hourlyRateRange ?? jobPreferences.hourlyRateRange ?? null,
-    fixedRateRange:
-      payload?.fixedRateRange ?? jobPreferences.fixedRateRange ?? null,
+    rateType,
+    hourlyRateRange,
+    fixedRateRange,
   };
+};
+
+const normalizeSearchFilters = (filters = {}, preferences = {}) => {
+  const normalized = { ...(filters || {}) };
+  const rateType = normalized.rateType || preferences?.rateType || null;
+
+  if (rateType === 'hourly') {
+    normalized.rateType = 'hourly';
+    delete normalized.minBudget;
+    delete normalized.maxBudget;
+  } else if (rateType === 'fixed') {
+    normalized.rateType = 'fixed';
+    delete normalized.minRate;
+    delete normalized.maxRate;
+  } else {
+    delete normalized.minRate;
+    delete normalized.maxRate;
+    delete normalized.minBudget;
+    delete normalized.maxBudget;
+  }
+
+  return normalized;
+};
+
+const applyRateGuardrails = (jobs, platformService, preferences = {}) => {
+  if (!Array.isArray(jobs) || jobs.length === 0) return jobs;
+
+  const rateType = preferences.rateType || null;
+  const hourlyRate = preferences.jobHourly ?? null;
+  const fixedRate = preferences.projectFixedRate ?? null;
+
+  if (rateType) {
+    const rate = rateType === 'hourly' ? hourlyRate : fixedRate;
+    return platformService.applyRateMatching(jobs, rate, rateType);
+  }
+
+  if (!hourlyRate && !fixedRate) return jobs;
+
+  return jobs.filter(job => {
+    if (job?.budgetType === 'hourly' && hourlyRate) {
+      const min = job?.hourlyRate?.min ?? 0;
+      const max = job?.hourlyRate?.max ?? Infinity;
+      return hourlyRate >= min && hourlyRate <= max;
+    }
+
+    if (job?.budgetType === 'fixed' && fixedRate && job?.budget?.amount) {
+      return fixedRate <= job.budget.amount;
+    }
+
+    return true;
+  });
+};
+
+const applySearchFilters = (
+  jobs,
+  platformService,
+  preferences = {},
+  { allowRelaxation = false } = {}
+) => {
+  const baseJobs = platformService.applyBadJobFilters(
+    jobs,
+    preferences.badJobCriteria
+  );
+  const rateFiltered = applyRateGuardrails(
+    baseJobs,
+    platformService,
+    preferences
+  );
+  const keywordFiltered = platformService.applyKeywordFilter(
+    rateFiltered,
+    preferences.keywords
+  );
+
+  if (!allowRelaxation || keywordFiltered.length > 0 || baseJobs.length === 0) {
+    return { jobs: keywordFiltered, relaxations: [] };
+  }
+
+  if (rateFiltered.length === 0) {
+    const keywordOnly = platformService.applyKeywordFilter(
+      baseJobs,
+      preferences.keywords
+    );
+    if (keywordOnly.length > 0) {
+      return { jobs: keywordOnly, relaxations: ['rate'] };
+    }
+  }
+
+  if (rateFiltered.length > 0 && keywordFiltered.length === 0) {
+    return { jobs: rateFiltered, relaxations: ['keywords'] };
+  }
+
+  return { jobs: baseJobs, relaxations: ['rate', 'keywords'] };
 };
 
 const getPlatformService = selectedPlatform => {
@@ -343,35 +452,30 @@ export const searchJobs = async (req, res, next) => {
 
     const platformService = getPlatformService(preferences.selectedPlatform);
     const freelancerToken = user?.freelancerAuth?.accessToken || null;
+    const normalizedFilters = normalizeSearchFilters(filters, preferences);
 
     const { jobs, diagnostics } = await platformService.searchJobsDetailed(
       preferences,
-      filters,
+      normalizedFilters,
       freelancerToken
     );
 
-    let filteredJobs = platformService.applyBadJobFilters(
+    const filterResult = applySearchFilters(
       jobs,
-      preferences.badJobCriteria
+      platformService,
+      preferences,
+      {
+        allowRelaxation:
+          String(preferences.selectedPlatform || '').toLowerCase() ===
+          'freelancer',
+      }
     );
+    let filteredJobs = filterResult.jobs;
+    const { relaxations } = filterResult;
 
-    if (preferences.rateType) {
-      const rate =
-        preferences.rateType === 'hourly'
-          ? preferences.jobHourly
-          : preferences.projectFixedRate;
-
-      filteredJobs = platformService.applyRateMatching(
-        filteredJobs,
-        rate,
-        preferences.rateType
-      );
+    if (relaxations.length > 0) {
+      diagnostics.filtersRelaxed = relaxations;
     }
-
-    filteredJobs = platformService.applyKeywordFilter(
-      filteredJobs,
-      preferences.keywords
-    );
 
     const translationResult = await maybeAutoTranslateFreelancerDescriptions(
       filteredJobs,
@@ -388,14 +492,19 @@ export const searchJobs = async (req, res, next) => {
 
     const workflow = buildFreelancerWorkflow({
       preferences,
-      filters,
+      filters: normalizedFilters,
       diagnostics,
       jobs: filteredJobs,
     });
 
     res.status(200).json({
       success: true,
-      message: `Total Jobs Found: ${filteredJobs.length}`,
+      message:
+        diagnostics.filtersRelaxed && diagnostics.filtersRelaxed.length > 0
+          ? `Total Jobs Found: ${filteredJobs.length} (relaxed ${diagnostics.filtersRelaxed.join(
+            ' + '
+          )} filters)`
+          : `Total Jobs Found: ${filteredJobs.length}`,
       data: {
         jobs: filteredJobs,
         totalFound: filteredJobs.length,
@@ -634,10 +743,11 @@ export const searchJobsWithAIAnalysis = async (req, res, next) => {
 
     const platformService = getPlatformService(preferences.selectedPlatform);
     const freelancerToken = user?.freelancerAuth?.accessToken || null;
+    const normalizedFilters = normalizeSearchFilters(filters, preferences);
 
     const { jobs, diagnostics } = await platformService.searchJobsDetailed(
       preferences,
-      filters,
+      normalizedFilters,
       freelancerToken
     );
 
@@ -652,30 +762,22 @@ export const searchJobsWithAIAnalysis = async (req, res, next) => {
       });
     }
 
-    // Apply bad job filters
-    let filteredJobs = platformService.applyBadJobFilters(
+    const filterResult = applySearchFilters(
       jobs,
-      preferences.badJobCriteria
+      platformService,
+      preferences,
+      {
+        allowRelaxation:
+          String(preferences.selectedPlatform || '').toLowerCase() ===
+          'freelancer',
+      }
     );
+    const filteredJobs = filterResult.jobs;
+    const { relaxations } = filterResult;
 
-    // Apply rate matching
-    if (preferences.rateType) {
-      const rate =
-        preferences.rateType === 'hourly'
-          ? preferences.jobHourly
-          : preferences.projectFixedRate;
-
-      filteredJobs = platformService.applyRateMatching(
-        filteredJobs,
-        rate,
-        preferences.rateType
-      );
+    if (relaxations.length > 0) {
+      diagnostics.filtersRelaxed = relaxations;
     }
-
-    filteredJobs = platformService.applyKeywordFilter(
-      filteredJobs,
-      preferences.keywords
-    );
 
     if (filteredJobs.length === 0) {
       return res.status(200).json({
@@ -741,7 +843,7 @@ export const searchJobsWithAIAnalysis = async (req, res, next) => {
 
     const workflow = buildFreelancerWorkflow({
       preferences,
-      filters,
+      filters: normalizedFilters,
       diagnostics,
       jobs: jobsWithScores,
     });
@@ -754,7 +856,12 @@ export const searchJobsWithAIAnalysis = async (req, res, next) => {
         diagnostics,
         descriptionTranslation: translationResult.summary,
         workflow,
-        message: `Total Jobs Found: ${jobsWithScores.length}`,
+        message:
+          diagnostics.filtersRelaxed && diagnostics.filtersRelaxed.length > 0
+            ? `Total Jobs Found: ${jobsWithScores.length} (relaxed ${diagnostics.filtersRelaxed.join(
+              ' + '
+            )} filters)`
+            : `Total Jobs Found: ${jobsWithScores.length}`,
       },
     });
   } catch (error) {
@@ -806,6 +913,7 @@ export const getJobSearchDiagnostics = async (req, res, next) => {
     const preferences = buildPlatformPreferences(req.body, req.user || null);
     const platformService = getPlatformService(preferences.selectedPlatform);
     const freelancerToken = req.user?.freelancerAuth?.accessToken || null;
+    const normalizedFilters = normalizeSearchFilters(filters, preferences);
 
     if (preferences.keywords.length === 0) {
       const error = new Error('At least one keyword is required');
@@ -815,7 +923,7 @@ export const getJobSearchDiagnostics = async (req, res, next) => {
 
     const { diagnostics, jobs } = await platformService.searchJobsDetailed(
       preferences,
-      filters,
+      normalizedFilters,
       freelancerToken
     );
 

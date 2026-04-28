@@ -13,7 +13,8 @@ const normalizePlatform = platform => {
   return normalized === 'freelancer' ? 'freelancer' : 'upwork';
 };
 
-const getDefaultProposalResponse = () => aiService.getDefaultProposalResponse();
+const getDefaultProposalResponse = (job = null, user = null) =>
+  aiService.getDefaultProposalResponse(job, user);
 
 const buildJobLookupQuery = (jobIdentifier, userId) => {
   const normalizedIdentifier = String(jobIdentifier || '').trim();
@@ -105,6 +106,14 @@ export const generateProposal = async (req, res, next) => {
         status: 'draft',
         aiService: preferredAIService,
       });
+    } else {
+      proposal.content = '';
+      proposal.status = proposal.status === 'sent' ? proposal.status : 'draft';
+      proposal.aiService = preferredAIService;
+      proposal.aiModel = null;
+      proposal.generatedAt = null;
+      proposal.contentType = 'original';
+      await proposal.save();
     }
 
     const usageMonth = req.usageMonth || toMonthKey();
@@ -150,7 +159,7 @@ export const generateProposal = async (req, res, next) => {
         bidInput: req.body,
       })
       : null;
-    const defaultResponse = getDefaultProposalResponse();
+    const defaultResponse = getDefaultProposalResponse(job?.toObject?.() || job, user?.toObject?.() || user);
 
     res.status(200).json({
       success: true,
@@ -178,7 +187,16 @@ async function generateProposalAsync(
   preferredAIService
 ) {
   try {
-    const defaultResponse = getDefaultProposalResponse();
+    const resolvedProvider = aiService.resolveProposalProvider(preferredAIService);
+    const resolvedModel = aiService.getProviderModel(resolvedProvider);
+    const storedService =
+      resolvedProvider === 'openai' || resolvedProvider === 'gemini'
+        ? resolvedProvider
+        : preferredAIService;
+    const defaultResponse = getDefaultProposalResponse(
+      job?.toObject?.() || job,
+      user?.toObject?.() || user
+    );
     const generatedContent = await aiService.generateProposal({
       aiService: preferredAIService,
       job: job.toObject(),
@@ -196,16 +214,15 @@ async function generateProposalAsync(
         content: usedFallbackTemplate ? defaultResponse : generatedContent,
         aiModel: usedFallbackTemplate
           ? 'fallback-template'
-          : preferredAIService === 'gemini'
-            ? 'gemini-2.0-flash'
-            : 'gpt-4-turbo',
+          : resolvedModel || storedService,
+        aiService: storedService,
         generatedAt: new Date(),
         contentType: 'original',
       },
     });
   } catch (error) {
     console.error('Proposal generation failed:', error);
-    const defaultResponse = getDefaultProposalResponse();
+    const defaultResponse = getDefaultProposalResponse(job?.toObject?.() || job, user?.toObject?.() || user);
 
     // Persist default content as a reliable fallback
     await Proposal.findByIdAndUpdate(proposalId, {
@@ -245,7 +262,7 @@ export const getProposal = async (req, res, next) => {
       throw error;
     }
 
-    const defaultResponse = getDefaultProposalResponse();
+    const defaultResponse = getDefaultProposalResponse(proposal?.jobId, proposal?.userId);
 
     res.status(200).json({
       success: true,

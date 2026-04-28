@@ -29,20 +29,24 @@ const ProfileUrl = () => {
   const buildSearchPayload = (data) => {
     const jobHourly = data.hourlyRate ? Number(data.hourlyRate) : null;
     const projectFixedRate = data.fixedRate ? Number(data.fixedRate) : null;
+    const platform = data.selectedPlatform || 'upwork';
+    const isFreelancer = platform === 'freelancer';
+    const profileUrl = data.profileUrl || '';
 
     let rateType = null;
     if (jobHourly && !projectFixedRate) rateType = 'hourly';
     if (projectFixedRate && !jobHourly) rateType = 'fixed';
 
     const payload = {
-      selectedPlatform: data.selectedPlatform || 'upwork',
+      selectedPlatform: platform,
       keywords: data.keywords || [],
       jobHourly,
       projectFixedRate,
       badJobCriteria: data.badJobCriteria || [],
       selectedRole: data.accountType || null,
-      upworkProfileUrl: data.profileUrl || '',
-      freelancerProfileUrl: data.profileUrl || '',
+      ...(isFreelancer
+        ? { freelancerProfileUrl: profileUrl }
+        : { upworkProfileUrl: profileUrl }),
       selectedLanguage: data.selectedLanguage || 'English',
       autoTranslateDescription: Boolean(data.autoTranslateDescription),
     };

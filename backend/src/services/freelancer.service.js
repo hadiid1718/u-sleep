@@ -592,16 +592,24 @@ class FreelancerService {
   applyRateMatching(jobs, userRate, rateType) {
     if (!userRate || !rateType) return jobs;
 
+    const normalizedRate = Number(userRate);
+    if (!Number.isFinite(normalizedRate)) return jobs;
+
     return jobs.filter(job => {
       if (
         rateType === 'hourly' &&
         job.budgetType === 'hourly' &&
         job.hourlyRate
       ) {
-        return (
-          userRate >= (job.hourlyRate.min || 0) &&
-          userRate <= (job.hourlyRate.max || Infinity)
+        const hourlyCeiling = Number(
+          job.hourlyRate.max ?? job.hourlyRate.min
         );
+
+        if (Number.isFinite(hourlyCeiling)) {
+          return hourlyCeiling >= normalizedRate;
+        }
+
+        return true;
       }
 
       if (
@@ -609,7 +617,7 @@ class FreelancerService {
         job.budgetType === 'fixed' &&
         job.budget?.amount
       ) {
-        return userRate <= job.budget.amount;
+        return normalizedRate <= job.budget.amount;
       }
 
       return true;

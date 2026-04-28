@@ -121,7 +121,7 @@ const ProposalGeneratorPage = () => {
                 className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-lime-400 focus:border-lime-400"
               >
                 <option value="openai">OpenAI (GPT-4 Turbo)</option>
-                <option value="gemini">Gemini (1.5 Flash)</option>
+                <option value="gemini">Gemini (2.0 Flash)</option>
               </select>
 
               <button
