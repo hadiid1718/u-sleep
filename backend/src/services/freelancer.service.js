@@ -9,7 +9,7 @@ import {
 const DEFAULT_BASE_URL = 'https://www.freelancer.com';
 const DEFAULT_SEARCH_PATH = '/api/projects/0.1/projects/active/';
 
-class FreelancerService {
+class FreelancerService {   
   constructor() {
     this.cacheTTL = parseInt(JOB_CACHE_TTL, 10) || 3600;
     this.cacheEnabled = JOB_CACHE_ENABLED === 'true';
@@ -100,6 +100,31 @@ class FreelancerService {
 
     if (normalized.includes('%')) return numeric;
     return numeric > 1 ? numeric : numeric * 100;
+  }
+
+  hasClientInfo(job) {
+    const info = job?.clientInfo || {};
+    const values = [
+      info?.name,
+      info?.rating,
+      info?.totalReviews,
+      info?.totalSpent,
+      info?.jobsPosted,
+      info?.hireRate,
+      info?.country,
+      info?.totalHires,
+    ];
+
+    return values.some(value => value !== null && value !== undefined && String(value).trim() !== '');
+  }
+
+  sanitizeClientInfo(job) {
+    if (!job?.clientInfo) return job;
+    if (this.hasClientInfo(job)) return job;
+
+    const sanitized = { ...job };
+    delete sanitized.clientInfo;
+    return sanitized;
   }
 
   isLikelyNonEnglish(text) {
@@ -253,7 +278,12 @@ class FreelancerService {
 
   toInternalJob(rawJob, usersMap = {}, idx = 0) {
     const ownerId = rawJob?.owner_id || rawJob?.ownerId;
-    const owner = usersMap?.[String(ownerId)] || {};
+    const owner =
+      usersMap?.[String(ownerId)] ||
+      rawJob?.owner ||
+      rawJob?.user ||
+      rawJob?.employer ||
+      {};
     const projectId =
       rawJob?.id || rawJob?.project_id || `${Date.now()}-${idx}`;
 
@@ -330,7 +360,95 @@ class FreelancerService {
   }
 
   extractUsersMapFromResponse(payload) {
-    return payload?.result?.users || payload?.users || {};
+    const users = payload?.result?.users || payload?.users || {};
+
+    if (Array.isArray(users)) {
+      return users.reduce((acc, user) => {
+        const id = user?.id || user?.user_id || user?.uid || null;
+        if (id !== null && id !== undefined) {
+          acc[String(id)] = user;
+        }
+        return acc;
+      }, {});
+    }
+
+    return users && typeof users === 'object' ? users : {};
+  }
+
+  async submitBid({ projectId, bidAmount, periodDays, description, oauthToken }) {
+    const normalizedProjectId = Number(projectId);
+    if (!Number.isFinite(normalizedProjectId)) {
+      const error = new Error('Freelancer project ID is invalid.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const normalizedBidAmount = Number(bidAmount);
+    if (!Number.isFinite(normalizedBidAmount) || normalizedBidAmount <= 0) {
+      const error = new Error('Bid amount must be greater than zero.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const normalizedPeriod = Number(periodDays);
+    if (!Number.isFinite(normalizedPeriod) || normalizedPeriod <= 0) {
+      const error = new Error('Bid period must be at least 1 day.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (!oauthToken && !FREELANCER_OAUTH_ACCESS_TOKEN) {
+      const error = new Error(
+        'Freelancer OAuth token is missing. Connect your Freelancer account first.'
+      );
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const payload = {
+      project_id: normalizedProjectId,
+      amount: normalizedBidAmount,
+      period: normalizedPeriod,
+    };
+
+    const normalizedDescription = this.normalizeText(description);
+    if (normalizedDescription) {
+      payload.description = normalizedDescription;
+    }
+
+    const url = `${this.baseUrl}/api/projects/0.1/bids/`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.requestTimeoutMs);
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          ...this.buildAuthHeaders(oauthToken),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message =
+          result?.message ||
+          result?.error ||
+          `Freelancer bid request failed with status ${response.status}.`;
+        const error = new Error(message);
+        error.statusCode = response.status;
+        error.code = 'FREELANCER_BID_ERROR';
+        error.details = result;
+        throw error;
+      }
+
+      return result;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   async fetchFreelancerJobs(
@@ -422,12 +540,13 @@ class FreelancerService {
         return;
       }
 
+      const sanitizedJobs = jobs.map(job => this.sanitizeClientInfo(job));
       const normalizedKeywords = this.normalizeKeywords(
         preferences?.keywords || []
       );
       const signature = this.buildSearchSignature(preferences, filters);
 
-      const operations = jobs.map(job => ({
+      const operations = sanitizedJobs.map(job => ({
         updateOne: {
           filter: { upworkJobId: job.upworkJobId },
           update: {
@@ -642,13 +761,19 @@ class FreelancerService {
       if (this.cacheEnabled) {
         cachedJobs = await this.getCachedJobs(preferences, filters);
         if (cachedJobs.length > 0) {
-          diagnostics.cache.hit = true;
-          diagnostics.source = 'cache';
-          return {
-            jobs: cachedJobs,
-            diagnostics,
-          };
+          const cacheHasClientInfo = cachedJobs.some(job => this.hasClientInfo(job));
+          if (!cacheHasClientInfo) {
+            diagnostics.cache.staleReason = 'missing_client_info';
+          } else {
+            diagnostics.cache.hit = true;
+            diagnostics.source = 'cache';
+            return {
+              jobs: cachedJobs,
+              diagnostics,
+            };
+          }
         }
+
       }
 
       const payload = await this.fetchFreelancerJobs(
@@ -700,7 +825,8 @@ class FreelancerService {
       const jobs = projects
         .filter(item => item)
         .slice(0, limit)
-        .map((item, idx) => this.toInternalJob(item, usersMap, idx));
+        .map((item, idx) => this.toInternalJob(item, usersMap, idx))
+        .map(job => this.sanitizeClientInfo(job));
 
       diagnostics.jobsFound = jobs.length;
       diagnostics.source = 'live';

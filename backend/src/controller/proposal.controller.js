@@ -4,6 +4,7 @@ import User from '../models/user.model.js';
 import UsageRecord from '../models/usageRecord.model.js';
 import mongoose from 'mongoose';
 import aiService from '../services/ai.service.js';
+import freelancerService from '../services/freelancer.service.js';
 import freelancerWorkflowService from '../services/freelancerWorkflow.service.js';
 import notificationService from '../services/notification.service.js';
 import { toMonthKey } from '../utils/subscriptionPlans.js';
@@ -12,6 +13,32 @@ const normalizePlatform = platform => {
   const normalized = String(platform || '').toLowerCase();
   return normalized === 'freelancer' ? 'freelancer' : 'upwork';
 };
+
+const parseDurationToDays = value => {
+  if (!value) return null;
+  const text = String(value).toLowerCase();
+  const match = text.match(/(\d+(?:\.\d+)?)/);
+  if (!match) return null;
+  const amount = Number(match[1]);
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+
+  if (text.includes('week')) return Math.round(amount * 7);
+  if (text.includes('month')) return Math.round(amount * 30);
+  return Math.round(amount);
+};
+
+const computePeriodFromDeliveryDate = deliveryDate => {
+  if (!deliveryDate) return null;
+  const target = new Date(deliveryDate);
+  if (Number.isNaN(target.getTime())) return null;
+  const diffMs = target.getTime() - Date.now();
+  if (diffMs <= 0) return null;
+  return Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+};
+
+const getFreelancerPeriodDays = (estimatedDuration, deliveryDate) =>
+  computePeriodFromDeliveryDate(deliveryDate) ||
+  parseDurationToDays(estimatedDuration);
 
 const getDefaultProposalResponse = (job = null, user = null) =>
   aiService.getDefaultProposalResponse(job, user);
@@ -385,6 +412,56 @@ export const sendProposal = async (req, res, next) => {
       }
     }
 
+    let freelancerBidId = null;
+
+    if (isFreelancerJob) {
+      const user = await User.findById(userId)
+        .select('freelancerAuth')
+        .lean();
+      const freelancerToken = user?.freelancerAuth?.accessToken || null;
+
+      if (!freelancerToken) {
+        const error = new Error(
+          'Freelancer account is not connected. Please connect Freelancer OAuth first.'
+        );
+        error.statusCode = 403;
+        throw error;
+      }
+
+      const periodDays = getFreelancerPeriodDays(
+        estimatedDuration,
+        deliveryDate
+      );
+      if (!periodDays) {
+        const error = new Error(
+          'Unable to determine bid duration. Provide a valid estimated duration or delivery date.'
+        );
+        error.statusCode = 400;
+        throw error;
+      }
+
+      const projectId = proposalJob?.sourceJobId || null;
+      if (!projectId) {
+        const error = new Error('Freelancer project ID is missing for this job.');
+        error.statusCode = 400;
+        throw error;
+      }
+
+      const bidResponse = await freelancerService.submitBid({
+        projectId,
+        bidAmount: Number(bidAmount),
+        periodDays,
+        description: proposal.content,
+        oauthToken: freelancerToken,
+      });
+
+      freelancerBidId =
+        bidResponse?.result?.bid?.id ||
+        bidResponse?.bid?.id ||
+        bidResponse?.result?.id ||
+        null;
+    }
+
     // In production, send to Upwork API here
     // For now, mark as sent and update status
 
@@ -397,7 +474,9 @@ export const sendProposal = async (req, res, next) => {
       status: 'sent',
       timestamp: new Date(),
       notes: isFreelancerJob
-        ? 'Bid submitted using Freelancer workflow'
+        ? `Bid submitted using Freelancer workflow${
+            freelancerBidId ? ` (bid ID: ${freelancerBidId})` : ''
+          }`
         : 'Proposal sent to client',
     });
 

@@ -20,7 +20,7 @@ const Rates = () => {
         <div className='max-w-4xl mx-auto text-center relative z-10 w-full text-white'>
           <div className='mb-6'>
             <h1 className='text-4xl font-bold'>
-              <span className='text-lime-400'>Step 3</span> - {
+              <span className='text-lime-400'>Step 4</span> - {
                 selectedPlatform === 'freelancer' ? 'Bid Guardrails' : 'Your Rates'
               }
             </h1>

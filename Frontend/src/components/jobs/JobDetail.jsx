@@ -16,7 +16,11 @@ const JobDetails = ({ job: propJob }) => {
 
   // Safe destructuring with defaults
   const title = job.title || 'Untitled Job';
-  const description = job.description || job.shortDescription || 'No description available';
+  const description =
+    job.translatedDescription ||
+    job.description ||
+    job.shortDescription ||
+    'No description available';
   const url = job.upworkUrl || job.url || '#';
   const sourceLabel = job.source === 'freelancer_api' ? 'Freelancer' : 'Upwork';
   const postedDate = job.postedDate || job.createdAt;

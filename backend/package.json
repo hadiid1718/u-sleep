@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch  src/server.js",
-    "test": "node --env-file=.env.test --test --test-concurrency=1",
+    "remove-coin": "node src/scripts/remove-coins.mjs",
     "seed:billing": "node src/scripts/seed-billing-plans.mjs",
+    "seed:pro-user": "node src/scripts/seed-pro-user.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",

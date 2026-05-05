@@ -8,6 +8,7 @@ import aiService from '../services/ai.service.js';
 import notificationService from '../services/notification.service.js';
 
 const MAX_AUTO_TRANSLATED_DESCRIPTIONS = 10;
+const MAX_AI_SCORE_JOBS = 25;
 
 const normalizeSelectedRole = role => {
   if (!role) return null;
@@ -35,6 +36,12 @@ const normalizeBadCriteria = criteria => {
 const normalizeSelectedLanguage = language => {
   const normalized = String(language || '').trim();
   return normalized || null;
+};
+
+const getJobMatchKey = job => {
+  return String(
+    job?.upworkJobId || job?.sourceJobId || job?._id || job?.id || ''
+  ).trim();
 };
 
 const shouldAutoTranslate = value => {
@@ -260,14 +267,27 @@ const persistJobsIfPossible = async (jobs, userId) => {
     return false;
   }
 
-  await Job.insertMany(
-    jobs.map(job => ({
-      ...job,
-      userId,
-      matchStatus: 'pending',
-    })),
-    { ordered: false }
-  ).catch(err => {
+  const operations = jobs
+    .filter(job => job?.upworkJobId)
+    .map(job => ({
+      updateOne: {
+        filter: { upworkJobId: job.upworkJobId },
+        update: {
+          $set: {
+            ...job,
+          },
+          $setOnInsert: {
+            userId,
+            matchStatus: 'pending',
+          },
+        },
+        upsert: true,
+      },
+    }));
+
+  if (operations.length === 0) return false;
+
+  await Job.bulkWrite(operations, { ordered: false }).catch(err => {
     if (err.code !== 11000) throw err;
   });
 
@@ -444,6 +464,9 @@ export const searchJobs = async (req, res, next) => {
     }
 
     const preferences = buildPlatformPreferences(req.body, user);
+    const preferredAiService = req.body?.aiService || 'gemini';
+    console.log('Preferred AI Service:', preferredAiService);
+    console.log('REQ BODY AI:', req.body?.aiService);
     if (preferences.keywords.length === 0) {
       const error = new Error('At least one keyword is required');
       error.statusCode = 400;
@@ -480,7 +503,7 @@ export const searchJobs = async (req, res, next) => {
     const translationResult = await maybeAutoTranslateFreelancerDescriptions(
       filteredJobs,
       preferences,
-      req.body?.aiService || 'gemini'
+      preferredAiService
     );
     filteredJobs = translationResult.jobs;
 
@@ -735,6 +758,7 @@ export const searchJobsWithAIAnalysis = async (req, res, next) => {
     }
 
     const preferences = buildPlatformPreferences(req.body, user);
+    const preferredAiService = req.body?.aiService || 'gemini';
     if (preferences.keywords.length === 0) {
       const error = new Error('At least one keyword is required');
       error.statusCode = 400;
@@ -810,6 +834,58 @@ export const searchJobsWithAIAnalysis = async (req, res, next) => {
       };
     });
 
+    const aiScoreMap = await aiService
+      .scoreJobsForPreferences({
+        jobs: filteredJobs,
+        preferences,
+        aiService: preferredAiService,
+        maxJobs: MAX_AI_SCORE_JOBS,
+      })
+      .catch(() => null);
+
+    if (aiScoreMap) {
+      jobsWithScores = jobsWithScores.map(job => {
+        const jobKey = getJobMatchKey(job);
+        const aiScore = aiScoreMap.get(jobKey);
+        if (!aiScore) return job;
+
+        const score = aiScore.score;
+        return {
+          ...job,
+          aiAnalysis: {
+            ...job.aiAnalysis,
+            matchScore: score,
+            recommendation:
+              score >= 80
+                ? 'Highly Recommended'
+                : score >= 60
+                  ? 'Recommended'
+                  : 'Consider',
+            reasoning: aiScore.reasoning || job.aiAnalysis.reasoning,
+          },
+        };
+      });
+    }
+
+    const minScoreInput = Number(req.body?.minAiScore);
+    if (Number.isFinite(minScoreInput)) {
+      const minScore = minScoreInput;
+      jobsWithScores = jobsWithScores.filter(
+        job => (job.aiAnalysis?.matchScore || 0) >= minScore
+      );
+
+      if (jobsWithScores.length === 0) {
+        return res.status(200).json({
+          success: true,
+          data: {
+            jobs: [],
+            totalFound: 0,
+            message: `No jobs found with AI score >= ${minScore}.`,
+          },
+        });
+      }
+    }
+
     // Sort by match score
     jobsWithScores.sort(
       (a, b) => b.aiAnalysis.matchScore - a.aiAnalysis.matchScore
@@ -818,7 +894,7 @@ export const searchJobsWithAIAnalysis = async (req, res, next) => {
     const translationResult = await maybeAutoTranslateFreelancerDescriptions(
       jobsWithScores,
       preferences,
-      req.body?.aiService || 'gemini'
+      preferredAiService
     );
     jobsWithScores = translationResult.jobs;
 

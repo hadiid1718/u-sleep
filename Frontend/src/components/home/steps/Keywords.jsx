@@ -28,7 +28,7 @@ const Keywords = () => {
         <div className="max-w-4xl mx-auto text-center relative z-10 w-full">
           <div className='mb-4'>
             <h3 className="text-white text-4xl font-bold mb-4">
-              <span className='text-lime-400'>Step 2</span> - {
+              <span className='text-lime-400'>Step 3</span> - {
                 selectedPlatform === 'freelancer'
                   ? 'target project keywords'
                   : 'write your keywords'

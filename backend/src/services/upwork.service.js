@@ -429,12 +429,89 @@ class UpworkService {
         rawJob?.clientActivity?.proposals
     );
 
-    const client = rawJob?.client || rawJob?.clientInfo || {};
+    const client =
+      rawJob?.client ||
+      rawJob?.clientInfo ||
+      rawJob?.buyer ||
+      rawJob?.buyerInfo ||
+      rawJob?.clientProfile ||
+      rawJob?.client_data ||
+      rawJob?.buyer_company ||
+      {};
     const paymentVerified = Boolean(
       rawJob?.paymentVerified ||
       rawJob?.clientPaymentVerified ||
       client?.paymentVerified ||
-      client?.payment_verified
+      client?.payment_verified ||
+      client?.paymentStatus ||
+      client?.is_payment_verified ||
+      client?.payment_verification?.verified ||
+      client?.payment_verification?.status === 'verified'
+    );
+    const clientName =
+      this.normalizeText(
+        client?.name ||
+          client?.display_name ||
+          client?.company_name ||
+          client?.short_name ||
+          rawJob?.clientName ||
+          rawJob?.buyerName ||
+          ''
+      ) || null;
+    const clientRating = this.parseNumeric(
+      client?.rating ||
+        client?.feedback ||
+        client?.avg_rating ||
+        client?.score ||
+        rawJob?.clientRating ||
+        rawJob?.buyerRating ||
+        rawJob?.buyerScore
+    );
+    const clientReviews = this.parseNumeric(
+      client?.totalReviews ||
+        client?.reviews ||
+        client?.reviews_count ||
+        client?.feedback_count ||
+        rawJob?.clientReviews ||
+        rawJob?.buyerReviews
+    );
+    const clientSpent =
+      this.parseCurrencyAmount(
+        client?.totalSpent ||
+          client?.total_spent ||
+          client?.spent ||
+          client?.totalSpend ||
+          rawJob?.clientSpend ||
+          rawJob?.buyerSpend
+      ) ?? this.parseNumeric(client?.totalSpent || rawJob?.clientSpend);
+    const clientJobsPosted = this.parseNumeric(
+      client?.jobsPosted ||
+        client?.jobs_posted ||
+        client?.total_jobs_posted ||
+        rawJob?.clientJobsPosted ||
+        rawJob?.buyerJobsPosted
+    );
+    const clientHireRate = this.parseHireRate(
+      client?.hireRate ||
+        client?.hire_rate ||
+        rawJob?.clientHireRate ||
+        rawJob?.buyerHireRate
+    );
+    const clientCountry =
+      client?.country ||
+      client?.country_name ||
+      client?.location?.country ||
+      client?.location?.country_name ||
+      client?.location?.country?.name ||
+      rawJob?.clientCountry ||
+      rawJob?.buyerCountry ||
+      null;
+    const clientTotalHires = this.parseNumeric(
+      client?.totalHires ||
+        client?.total_hires ||
+        client?.hires ||
+        rawJob?.clientHires ||
+        rawJob?.buyerHires
     );
 
     const upworkJobId =
@@ -473,19 +550,15 @@ class UpworkService {
       },
       hourlyRate,
       clientInfo: {
-        name: client?.name || rawJob?.clientName || null,
-        rating: client?.rating || rawJob?.clientRating || null,
-        totalReviews: client?.totalReviews || rawJob?.clientReviews || null,
-        totalSpent: client?.totalSpent || rawJob?.clientSpend || null,
-        jobsPosted: client?.jobsPosted || rawJob?.clientJobsPosted || null,
+        name: clientName,
+        rating: clientRating ?? null,
+        totalReviews: clientReviews ?? null,
+        totalSpent: clientSpent ?? null,
+        jobsPosted: clientJobsPosted ?? null,
         paymentVerified,
-        hireRate: client?.hireRate || rawJob?.clientHireRate || null,
-        country:
-          client?.country ||
-          client?.location?.country ||
-          rawJob?.clientCountry ||
-          null,
-        totalHires: client?.totalHires || rawJob?.clientHires || null,
+        hireRate: clientHireRate ?? null,
+        country: clientCountry,
+        totalHires: clientTotalHires ?? null,
       },
       isCached: true,
       cacheExpiry: new Date(Date.now() + this.cacheTTL * 1000),
@@ -603,12 +676,13 @@ class UpworkService {
         return;
       }
 
+      const sanitizedJobs = jobs.map(job => this.sanitizeClientInfo(job));
       const normalizedKeywords = this.normalizeKeywords(
         preferences?.keywords || []
       );
       const signature = this.buildSearchSignature(preferences, filters);
 
-      const operations = jobs.map(job => ({
+      const operations = sanitizedJobs.map(job => ({
         updateOne: {
           filter: { upworkJobId: job.upworkJobId },
           update: {
@@ -682,6 +756,31 @@ class UpworkService {
 
     if (normalized.includes('%')) return numeric;
     return numeric > 1 ? numeric : numeric * 100;
+  }
+
+  hasClientInfo(job) {
+    const info = job?.clientInfo || {};
+    const values = [
+      info?.name,
+      info?.rating,
+      info?.totalReviews,
+      info?.totalSpent,
+      info?.jobsPosted,
+      info?.hireRate,
+      info?.country,
+      info?.totalHires,
+    ];
+
+    return values.some(value => value !== null && value !== undefined && String(value).trim() !== '');
+  }
+
+  sanitizeClientInfo(job) {
+    if (!job?.clientInfo) return job;
+    if (this.hasClientInfo(job)) return job;
+
+    const sanitized = { ...job };
+    delete sanitized.clientInfo;
+    return sanitized;
   }
 
   extractNumericThreshold(criteria, matchers = []) {
@@ -884,8 +983,9 @@ class UpworkService {
           const cacheHasSkillData = cachedJobs.some(
             job => Array.isArray(job?.skills) && job.skills.length > 0
           );
+          const cacheHasClientInfo = cachedJobs.some(job => this.hasClientInfo(job));
 
-          if (cacheHasSkillData) {
+          if (cacheHasSkillData && cacheHasClientInfo) {
             diagnostics.cache.hit = true;
             diagnostics.source = 'cache';
             return {
@@ -894,7 +994,11 @@ class UpworkService {
             };
           }
 
-          diagnostics.cache.staleReason = 'missing_skills';
+          if (!cacheHasSkillData) {
+            diagnostics.cache.staleReason = 'missing_skills';
+          } else {
+            diagnostics.cache.staleReason = 'missing_client_info';
+          }
         }
       }
 
@@ -918,7 +1022,8 @@ class UpworkService {
       const jobs = candidates
         .filter(item => item)
         .slice(0, limit)
-        .map((item, idx) => this.toInternalJob(item, idx));
+        .map((item, idx) => this.toInternalJob(item, idx))
+        .map(job => this.sanitizeClientInfo(job));
 
       diagnostics.jobsFound = jobs.length;
       diagnostics.source = 'live';

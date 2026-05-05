@@ -41,13 +41,30 @@ app.use(
     stream: { write: message => console.log(message.trim()) },
   })
 );
-
+// SECURITY MIDDLEWARE
 app.use(cookieParser());
 app.use('/webhooks', webhookRouter);
 app.use(arcjetMiddleware);
 app.use(helmet());
 app.use(metricsMiddleware);
+app.use(errorMiddleware);
 
+// ACCESS POINTS
+app.get('/api', (req, res) => {
+  res.send('Welcome to U Sleep || Upwork Automation APIs!');
+});
+
+//HEALTH CHECK
+
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'ok',
+    uptime: process.uptime(),
+    timestamp: Date.now()
+  
+  });
+});
+// API ROUTES
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/users', userRouter);
 app.use('/api/v1/demo', demoRouter);
@@ -60,10 +77,7 @@ app.use('/api/v1/billing', billingRouter);
 app.use('/api/v1/notifications', notificationRouter);
 app.use('/api/v1/admin', adminRouter);
 
-app.use(errorMiddleware);
 
-app.get('/', (req, res) => {
-  res.send('Welcome to U Sleep || Upwork Automation APIs!');
-});
+
 
 export default app;

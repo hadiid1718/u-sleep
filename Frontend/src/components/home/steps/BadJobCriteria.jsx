@@ -38,7 +38,7 @@ const BadJobCriteria = () => {
         <div className="w-full flex flex-col items-center justify-center text-white">
           <div className="w-full p-10 shadow-lg">
             <h2 className="text-2xl font-bold text-lime-300 mb-2">
-              Step 4 – {selectedPlatform === 'freelancer' ? 'skip risky projects' : 'bad job criteria'}
+              Step 5 – {selectedPlatform === 'freelancer' ? 'skip risky projects' : 'bad job criteria'}
             </h2>
             <p className="text-gray-300 mb-6">
               {selectedPlatform === 'freelancer'

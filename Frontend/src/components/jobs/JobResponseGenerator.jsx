@@ -8,22 +8,15 @@ import CaseStudyModal from '../models/CaseStudyModel';
 import { AppContext } from '../../context/Context';
 import { proposalAPI } from '../../services/proposalService';
 import useSubscription from '../../hooks/useSubscription';
-import UpgradeBanner from '../billing/UpgradeBanner';
 
-const JobResponseGenerator = ({ job, aiService = 'openai' }) => {
+const JobResponseGenerator = ({ job, aiService = 'openai', onBack = null }) => {
   const {
     generateProposal,
     pollProposal,
     currentProposal,
     freelancerProposalWorkflow,
   } = useContext(AppContext);
-  const {
-    usagePercentage,
-    shouldShowUpgradeWarning,
-    isQuotaExhausted,
-    startCheckout,
-    refreshSubscription,
-  } = useSubscription();
+  const { refreshSubscription } = useSubscription();
 
   const [currentScreen, setCurrentScreen] = useState('loading');
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -149,9 +142,9 @@ const JobResponseGenerator = ({ job, aiService = 'openai' }) => {
         console.error('Proposal upgrade error:', err);
       }
     } else {
-      // Fallback when no real proposalId
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      setResponseText(`Enhanced proposal with case study:\n\n${caseStudy.substring(0, 200)}...\n\nWe look forward to discussing your project.`);
+      setGenerationError(
+        'Unable to upgrade without a generated proposal. Please generate a proposal first.'
+      );
     }
 
     setIsRegenerating(false);
@@ -175,32 +168,7 @@ const JobResponseGenerator = ({ job, aiService = 'openai' }) => {
           </p>
         </div>
 
-        {isFreelancerJob && freelancerProposalWorkflow?.steps?.length > 0 && (
-          <div className="mb-6 rounded-xl border border-cyan-300 bg-cyan-50 dark:border-cyan-500/40 dark:bg-cyan-950/20 p-4 text-left">
-            <p className="text-cyan-800 dark:text-cyan-300 font-semibold mb-2">Freelancer Bid Steps</p>
-            <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
-              {freelancerProposalWorkflow.steps.map(step => (
-                <p key={step.id}>• {step.title}</p>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {shouldShowUpgradeWarning && (
-          <div className="mb-6">
-            <UpgradeBanner
-              tone={isQuotaExhausted ? 'danger' : 'warning'}
-              title={
-                isQuotaExhausted
-                  ? 'You have reached your monthly limit'
-                  : `You are at ${usagePercentage}% of your monthly usage`
-              }
-              description="Upgrade your plan to keep generating and sending proposals without interruptions."
-              ctaLabel="Upgrade plan"
-              onAction={() => startCheckout('pro')}
-            />
-          </div>
-        )}
+        
         
         <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] gap-6 xl:gap-8 items-start">
           <JobDetails job={job} />
@@ -208,6 +176,7 @@ const JobResponseGenerator = ({ job, aiService = 'openai' }) => {
             onLike={handleLike} 
             onDislike={handleDislike}
             onUpgrade={handleUpgradeClick}
+            onBack={onBack}
             responseText={responseText}
             generationError={generationError}
             job={job}

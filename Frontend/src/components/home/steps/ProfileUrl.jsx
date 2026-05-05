@@ -39,6 +39,7 @@ const ProfileUrl = () => {
 
     const payload = {
       selectedPlatform: platform,
+      aiService: data.aiService || 'gemini',
       keywords: data.keywords || [],
       jobHourly,
       projectFixedRate,
@@ -106,7 +107,7 @@ const ProfileUrl = () => {
         <div className="max-w-4xl w-full">
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              <span className="text-green-400">Step 6 -</span>{' '}
+              <span className="text-green-400">Step 7 -</span>{' '}
               {selectedPlatform === 'freelancer'
                 ? 'connect profile and launch project fetch'
                 : `share your ${selectedPlatform === 'freelancer' ? 'Freelancer.com' : 'Upwork'} profile link`}

@@ -1,9 +1,8 @@
 import React, { useState, useContext, useEffect, useMemo } from 'react';
-import { Copy, Send } from 'lucide-react';
+import { ArrowLeft, Copy, Send } from 'lucide-react';
 import { AppContext } from '../../context/Context';
 import { proposalAPI } from '../../services/proposalService';
 import useSubscription from '../../hooks/useSubscription';
-import UpgradeBanner from '../billing/UpgradeBanner';
 
 const DEFAULT_ESTIMATED_DURATION = '7 days';
 
@@ -11,6 +10,7 @@ const GeneratedResponse = ({
   onLike,
   onDislike,
   onUpgrade,
+  onBack,
   responseText,
   generationError = '',
   job,
@@ -25,20 +25,12 @@ const GeneratedResponse = ({
   const [bidFormError, setBidFormError] = useState('');
 
   const { currentProposal } = useContext(AppContext);
-  const {
-    canDirectSend,
-    usagePercentage,
-    isQuotaExhausted,
-    startCheckout,
-    refreshSubscription,
-  } = useSubscription();
+  const { canDirectSend, refreshSubscription } = useSubscription();
 
   const proposalId = currentProposal?.proposalId || currentProposal?._id;
   const isFreelancerJob = job?.source === 'freelancer_api';
   const usedFallbackTemplate = currentProposal?.aiModel === 'fallback-template';
-  const displayText = usedFallbackTemplate
-    ? ''
-    : responseText || currentProposal?.content || '';
+  const displayText = responseText || currentProposal?.content || '';
 
   const initialBidAmount = useMemo(() => {
     const draftBidAmount = workflow?.draftBidInput?.bidAmount;
@@ -184,25 +176,16 @@ const GeneratedResponse = ({
           {isFreelancerJob ? 'Generated Bid Cover Letter' : 'Generated Response'}
         </h3>
 
-        {(!canDirectSend || usagePercentage >= 80) && (
-          <UpgradeBanner
-            tone={isQuotaExhausted ? 'danger' : 'warning'}
-            title={
-              !canDirectSend
-                ? 'Starter plan supports copy-only submissions'
-                : 'Usage is approaching your plan limit'
-            }
-            description={
-              !canDirectSend
-                ? 'Upgrade to Pro or Agency to unlock direct send from this screen.'
-                : 'Upgrade now to avoid interruptions and keep proposal generation active.'
-            }
-            ctaLabel="Upgrade to Pro"
-            onAction={() => startCheckout('pro')}
-          />
-        )}
-
-        <div className="flex gap-3">
+        <div className="flex flex-wrap justify-center gap-3">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white px-5 py-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition font-medium"
+            >
+              <ArrowLeft size={18} />
+              Back
+            </button>
+          )}
           <button
             onClick={handleCopy}
             className="flex items-center gap-2 bg-gray-100 dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white px-5 py-2.5 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition font-medium"
@@ -210,30 +193,35 @@ const GeneratedResponse = ({
             <Copy size={18} />
             {copied ? 'Copied!' : 'Copy'}
           </button>
-          {canDirectSend && (
-            <button
-              onClick={handleSend}
-              disabled={sending || sent}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg transition font-bold ${
-                sent
-                  ? 'bg-green-600 text-white cursor-default'
-                  : sending
-                    ? 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300 cursor-wait'
-                    : 'bg-lime-400 text-gray-900 hover:bg-lime-500'
-              }`}
-            >
-              <Send size={18} />
-              {sent
-                ? isFreelancerJob
-                  ? 'Bid Sent!'
-                  : 'Sent!'
+          <button
+            onClick={handleSend}
+            disabled={!canDirectSend || sending || sent}
+            title={
+              !canDirectSend
+                ? 'Upgrade to Pro or Agency to enable direct send.'
+                : undefined
+            }
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg transition font-bold ${
+              sent
+                ? 'bg-green-600 text-white cursor-default'
                 : sending
-                  ? 'Sending...'
-                  : isFreelancerJob
-                    ? 'Place Bid'
-                    : 'Send'}
-            </button>
-          )}
+                  ? 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300 cursor-wait'
+                  : !canDirectSend
+                    ? 'bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-300 cursor-not-allowed'
+                    : 'bg-lime-400 text-gray-900 hover:bg-lime-500'
+            }`}
+          >
+            <Send size={18} />
+            {sent
+              ? isFreelancerJob
+                ? 'Bid Sent!'
+                : 'Sent!'
+              : sending
+                ? 'Sending...'
+                : isFreelancerJob
+                  ? 'Place Bid'
+                  : 'Send'}
+          </button>
         </div>
       </div>
 

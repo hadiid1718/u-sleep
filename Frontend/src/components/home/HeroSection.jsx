@@ -1,5 +1,6 @@
 import React, { useContext } from 'react';
 import PlatformSelect from './steps/PlatformSelect';
+import AIServiceSelect from './steps/AIServiceSelect';
 import Keywords from './steps/Keywords';
 import Rates from './steps/Rates';
 import BadJobCriteria from './steps/BadJobCriteria';
@@ -28,6 +29,7 @@ const HeroSection = () => {
     selectedPlatform === 'freelancer'
       ? [
           'Platform',
+          'AI service',
           'Project keywords',
           'Bid guardrails',
           'Risk filters',
@@ -36,6 +38,7 @@ const HeroSection = () => {
         ]
       : [
           'Platform',
+          'AI service',
           'Keywords',
           'Rates',
           'Bad job filters',
@@ -63,10 +66,10 @@ const HeroSection = () => {
         </p>
 
         {/* Progress Bar */}
-        {steps <= 6 && (
+        {steps <= 7 && (
           <div className="mb-8 max-w-4xl mx-auto">
             <div className="flex justify-between mb-2">
-              {[1, 2, 3, 4, 5, 6].map((s) => (
+              {[1, 2, 3, 4, 5, 6, 7].map((s) => (
                 <div
                   key={s}
                   className={`w-full h-2 mx-1 rounded-full transition-all ${
@@ -76,7 +79,7 @@ const HeroSection = () => {
               ))}
             </div>
             <p className="text-center text-gray-400">
-              Step {steps} of 6 • {stepLabels[steps - 1]}
+              Step {steps} of 7 • {stepLabels[steps - 1]}
             </p>
           </div>
         )}
@@ -104,23 +107,26 @@ const HeroSection = () => {
               {/* Step 1 - Platform */}
               {steps === 1 && <PlatformSelect />}
 
-              {/* Step 2 - Keywords */}
-              {steps === 2 && <Keywords steps={steps} setSteps={setSteps} />}
+              {/* Step 2 - AI Service */}
+              {steps === 2 && <AIServiceSelect />}
 
-              {/* Step 3 - Rates */}
-              {steps === 3 && <Rates />}
+              {/* Step 3 - Keywords */}
+              {steps === 3 && <Keywords steps={steps} setSteps={setSteps} />}
 
-              {/* Step 4 - Bad Job Criteria */}
-              {steps === 4 && <BadJobCriteria />}
+              {/* Step 4 - Rates */}
+              {steps === 4 && <Rates />}
 
-              {/* Step 5 - Role Selection */}
-              {steps === 5 && <RoleSelecting />}
+              {/* Step 5 - Bad Job Criteria */}
+              {steps === 5 && <BadJobCriteria />}
 
-              {/* Step 6 - Profile URL */}
-              {steps === 6 && <ProfileUrl />}
+              {/* Step 6 - Role Selection */}
+              {steps === 6 && <RoleSelecting />}
 
-              {/* Step 7 - Results/User Check */}
-              {steps === 7 && (
+              {/* Step 7 - Profile URL */}
+              {steps === 7 && <ProfileUrl />}
+
+              {/* Step 8 - Results/User Check */}
+              {steps === 8 && (
                 <div>
                   {!user ? (
                     // Show login/signup if user not logged in

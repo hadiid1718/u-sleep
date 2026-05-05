@@ -10,7 +10,7 @@ const ProposalGeneratorPage = () => {
   const { jobId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { jobResults } = useContext(AppContext);
+  const { jobResults, removeJobFromResults } = useContext(AppContext);
 
   const [job, setJob] = useState(() => location.state?.job || null);
   const [aiService, setAiService] = useState('openai');
@@ -22,6 +22,18 @@ const ProposalGeneratorPage = () => {
     () => job?._id || job?.id || jobId || null,
     [job, jobId]
   );
+
+  const getJobIdentifier = () =>
+    job?._id || job?.id || job?.upworkJobId || job?.sourceJobId || resolvedJobId;
+
+  const handleBackToResults = () => {
+    const jobIdentifier = getJobIdentifier();
+    if (jobIdentifier) {
+      removeJobFromResults(jobIdentifier);
+    }
+    setShowGenerator(false);
+    navigate('/job-result', { replace: true });
+  };
 
   useEffect(() => {
     if (job) return;
@@ -69,7 +81,13 @@ const ProposalGeneratorPage = () => {
   }, [job, jobResults, resolvedJobId]);
 
   if (showGenerator && job) {
-    return <JobResponseGenerator job={job} aiService={aiService} />;
+    return (
+      <JobResponseGenerator
+        job={job}
+        aiService={aiService}
+        onBack={handleBackToResults}
+      />
+    );
   }
 
   return (
@@ -77,7 +95,7 @@ const ProposalGeneratorPage = () => {
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/job-result')}
             className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
           >
             <ArrowLeft size={18} />

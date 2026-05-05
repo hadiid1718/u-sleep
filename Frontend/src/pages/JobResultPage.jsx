@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import JobResponseGenerator from "../components/jobs/JobResponseGenerator";
 import ReasonModal from "../components/models/ReasonModal";
 import { ExternalLink, AlertTriangle } from "lucide-react";
@@ -18,6 +18,7 @@ const JobResultPage = () => {
     formData,
     matchJob,
     rejectJob,
+    removeJobFromResults,
   } = useContext(AppContext);
 
   const [currentJobIndex, setCurrentJobIndex] = useState(0);
@@ -28,6 +29,16 @@ const JobResultPage = () => {
   const jobs = jobResults || [];
   const totalJobs = jobs.length;
   const currentJob = jobs[currentJobIndex];
+
+  useEffect(() => {
+    if (totalJobs === 0) return;
+    if (currentJobIndex >= totalJobs) {
+      setCurrentJobIndex(totalJobs - 1);
+    }
+  }, [currentJobIndex, totalJobs]);
+
+  const getJobId = job =>
+    job?._id || job?.id || job?.upworkJobId || job?.sourceJobId;
 
   const handleDismatch = () => setShowReasonModel(true);
 
@@ -42,7 +53,7 @@ const JobResultPage = () => {
       return;
     }
 
-    const jobId = currentJob?._id || currentJob?.id;
+    const jobId = getJobId(currentJob);
     if (jobId) {
       await rejectJob(jobId, reason);
     }
@@ -52,12 +63,20 @@ const JobResultPage = () => {
   };
 
   const handleMatch = async () => {
-    const jobId = currentJob?._id || currentJob?.id;
+    const jobId = getJobId(currentJob);
     if (jobId) {
       await matchJob(jobId);
     }
 
     setShowJobResponse(true);
+  };
+
+  const handleBackToResults = () => {
+    const jobId = getJobId(currentJob);
+    if (jobId) {
+      removeJobFromResults(jobId);
+    }
+    setShowJobResponse(false);
   };
 
   const moveToNextJob = () => {
@@ -76,10 +95,7 @@ const JobResultPage = () => {
     return (
       <JobResponseGenerator
         job={currentJob}
-        onClose={() => {
-          setShowJobResponse(false);
-          moveToNextJob();
-        }}
+        onBack={handleBackToResults}
       />
     );
   }
@@ -163,13 +179,27 @@ const JobResultPage = () => {
   const selectedPlatform = String(formData?.selectedPlatform || '').toLowerCase();
   const isFreelancerJob =
     selectedPlatform === 'freelancer' || currentJob?.source === 'freelancer_api';
+  const clientInfo = currentJob?.clientInfo || {};
+  const jobsPosted = Number.isFinite(Number(clientInfo.jobsPosted))
+    ? Number(clientInfo.jobsPosted)
+    : 0;
+  const paymentVerified = Boolean(clientInfo.paymentVerified);
+  const totalReviews = Number.isFinite(Number(clientInfo.totalReviews))
+    ? Number(clientInfo.totalReviews)
+    : 0;
+  const rating = Number.isFinite(Number(clientInfo.rating))
+    ? Number(clientInfo.rating)
+    : 0;
+  const totalSpent = Number.isFinite(Number(clientInfo.totalSpent))
+    ? Number(clientInfo.totalSpent)
+    : 0;
+  const hireRate = Number.isFinite(Number(clientInfo.hireRate))
+    ? Number(clientInfo.hireRate)
+    : 0;
+  const country = String(clientInfo.country || '').trim() || 'Unknown';
 
   const handleFreelancerNext = async () => {
-    const jobId =
-      currentJob?._id ||
-      currentJob?.id ||
-      currentJob?.upworkJobId ||
-      currentJob?.sourceJobId;
+    const jobId = getJobId(currentJob);
 
     if (jobId) {
       await matchJob(jobId);
@@ -223,7 +253,7 @@ const JobResultPage = () => {
             <h3 className="text-gray-900 dark:text-white font-semibold mb-2">Description</h3>
             <div className="max-h-72 overflow-y-auto pr-2">
               <p className="text-gray-700 dark:text-gray-300 text-lg leading-relaxed whitespace-pre-line">
-                {currentJob.description}
+                {currentJob.translatedDescription || currentJob.description}
               </p>
             </div>
           </div>
@@ -272,15 +302,21 @@ const JobResultPage = () => {
             {typeof aiAnalysisText === 'string' ? aiAnalysisText : JSON.stringify(aiAnalysisText)}
           </p>
 
-          {currentJob?.clientInfo && (
-            <div className="mt-6 text-base sm:text-lg space-y-2">
-              <h4 className="text-lime-700 dark:text-lime-400 font-semibold mb-2 text-xl">Client Info</h4>
-              {currentJob.clientInfo.rating && <p className="text-gray-700 dark:text-gray-300">Rating: {currentJob.clientInfo.rating}</p>}
-              {currentJob.clientInfo.totalSpent && <p className="text-gray-700 dark:text-gray-300">Total Spent: ${currentJob.clientInfo.totalSpent?.toLocaleString()}</p>}
-              {currentJob.clientInfo.country && <p className="text-gray-700 dark:text-gray-300">Country: {currentJob.clientInfo.country}</p>}
-              <p className="text-gray-700 dark:text-gray-300">Payment: {currentJob.clientInfo.paymentVerified ? '✅ Verified' : '❌ Not Verified'}</p>
-            </div>
-          )}
+          <div className="mt-6 text-base sm:text-lg space-y-2">
+            <h4 className="text-lime-700 dark:text-lime-400 font-semibold mb-2 text-xl">Client Info</h4>
+            <p className="text-gray-700 dark:text-gray-300">Posted jobs: {jobsPosted}</p>
+            <p className="text-gray-700 dark:text-gray-300">
+              Payment:{' '}
+              <span className={paymentVerified ? 'text-green-400' : 'text-red-400'}>
+                {paymentVerified ? 'VERIFIED' : 'NOT VERIFIED'}
+              </span>
+            </p>
+            <p className="text-gray-700 dark:text-gray-300">Reviews: {totalReviews}</p>
+            <p className="text-gray-700 dark:text-gray-300">Rating: {rating}</p>
+            <p className="text-gray-700 dark:text-gray-300">Total spent: ${totalSpent.toLocaleString()}</p>
+            <p className="text-gray-700 dark:text-gray-300">Hire rate: {hireRate}%</p>
+            <p className="text-gray-700 dark:text-gray-300">Country: {country}</p>
+          </div>
 
           <div className="mt-7 text-base sm:text-lg">
             <h4 className="text-lime-700 dark:text-lime-400 font-semibold mb-2 text-xl">

@@ -189,6 +189,15 @@ My approach is simple: clarify must-haves, ship an initial milestone quickly, an
       return fencedMatch[1].trim();
     }
 
+    const firstBracket = text.indexOf('[');
+    const lastBracket = text.lastIndexOf(']');
+    if (firstBracket >= 0 && lastBracket > firstBracket) {
+      const slice = text.slice(firstBracket, lastBracket + 1);
+      if (slice.includes('{')) {
+        return slice;
+      }
+    }
+
     const firstBrace = text.indexOf('{');
     const lastBrace = text.lastIndexOf('}');
 
@@ -472,6 +481,188 @@ ${text}
     );
   }
 
+  getJobMatchKey(job) {
+    return String(
+      job?.upworkJobId ||
+        job?.sourceJobId ||
+        job?._id ||
+        job?.id ||
+        ''
+    ).trim();
+  }
+
+  summarizeJobForMatch(job) {
+    const jobKey = this.getJobMatchKey(job);
+    const title = this.normalizeText(job?.title);
+    const description = this.normalizeText(job?.description)
+      .slice(0, 500)
+      .trim();
+    const skills = Array.isArray(job?.skills) ? job.skills.slice(0, 8) : [];
+
+    return {
+      jobId: jobKey,
+      title: title || 'Untitled job',
+      description,
+      skills,
+      budgetType: job?.budgetType || null,
+      budgetAmount: job?.budget?.amount ?? null,
+      hourlyRateMin: job?.hourlyRate?.min ?? null,
+      hourlyRateMax: job?.hourlyRate?.max ?? null,
+      proposalsCount: job?.proposalsCount ?? null,
+      clientRating: job?.clientInfo?.rating ?? null,
+      clientPaymentVerified: Boolean(job?.clientInfo?.paymentVerified),
+      clientCountry: job?.clientInfo?.country || null,
+    };
+  }
+
+  buildJobMatchPrompt(preferences, jobs) {
+    const normalizedPreferences = {
+      keywords: Array.isArray(preferences?.keywords)
+        ? preferences.keywords.filter(Boolean)
+        : [],
+      badJobCriteria: Array.isArray(preferences?.badJobCriteria)
+        ? preferences.badJobCriteria.filter(Boolean)
+        : [],
+      rateType: preferences?.rateType || null,
+      hourlyRate: preferences?.jobHourly ?? preferences?.hourlyRate ?? null,
+      fixedRate:
+        preferences?.projectFixedRate ?? preferences?.fixedRate ?? null,
+      selectedRole:
+        preferences?.selectedRole || preferences?.userRole || null,
+      selectedPlatform: preferences?.selectedPlatform || null,
+    };
+
+    return `You are a job matching assistant. Return ONLY valid JSON.
+
+User preferences (JSON):
+${JSON.stringify(normalizedPreferences)}
+
+Jobs to score (JSON array):
+${JSON.stringify(jobs)}
+
+For each job return an object with keys:
+- jobId (string, must match input jobId)
+- score (number 0-100)
+- reasoning (short sentence)
+
+Rules:
+- Score reflects how well the job matches preferences.
+- Give 80+ only for strong matches.
+- Output ONLY the JSON array.`;
+  }
+
+  async generateJsonWithOpenAI(prompt, systemMessage) {
+    const payload = {
+      model: this.openaiModel,
+      messages: [
+        {
+          role: 'system',
+          content: systemMessage,
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      temperature: 0.1,
+      max_tokens: 1200,
+    };
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+    try {
+      const response = await fetch(
+        'https://api.openai.com/v1/chat/completions',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${this.openaiApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        }
+      );
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => null);
+        throw new Error(
+          `OpenAI API Error: ${error?.error?.message || response.statusText}`
+        );
+      }
+
+      const data = await response.json();
+      return data.choices?.[0]?.message?.content || '';
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error('Job scoring timed out', { cause: error });
+      }
+      throw error;
+    }
+  }
+
+  async scoreJobsForPreferences({
+    jobs = [],
+    preferences = {},
+    aiService = 'gemini',
+    maxJobs = 25,
+  } = {}) {
+    if (!Array.isArray(jobs) || jobs.length === 0) return null;
+
+    const provider = this.resolveProposalProvider(aiService);
+    if (provider === 'fallback') return null;
+
+    const trimmedJobs = jobs
+      .filter(job => this.getJobMatchKey(job))
+      .slice(0, maxJobs)
+      .map(job => this.summarizeJobForMatch(job));
+
+    if (trimmedJobs.length === 0) return null;
+
+    const prompt = this.buildJobMatchPrompt(preferences, trimmedJobs);
+    const systemMessage =
+      'You are a job matching assistant. Output strict JSON only, no markdown.';
+
+    const rawResult =
+      provider === 'openai'
+        ? await this.generateJsonWithOpenAI(prompt, systemMessage)
+        : await this.generateWithGeminiSdk({
+            prompt,
+            systemInstruction: systemMessage,
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 1200,
+              topP: 0.9,
+            },
+            timeoutMessage: 'Job scoring timed out',
+          });
+
+    const parsed = this.parseJsonPayload(rawResult);
+    if (!Array.isArray(parsed)) return null;
+
+    const scores = new Map();
+
+    for (const item of parsed) {
+      const jobId = this.normalizeText(item?.jobId || item?.id);
+      if (!jobId) continue;
+      const score = Number(item?.score ?? item?.matchScore ?? 0);
+      const clampedScore = Number.isFinite(score)
+        ? Math.max(0, Math.min(100, score))
+        : 0;
+      const reasoning = this.normalizeText(
+        item?.reasoning || item?.reason || item?.notes || ''
+      );
+
+      scores.set(jobId, { score: clampedScore, reasoning });
+    }
+
+    return scores.size > 0 ? scores : null;
+  }
+
   /**
    * Generate proposal with specified AI service
    * @param {Object} params - Generation parameters
@@ -690,20 +881,47 @@ Use this case study as the Proof paragraph. Keep it concrete with tools/methods 
     caseStudy,
     aiService = 'openai'
   ) {
-    const upgradePrompt = `Here's an existing proposal:
+    const platform =
+      job?.source === 'freelancer_api' ? 'Freelancer.com' : 'Upwork';
+    const description = this.normalizeText(
+      job?.description || job?.shortDescription || ''
+    );
+    const skills = Array.isArray(job?.skills) ? job.skills.filter(Boolean) : [];
+    const budget =
+      job?.budgetType === 'fixed'
+        ? `Fixed $${job?.budget?.amount || 'N/A'}`
+        : `Hourly $${job?.hourlyRate?.min || 'N/A'}-${
+            job?.hourlyRate?.max || 'N/A'
+          }`;
+    const clientName = this.normalizeText(job?.clientInfo?.name || 'Unknown');
+    const normalizedProposal = this.normalizeText(proposal);
+    const normalizedCaseStudy = this.normalizeText(caseStudy);
 
-"${proposal}"
+    const upgradePrompt = `You are upgrading a ${platform} proposal. Keep the core intent of the existing proposal and the job context. The case study must be the Proof paragraph, but do NOT make the response only about the case study.
 
-Enhance this proposal by incorporating the following case study to make it more authority-driven and persuasive:
+JOB DETAILS:
+Title: ${this.normalizeText(job?.title) || 'N/A'}
+Description: ${description || 'N/A'}
+Skills: ${skills.length ? skills.join(', ') : 'N/A'}
+Budget: ${budget}
+Client: ${clientName}
+
+EXISTING PROPOSAL:
+"""
+${normalizedProposal || 'N/A'}
+"""
 
 CASE STUDY:
-${caseStudy}
+"""
+${normalizedCaseStudy || 'N/A'}
+"""
 
+INSTRUCTIONS:
 - Rewrite to exactly 3 paragraphs separated by a blank line
 - Keep total length 150-220 words
-- Use the case study as the Proof paragraph with tools/methods and measurable outcomes
-- Paragraph 1 is the Hook (start with a specific job detail; first word not "Hi", "Hello", or "I")
-- Paragraph 3 is the Approach + ONE smart question or confident call to action
+- Paragraph 1 is the Hook: must reference at least one specific job detail from JOB DETAILS
+- Paragraph 2 is Proof: use the CASE STUDY with tools/methods and measurable outcomes
+- Paragraph 3 is Approach: describe how you will solve THIS job, then end with ONE smart question or confident call to action
 - No subject line, no greeting, no labels, no placeholders
 - Avoid banned phrases: "I am the perfect candidate", "I would love to work with you", "passionate", "dedicated", "detail-oriented", "guru", "ninja", "rockstar"
 - Output only the proposal text`;

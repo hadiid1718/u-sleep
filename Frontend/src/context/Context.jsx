@@ -10,7 +10,7 @@ export const ContextProvider = ({ children }) => {
   ========================== */
   const [steps, setSteps] = useState(1);
 
-  const nextStep = () => setSteps((prev) => Math.min(prev + 1, 7));
+  const nextStep = () => setSteps((prev) => Math.min(prev + 1, 8));
   const prevStep = () => setSteps((prev) => Math.max(prev - 1, 1));
 
   /* =========================
@@ -74,6 +74,7 @@ export const ContextProvider = ({ children }) => {
   ========================== */
   const [formData, setFormData] = useState({
     selectedPlatform: 'upwork',
+    aiService: 'gemini',
     keywords: [],
     hourlyRate: "",
     fixedRate: "",
@@ -88,6 +89,7 @@ export const ContextProvider = ({ children }) => {
     setSteps(1);
     setFormData({
       selectedPlatform: 'upwork',
+      aiService: 'gemini',
       keywords: [],
       hourlyRate: "",
       fixedRate: "",
@@ -323,6 +325,13 @@ export const ContextProvider = ({ children }) => {
       setError(err.message);
       return { success: false, error: { message: err.message } };
     }
+  };
+
+  const removeJobFromResults = (jobIdentifier) => {
+    if (!jobIdentifier) return;
+    setJobResults(prev =>
+      prev.filter(job => !isSameJob(job, jobIdentifier))
+    );
   };
 
   const translateJobDescription = async (
@@ -567,6 +576,7 @@ export const ContextProvider = ({ children }) => {
         fetchDashboardJobs,
         matchJob,
         rejectJob,
+        removeJobFromResults,
         translateJobDescription,
 
         /* Proposals */
