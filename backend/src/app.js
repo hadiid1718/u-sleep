@@ -57,11 +57,10 @@ app.get('/api', (req, res) => {
 //HEALTH CHECK
 
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
+  res.status(200).json({
     status: 'ok',
     uptime: process.uptime(),
-    timestamp: Date.now()
-  
+    timestamp: Date.now(),
   });
 });
 // API ROUTES
@@ -76,8 +75,5 @@ app.use('/api/v1/review-video', reviewVideoRouter);
 app.use('/api/v1/billing', billingRouter);
 app.use('/api/v1/notifications', notificationRouter);
 app.use('/api/v1/admin', adminRouter);
-
-
-
 
 export default app;

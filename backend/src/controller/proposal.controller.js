@@ -182,11 +182,14 @@ export const generateProposal = async (req, res, next) => {
     // Return immediately with message
     const workflow = isFreelancerJob
       ? freelancerWorkflowService.buildProposalWorkflowContext({
-        job: job.toObject(),
-        bidInput: req.body,
-      })
+          job: job.toObject(),
+          bidInput: req.body,
+        })
       : null;
-    const defaultResponse = getDefaultProposalResponse(job?.toObject?.() || job, user?.toObject?.() || user);
+    const defaultResponse = getDefaultProposalResponse(
+      job?.toObject?.() || job,
+      user?.toObject?.() || user
+    );
 
     res.status(200).json({
       success: true,
@@ -214,7 +217,8 @@ async function generateProposalAsync(
   preferredAIService
 ) {
   try {
-    const resolvedProvider = aiService.resolveProposalProvider(preferredAIService);
+    const resolvedProvider =
+      aiService.resolveProposalProvider(preferredAIService);
     const resolvedModel = aiService.getProviderModel(resolvedProvider);
     const storedService =
       resolvedProvider === 'openai' || resolvedProvider === 'gemini'
@@ -249,7 +253,10 @@ async function generateProposalAsync(
     });
   } catch (error) {
     console.error('Proposal generation failed:', error);
-    const defaultResponse = getDefaultProposalResponse(job?.toObject?.() || job, user?.toObject?.() || user);
+    const defaultResponse = getDefaultProposalResponse(
+      job?.toObject?.() || job,
+      user?.toObject?.() || user
+    );
 
     // Persist default content as a reliable fallback
     await Proposal.findByIdAndUpdate(proposalId, {
@@ -289,7 +296,10 @@ export const getProposal = async (req, res, next) => {
       throw error;
     }
 
-    const defaultResponse = getDefaultProposalResponse(proposal?.jobId, proposal?.userId);
+    const defaultResponse = getDefaultProposalResponse(
+      proposal?.jobId,
+      proposal?.userId
+    );
 
     res.status(200).json({
       success: true,
@@ -413,20 +423,12 @@ export const sendProposal = async (req, res, next) => {
     }
 
     let freelancerBidId = null;
+    let usedSystemFreelancerToken = false;
 
     if (isFreelancerJob) {
-      const user = await User.findById(userId)
-        .select('freelancerAuth')
-        .lean();
+      const user = await User.findById(userId).select('freelancerAuth').lean();
       const freelancerToken = user?.freelancerAuth?.accessToken || null;
-
-      if (!freelancerToken) {
-        const error = new Error(
-          'Freelancer account is not connected. Please connect Freelancer OAuth first.'
-        );
-        error.statusCode = 403;
-        throw error;
-      }
+      usedSystemFreelancerToken = !freelancerToken;
 
       const periodDays = getFreelancerPeriodDays(
         estimatedDuration,
@@ -442,7 +444,9 @@ export const sendProposal = async (req, res, next) => {
 
       const projectId = proposalJob?.sourceJobId || null;
       if (!projectId) {
-        const error = new Error('Freelancer project ID is missing for this job.');
+        const error = new Error(
+          'Freelancer project ID is missing for this job.'
+        );
         error.statusCode = 400;
         throw error;
       }
@@ -476,7 +480,7 @@ export const sendProposal = async (req, res, next) => {
       notes: isFreelancerJob
         ? `Bid submitted using Freelancer workflow${
             freelancerBidId ? ` (bid ID: ${freelancerBidId})` : ''
-          }`
+          }${usedSystemFreelancerToken ? ' (system account)' : ''}`
         : 'Proposal sent to client',
     });
 
@@ -524,9 +528,9 @@ export const sendProposal = async (req, res, next) => {
         proposal,
         workflow: isFreelancerJob
           ? freelancerWorkflowService.buildProposalWorkflowContext({
-            job: proposalJob,
-            bidInput: { bidAmount, estimatedDuration, deliveryDate },
-          })
+              job: proposalJob,
+              bidInput: { bidAmount, estimatedDuration, deliveryDate },
+            })
           : null,
       },
     });
@@ -895,16 +899,16 @@ export const getTopTemplates = async (req, res, next) => {
 
     const matchStage = isAdmin
       ? {
-        status: {
-          $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
-        },
-      }
+          status: {
+            $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
+          },
+        }
       : {
-        userId: req.user?._id || req.user?.id,
-        status: {
-          $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
-        },
-      };
+          userId: req.user?._id || req.user?.id,
+          status: {
+            $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
+          },
+        };
 
     const results = await Proposal.aggregate([
       { $match: matchStage },

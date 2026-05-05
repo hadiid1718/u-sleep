@@ -3,7 +3,10 @@ import AdminSetting from '../models/adminSetting.model.js';
 import AdminCase from '../models/adminCase.model.js';
 import Notification from '../models/notification.model.js';
 import { sendMail } from '../config/nodemailer.js';
-import { getMetricsSnapshot, getMetricsSummary } from '../services/metrics.service.js';
+import {
+  getMetricsSnapshot,
+  getMetricsSummary,
+} from '../services/metrics.service.js';
 
 const sanitizeUser = user => ({
   _id: user._id,
@@ -219,7 +222,9 @@ export const updateUser = async (req, res, next) => {
       const normalizedStatus = String(accountStatus).toLowerCase();
       if (['active', 'suspended', 'blocked'].includes(normalizedStatus)) {
         user.accountStatus = normalizedStatus;
-        user.statusReason = String(statusReason || user.statusReason || '').trim();
+        user.statusReason = String(
+          statusReason || user.statusReason || ''
+        ).trim();
         user.statusUpdatedAt = new Date();
       }
     }

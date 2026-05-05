@@ -8,6 +8,7 @@
     "remove-coin": "node src/scripts/remove-coins.mjs",
     "seed:billing": "node src/scripts/seed-billing-plans.mjs",
     "seed:pro-user": "node src/scripts/seed-pro-user.mjs",
+    "fix:googleid-index": "node src/scripts/fix-googleid-index.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",

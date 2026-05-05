@@ -45,8 +45,7 @@ export const getMetricsSnapshot = () => {
   for (const stats of moduleStats.values()) {
     const avgMs =
       stats.requests > 0 ? stats.totalDurationMs / stats.requests : 0;
-    const errorRate =
-      stats.requests > 0 ? stats.errors / stats.requests : 0;
+    const errorRate = stats.requests > 0 ? stats.errors / stats.requests : 0;
 
     snapshot.push({
       name: stats.name,

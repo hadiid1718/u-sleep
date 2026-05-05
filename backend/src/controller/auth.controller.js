@@ -39,7 +39,10 @@ const createUserToken = userId =>
     expiresIn: JWT_EXPIRES_IN,
   });
 
-const normalizeEmail = email => String(email || '').trim().toLowerCase();
+const normalizeEmail = email =>
+  String(email || '')
+    .trim()
+    .toLowerCase();
 const ADMIN_EMAIL_NORMALIZED = normalizeEmail(ADMIN_EMAIL);
 
 const isAdminEmail = email =>
@@ -201,7 +204,9 @@ export const signIn = async (req, res, next) => {
   try {
     const { email, password } = req.body;
     if (isAdminEmail(email)) {
-      const error = new Error('Admin account must sign in from the admin portal');
+      const error = new Error(
+        'Admin account must sign in from the admin portal'
+      );
       error.statusCode = 403;
       throw error;
     }
@@ -632,6 +637,16 @@ const ensureFreelancerOAuthConfig = () => {
   }
 };
 
+const normalizeScopeList = (value, delimiter = ' ') => {
+  const items = String(value || '')
+    .split(/[\s,]+/)
+    .map(item => item.trim())
+    .filter(Boolean);
+
+  if (items.length === 0) return '';
+  return delimiter === ',' ? items.join(',') : items.join(' ');
+};
+
 export const startFreelancerOAuth = async (req, res, next) => {
   try {
     ensureFreelancerOAuthConfig();
@@ -645,12 +660,16 @@ export const startFreelancerOAuth = async (req, res, next) => {
         userId = null;
       }
     }
-    const scope = req.query.scope || FREELANCER_OAUTH_SCOPE || 'basic';
+    const scope = normalizeScopeList(
+      req.query.scope || FREELANCER_OAUTH_SCOPE || 'basic',
+      ' '
+    );
     const prompt =
       req.query.prompt || FREELANCER_OAUTH_PROMPT || 'select_account consent';
-    const advancedScopes = String(
-      req.query.advanced_scopes ?? FREELANCER_OAUTH_ADVANCED_SCOPES ?? ''
-    ).trim();
+    const advancedScopes = normalizeScopeList(
+      req.query.advanced_scopes ?? FREELANCER_OAUTH_ADVANCED_SCOPES ?? '',
+      ','
+    );
     const state = createFreelancerState(
       userId ? String(userId) : null,
       String(req.query.state || 'connect')

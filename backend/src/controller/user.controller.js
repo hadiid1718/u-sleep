@@ -3,7 +3,8 @@ import User from '../models/user.model.js';
 const DEFAULT_PROPOSAL_PROMPTS = [
   {
     title: 'Roles and task:',
-    content: 'You are an agency founder helping craft concise winning proposals.',
+    content:
+      'You are an agency founder helping craft concise winning proposals.',
   },
   {
     title: 'General rules:',
@@ -24,9 +25,7 @@ const parseNumberOrNull = value => {
 
 const normalizeStringArray = value => {
   if (Array.isArray(value)) {
-    return value
-      .map(item => String(item || '').trim())
-      .filter(Boolean);
+    return value.map(item => String(item || '').trim()).filter(Boolean);
   }
 
   if (typeof value === 'string') {
@@ -41,9 +40,7 @@ const normalizeStringArray = value => {
 
 const parseKeywords = value => {
   if (Array.isArray(value)) {
-    return value
-      .map(item => String(item || '').trim())
-      .filter(Boolean);
+    return value.map(item => String(item || '').trim()).filter(Boolean);
   }
 
   if (typeof value === 'string') {
@@ -71,7 +68,9 @@ const sanitizePrompts = prompts => {
 };
 
 const getAuthUserId = req =>
-  String(req.user?._id || req.user?.id || req.admin?._id || req.admin?.id || '');
+  String(
+    req.user?._id || req.user?.id || req.admin?._id || req.admin?.id || ''
+  );
 
 const mapDashboardPayload = user => {
   const jobPreferences = user?.jobPreferences || {};
@@ -262,9 +261,7 @@ export const getMyDashboard = async (req, res, next) => {
       throw error;
     }
 
-    const user = await User.findById(userId)
-      .select('-password')
-      .lean();
+    const user = await User.findById(userId).select('-password').lean();
 
     if (!user) {
       const error = new Error('No user found');
@@ -396,14 +393,12 @@ export const updateMyPrompts = async (req, res, next) => {
     }
 
     if (excludedCountries !== undefined) {
-      updates['dashboardConfig.excludedCountries'] = normalizeStringArray(
-        excludedCountries
-      );
+      updates['dashboardConfig.excludedCountries'] =
+        normalizeStringArray(excludedCountries);
     }
     if (includedCountries !== undefined) {
-      updates['dashboardConfig.includedCountries'] = normalizeStringArray(
-        includedCountries
-      );
+      updates['dashboardConfig.includedCountries'] =
+        normalizeStringArray(includedCountries);
     }
 
     if (typeof model === 'string' && model.trim()) {
@@ -411,9 +406,8 @@ export const updateMyPrompts = async (req, res, next) => {
     }
 
     if (proposalPrompts !== undefined) {
-      updates['dashboardConfig.proposalPrompts'] = sanitizePrompts(
-        proposalPrompts
-      );
+      updates['dashboardConfig.proposalPrompts'] =
+        sanitizePrompts(proposalPrompts);
     }
 
     if (Object.keys(updates).length === 0) {

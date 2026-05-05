@@ -76,11 +76,11 @@ const buildPlatformPreferences = (payload, user) => {
 
   const hourlyRateRange =
     rateType === 'hourly'
-      ? payload?.hourlyRateRange ?? jobPreferences.hourlyRateRange ?? null
+      ? (payload?.hourlyRateRange ?? jobPreferences.hourlyRateRange ?? null)
       : null;
   const fixedRateRange =
     rateType === 'fixed'
-      ? payload?.fixedRateRange ?? jobPreferences.fixedRateRange ?? null
+      ? (payload?.fixedRateRange ?? jobPreferences.fixedRateRange ?? null)
       : null;
 
   return {
@@ -525,8 +525,8 @@ export const searchJobs = async (req, res, next) => {
       message:
         diagnostics.filtersRelaxed && diagnostics.filtersRelaxed.length > 0
           ? `Total Jobs Found: ${filteredJobs.length} (relaxed ${diagnostics.filtersRelaxed.join(
-            ' + '
-          )} filters)`
+              ' + '
+            )} filters)`
           : `Total Jobs Found: ${filteredJobs.length}`,
       data: {
         jobs: filteredJobs,
@@ -935,8 +935,8 @@ export const searchJobsWithAIAnalysis = async (req, res, next) => {
         message:
           diagnostics.filtersRelaxed && diagnostics.filtersRelaxed.length > 0
             ? `Total Jobs Found: ${jobsWithScores.length} (relaxed ${diagnostics.filtersRelaxed.join(
-              ' + '
-            )} filters)`
+                ' + '
+              )} filters)`
             : `Total Jobs Found: ${jobsWithScores.length}`,
       },
     });

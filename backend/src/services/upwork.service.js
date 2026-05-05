@@ -52,14 +52,17 @@ class UpworkService {
   jobMatchesKeywords(job, keywords) {
     if (!Array.isArray(keywords) || keywords.length === 0) return true;
 
-    const rawHaystack = `${job?.title || ''} ${job?.description || ''} ${(job?.skills || []).join(' ')}`
-      .toLowerCase()
-      .trim();
+    const rawHaystack =
+      `${job?.title || ''} ${job?.description || ''} ${(job?.skills || []).join(' ')}`
+        .toLowerCase()
+        .trim();
     const normalizedHaystack = this.normalizeKeyword(rawHaystack);
     const compactHaystack = this.stripSpaces(rawHaystack);
 
     return keywords.some(keyword => {
-      const rawKeyword = String(keyword || '').toLowerCase().trim();
+      const rawKeyword = String(keyword || '')
+        .toLowerCase()
+        .trim();
       if (!rawKeyword) return false;
 
       const normalizedKeyword = this.normalizeKeyword(rawKeyword);
@@ -771,7 +774,10 @@ class UpworkService {
       info?.totalHires,
     ];
 
-    return values.some(value => value !== null && value !== undefined && String(value).trim() !== '');
+    return values.some(
+      value =>
+        value !== null && value !== undefined && String(value).trim() !== ''
+    );
   }
 
   sanitizeClientInfo(job) {
@@ -983,7 +989,9 @@ class UpworkService {
           const cacheHasSkillData = cachedJobs.some(
             job => Array.isArray(job?.skills) && job.skills.length > 0
           );
-          const cacheHasClientInfo = cachedJobs.some(job => this.hasClientInfo(job));
+          const cacheHasClientInfo = cachedJobs.some(job =>
+            this.hasClientInfo(job)
+          );
 
           if (cacheHasSkillData && cacheHasClientInfo) {
             diagnostics.cache.hit = true;

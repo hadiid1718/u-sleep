@@ -29,6 +29,10 @@ adminRouter.post('/cases', adminAuthorize, createCase);
 adminRouter.patch('/cases/:caseId/resolve', adminAuthorize, resolveCase);
 
 adminRouter.get('/settings/violations', adminAuthorize, getViolationSettings);
-adminRouter.put('/settings/violations', adminAuthorize, updateViolationSettings);
+adminRouter.put(
+  '/settings/violations',
+  adminAuthorize,
+  updateViolationSettings
+);
 
 export default adminRouter;

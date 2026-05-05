@@ -9,7 +9,7 @@ import {
 const DEFAULT_BASE_URL = 'https://www.freelancer.com';
 const DEFAULT_SEARCH_PATH = '/api/projects/0.1/projects/active/';
 
-class FreelancerService {   
+class FreelancerService {
   constructor() {
     this.cacheTTL = parseInt(JOB_CACHE_TTL, 10) || 3600;
     this.cacheEnabled = JOB_CACHE_ENABLED === 'true';
@@ -18,6 +18,31 @@ class FreelancerService {
       process.env.FREELANCER_PROJECTS_SEARCH_PATH || DEFAULT_SEARCH_PATH;
     this.requestTimeoutMs =
       Number(process.env.FREELANCER_API_TIMEOUT_MS) || 20000;
+    this.enrichClientInfoMaxUsers =
+      Number(process.env.FREELANCER_ENRICH_MAX_USERS) || 10;
+  }
+
+  normalizeNodeEnv() {
+    return String(process.env.NODE_ENV || '')
+      .replace(/^['"]|['"]$/g, '')
+      .trim()
+      .toLowerCase();
+  }
+
+  parseBoolean(value) {
+    if (typeof value === 'boolean') return value;
+    if (value === null || value === undefined) return null;
+    const normalized = String(value).trim().toLowerCase();
+    if (!normalized) return null;
+    if (['true', '1', 'yes', 'on'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'off'].includes(normalized)) return false;
+    return null;
+  }
+
+  shouldEnrichClientInfo() {
+    const flag = this.parseBoolean(process.env.FREELANCER_ENRICH_CLIENT_INFO);
+    if (flag !== null) return flag;
+    return this.normalizeNodeEnv() === 'development';
   }
 
   isDatabaseAvailable() {
@@ -51,14 +76,17 @@ class FreelancerService {
   jobMatchesKeywords(job, keywords) {
     if (!Array.isArray(keywords) || keywords.length === 0) return true;
 
-    const rawHaystack = `${job?.title || ''} ${job?.description || ''} ${(job?.skills || []).join(' ')}`
-      .toLowerCase()
-      .trim();
+    const rawHaystack =
+      `${job?.title || ''} ${job?.description || ''} ${(job?.skills || []).join(' ')}`
+        .toLowerCase()
+        .trim();
     const normalizedHaystack = this.normalizeKeyword(rawHaystack);
     const compactHaystack = this.stripSpaces(rawHaystack);
 
     return keywords.some(keyword => {
-      const rawKeyword = String(keyword || '').toLowerCase().trim();
+      const rawKeyword = String(keyword || '')
+        .toLowerCase()
+        .trim();
       if (!rawKeyword) return false;
 
       const normalizedKeyword = this.normalizeKeyword(rawKeyword);
@@ -115,7 +143,10 @@ class FreelancerService {
       info?.totalHires,
     ];
 
-    return values.some(value => value !== null && value !== undefined && String(value).trim() !== '');
+    return values.some(
+      value =>
+        value !== null && value !== undefined && String(value).trim() !== ''
+    );
   }
 
   sanitizeClientInfo(job) {
@@ -316,8 +347,8 @@ class FreelancerService {
       category: rawJob?.type || rawJob?.project_type || null,
       skills: Array.isArray(rawJob?.jobs)
         ? rawJob.jobs
-          .map(j => this.normalizeText(j?.name || j?.seo_url || j))
-          .filter(Boolean)
+            .map(j => this.normalizeText(j?.name || j?.seo_url || j))
+            .filter(Boolean)
         : [],
       proposalsCount: Number(
         rawJob?.bid_stats?.bid_count || rawJob?.bid_count || 0
@@ -333,10 +364,10 @@ class FreelancerService {
       },
       hourlyRate: hasHourly
         ? {
-          min: Number(minHourly || maxHourly || 0),
-          max: Number(maxHourly || minHourly || 0),
-          currency: rawJob?.currency?.code || 'USD',
-        }
+            min: Number(minHourly || maxHourly || 0),
+            max: Number(maxHourly || minHourly || 0),
+            currency: rawJob?.currency?.code || 'USD',
+          }
         : null,
       clientInfo: {
         name: owner?.username || owner?.display_name || null,
@@ -375,7 +406,97 @@ class FreelancerService {
     return users && typeof users === 'object' ? users : {};
   }
 
-  async submitBid({ projectId, bidAmount, periodDays, description, oauthToken }) {
+  hasUserReputation(owner = {}) {
+    return Boolean(
+      owner?.reputation ||
+      owner?.employer_reputation ||
+      owner?.status?.deposit_verified
+    );
+  }
+
+  async fetchUserDetails(userId, oauthToken) {
+    const normalizedId = Number(userId);
+    if (!Number.isFinite(normalizedId)) return null;
+
+    const url = new URL(`${this.baseUrl}/api/users/0.1/users/${normalizedId}/`);
+    url.searchParams.set('user_details', 'true');
+    url.searchParams.set('user_reputation', 'true');
+    url.searchParams.set('user_employer_reputation', 'true');
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.requestTimeoutMs);
+
+    try {
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: this.buildAuthHeaders(oauthToken),
+        signal: controller.signal,
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) return null;
+
+      return (
+        payload?.result ||
+        payload?.user ||
+        payload?.users?.[0] ||
+        payload?.result?.users?.[0] ||
+        null
+      );
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  async enrichUsersMapForProjects(projects, usersMap, oauthToken, diagnostics) {
+    if (!this.shouldEnrichClientInfo()) return usersMap;
+    if (!Array.isArray(projects) || projects.length === 0) return usersMap;
+
+    const ownerIds = Array.from(
+      new Set(
+        projects
+          .map(project => project?.owner_id || project?.ownerId)
+          .filter(Boolean)
+          .map(id => String(id))
+      )
+    );
+
+    const missingIds = ownerIds.filter(id => {
+      const owner = usersMap?.[String(id)] || null;
+      return !owner || !this.hasUserReputation(owner);
+    });
+
+    const targetIds = missingIds.slice(0, this.enrichClientInfoMaxUsers);
+    if (targetIds.length === 0) return usersMap;
+
+    let enrichedCount = 0;
+
+    for (const id of targetIds) {
+      const detail = await this.fetchUserDetails(id, oauthToken);
+      if (detail) {
+        const detailId = detail?.id || detail?.user_id || id;
+        usersMap[String(detailId)] = detail;
+        enrichedCount += 1;
+      }
+    }
+
+    diagnostics.clientInfoEnrichment = {
+      attempted: targetIds.length,
+      enriched: enrichedCount,
+    };
+
+    return usersMap;
+  }
+
+  async submitBid({
+    projectId,
+    bidAmount,
+    periodDays,
+    description,
+    oauthToken,
+  }) {
     const normalizedProjectId = Number(projectId);
     if (!Number.isFinite(normalizedProjectId)) {
       const error = new Error('Freelancer project ID is invalid.');
@@ -720,9 +841,7 @@ class FreelancerService {
         job.budgetType === 'hourly' &&
         job.hourlyRate
       ) {
-        const hourlyCeiling = Number(
-          job.hourlyRate.max ?? job.hourlyRate.min
-        );
+        const hourlyCeiling = Number(job.hourlyRate.max ?? job.hourlyRate.min);
 
         if (Number.isFinite(hourlyCeiling)) {
           return hourlyCeiling >= normalizedRate;
@@ -761,7 +880,9 @@ class FreelancerService {
       if (this.cacheEnabled) {
         cachedJobs = await this.getCachedJobs(preferences, filters);
         if (cachedJobs.length > 0) {
-          const cacheHasClientInfo = cachedJobs.some(job => this.hasClientInfo(job));
+          const cacheHasClientInfo = cachedJobs.some(job =>
+            this.hasClientInfo(job)
+          );
           if (!cacheHasClientInfo) {
             diagnostics.cache.staleReason = 'missing_client_info';
           } else {
@@ -773,7 +894,6 @@ class FreelancerService {
             };
           }
         }
-
       }
 
       const payload = await this.fetchFreelancerJobs(
@@ -810,6 +930,13 @@ class FreelancerService {
           diagnostics.fallbackReason = 'primary_query_empty';
         }
       }
+
+      usersMap = await this.enrichUsersMapForProjects(
+        projects,
+        usersMap,
+        oauthToken,
+        diagnostics
+      );
 
       if (!Array.isArray(projects) || projects.length === 0) {
         diagnostics.jobsFound = 0;

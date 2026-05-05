@@ -14,7 +14,9 @@ const seedProUser = async () => {
   try {
     await connectToDatabase();
 
-    const normalizedEmail = String(EMAIL || '').trim().toLowerCase();
+    const normalizedEmail = String(EMAIL || '')
+      .trim()
+      .toLowerCase();
     const normalizedPassword = String(PASSWORD || '').trim();
 
     if (!normalizedEmail || !normalizedPassword) {

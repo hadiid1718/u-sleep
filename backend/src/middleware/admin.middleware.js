@@ -1,14 +1,19 @@
 import jwt from 'jsonwebtoken';
 import { ADMIN_EMAIL, JWT_SECRET } from '../config/env.js';
 
-const normalizeEmail = email => String(email || '').trim().toLowerCase();
+const normalizeEmail = email =>
+  String(email || '')
+    .trim()
+    .toLowerCase();
 const ADMIN_EMAIL_NORMALIZED = normalizeEmail(ADMIN_EMAIL);
 
 const adminAuthorize = (req, res, next) => {
   try {
     const header = req.headers.authorization || '';
     if (!header.startsWith('Bearer ')) {
-      return res.status(401).json({ message: 'Unauthorized - No token provided' });
+      return res
+        .status(401)
+        .json({ message: 'Unauthorized - No token provided' });
     }
 
     const token = header.split(' ')[1];

@@ -14,7 +14,12 @@ export const NOTIFICATION_TYPES = [
   'admin_case_update',
 ];
 
-export const NOTIFICATION_GROUPS = ['new_jobs', 'proposals', 'billing', 'account'];
+export const NOTIFICATION_GROUPS = [
+  'new_jobs',
+  'proposals',
+  'billing',
+  'account',
+];
 export const NOTIFICATION_PRIORITIES = ['high', 'medium', 'low'];
 
 const ctaSchema = new mongoose.Schema(

@@ -63,9 +63,7 @@ My approach is simple: clarify must-haves, ship an initial milestone quickly, an
   }
 
   countWords(text) {
-    return this.normalizeText(text)
-      .split(/\s+/)
-      .filter(Boolean).length;
+    return this.normalizeText(text).split(/\s+/).filter(Boolean).length;
   }
 
   isProposalCompliant(text) {
@@ -146,28 +144,33 @@ My approach is simple: clarify must-haves, ship an initial milestone quickly, an
 
   buildFallbackProposal(job = {}, _user = {}) {
     const title = this.normalizeText(job?.title) || 'your project';
-    const description = this.normalizeText(job?.description || job?.shortDescription || '');
+    const description = this.normalizeText(
+      job?.description || job?.shortDescription || ''
+    );
     const skills = Array.isArray(job?.skills) ? job.skills.filter(Boolean) : [];
     const skillSnippet = skills.slice(0, 3).join(', ');
     const requirement = this.extractRequirementSnippet(description);
     const inferredTools = this.inferToolsFromText(
       `${skillSnippet} ${description}`
     );
-    const toolPhrase = inferredTools.length > 0
-      ? inferredTools.join(', ')
-      : 'a structured workflow and focused review loops';
+    const toolPhrase =
+      inferredTools.length > 0
+        ? inferredTools.join(', ')
+        : 'a structured workflow and focused review loops';
 
     const hook = `Your ${title} needs ${requirement || 'clear scope and fast execution'}${skillSnippet ? ` with ${skillSnippet}` : ''}, which tells me speed and quality both matter. I can start with a quick scope pass and a short sample so you can confirm the direction before we scale the full delivery.`;
 
     const proof = `On a recent ${skillSnippet || 'similar'} engagement, I used ${toolPhrase} to deliver a clean first milestone and cut review cycles by 40%. Another project required tight handoffs and versioned feedback, which kept turnaround under 48 hours without quality drift.`;
 
-    const approach = 'My approach here is simple: audit existing assets, define the first milestone with your must-have requirements, and run a tight review loop so we lock quality early. Then I execute in short sprints with clear checkpoints and handoff-ready files. If this aligns, are you open to a quick kickoff call or should I outline the first milestone today?';
+    const approach =
+      'My approach here is simple: audit existing assets, define the first milestone with your must-have requirements, and run a tight review loop so we lock quality early. Then I execute in short sprints with clear checkpoints and handoff-ready files. If this aligns, are you open to a quick kickoff call or should I outline the first milestone today?';
 
     let proposal = `${hook}\n\n${proof}\n\n${approach}`;
     const wordCount = this.countWords(proposal);
 
     if (wordCount < 150) {
-      const filler = 'If you have brand references or examples you like, I can mirror the tone and pacing from the first draft.';
+      const filler =
+        'If you have brand references or examples you like, I can mirror the tone and pacing from the first draft.';
       proposal = `${hook}\n\n${proof}\n\n${approach.replace('If this aligns,', `${filler} If this aligns,`)}`;
     }
 
@@ -267,9 +270,7 @@ My approach is simple: clarify must-haves, ship an initial milestone quickly, an
       return '';
     }
 
-    return (
-      result.response?.candidates?.[0]?.content?.parts?.[0]?.text || ''
-    );
+    return result.response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
   }
 
   async generateWithGeminiSdk({
@@ -483,11 +484,7 @@ ${text}
 
   getJobMatchKey(job) {
     return String(
-      job?.upworkJobId ||
-        job?.sourceJobId ||
-        job?._id ||
-        job?.id ||
-        ''
+      job?.upworkJobId || job?.sourceJobId || job?._id || job?.id || ''
     ).trim();
   }
 
@@ -527,8 +524,7 @@ ${text}
       hourlyRate: preferences?.jobHourly ?? preferences?.hourlyRate ?? null,
       fixedRate:
         preferences?.projectFixedRate ?? preferences?.fixedRate ?? null,
-      selectedRole:
-        preferences?.selectedRole || preferences?.userRole || null,
+      selectedRole: preferences?.selectedRole || preferences?.userRole || null,
       selectedPlatform: preferences?.selectedPlatform || null,
     };
 
