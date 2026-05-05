@@ -75,4 +75,44 @@ export const adminAPI = {
       body: JSON.stringify(payload),
     });
   },
+  // Demo Management
+  getDemos: async () => {
+    return adminApiRequest('/demo/all', {
+      method: 'GET',
+    });
+  },
+  updateDemoStatus: async (demoId, payload) => {
+    return adminApiRequest(`/demo/${demoId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+  cancelDemo: async demoId => {
+    return adminApiRequest(`/demo/${demoId}`, {
+      method: 'DELETE',
+    });
+  },
+  // Comparison Management
+  getComparisons: async () => {
+    return adminApiRequest('/comparisons/all', {
+      method: 'GET',
+    });
+  },
+  createComparison: async payload => {
+    return adminApiRequest('/comparisons', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+  updateComparison: async (comparisonId, payload) => {
+    return adminApiRequest(`/comparisons/${comparisonId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+  deleteComparison: async comparisonId => {
+    return adminApiRequest(`/comparisons/${comparisonId}`, {
+      method: 'DELETE',
+    });
+  },
 };

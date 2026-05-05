@@ -4,6 +4,8 @@ const AdminSidebar = ({ activeTab, onTabChange, onLogout }) => {
     { id: 'users', label: 'Users' },
     { id: 'cases', label: 'Appeals' },
     { id: 'violations', label: 'Violations' },
+    { id: 'demo', label: 'Demo Requests' },
+    { id: 'comparisons', label: 'Comparisons' },
   ];
 
   return (
