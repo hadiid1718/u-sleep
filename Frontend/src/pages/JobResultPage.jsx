@@ -259,7 +259,11 @@ const JobResultPage = () => {
           </div>
 
           <a
-            href={currentJob.upworkUrl || currentJob.url || '#'}
+            href={
+              currentJob?.source === 'freelancer_api'
+                ? currentJob.freelancerUrl || currentJob.upworkUrl || currentJob.url || '#'
+                : currentJob.upworkUrl || currentJob.url || '#'
+            }
             target="_blank"
             rel="noopener noreferrer"
             className="text-green-700 dark:text-green-400 underline flex items-center gap-2 mb-7 text-base sm:text-lg"

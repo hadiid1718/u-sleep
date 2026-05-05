@@ -149,9 +149,9 @@ export const JobCard = ({ job, formData, onAction }) => {
 
           {/* Action buttons */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            {job.upworkUrl && (
+            {(job.freelancerUrl || job.upworkUrl) && (
               <a
-                href={job.upworkUrl}
+                href={job.source === 'freelancer_api' ? job.freelancerUrl : job.upworkUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1 text-xs text-gray-400 hover:text-white bg-gray-700/40 hover:bg-gray-700 px-2.5 py-1.5 rounded-lg border border-gray-600/30 transition-all"

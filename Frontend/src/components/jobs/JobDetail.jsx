@@ -21,7 +21,7 @@ const JobDetails = ({ job: propJob }) => {
     job.description ||
     job.shortDescription ||
     'No description available';
-  const url = job.upworkUrl || job.url || '#';
+  const url = job.source === 'freelancer_api' ? (job.freelancerUrl || job.upworkUrl || job.url || '#') : (job.upworkUrl || job.url || '#');
   const sourceLabel = job.source === 'freelancer_api' ? 'Freelancer' : 'Upwork';
   const postedDate = job.postedDate || job.createdAt;
   const budgetType = job.budgetType || 'fixed';
