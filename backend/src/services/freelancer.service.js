@@ -334,7 +334,7 @@ class FreelancerService {
 
     return {
       upworkJobId: `freelancer-${projectId}`,
-      upworkUrl: projectUrl,
+      freelancerUrl: projectUrl,
       source: 'freelancer_api',
       sourceJobId: String(projectId),
       title: this.normalizeText(rawJob?.title) || 'Untitled Project',

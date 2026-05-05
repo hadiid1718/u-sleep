@@ -175,7 +175,7 @@ class FreelancerWorkflowService {
             budget: job.budget || null,
             hourlyRate: job.hourlyRate || null,
             sourceJobId: job.sourceJobId || null,
-            projectUrl: job.upworkUrl || job.url || null,
+            projectUrl: job.freelancerUrl || job.upworkUrl || job.url || null,
           }
         : null,
     };

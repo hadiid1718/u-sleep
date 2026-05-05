@@ -399,7 +399,7 @@ export const sendProposal = async (req, res, next) => {
     }
 
     const proposalJob = await Job.findById(proposal.jobId)
-      .select('source title budgetType budget hourlyRate upworkUrl sourceJobId')
+      .select('source title budgetType budget hourlyRate upworkUrl freelancerUrl sourceJobId')
       .lean();
     const isFreelancerJob = proposalJob?.source === 'freelancer_api';
 

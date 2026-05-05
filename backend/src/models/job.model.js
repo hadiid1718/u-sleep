@@ -21,7 +21,11 @@ const jobSchema = new mongoose.Schema(
     },
     upworkUrl: {
       type: String,
-      required: true,
+      required: false,
+    },
+    freelancerUrl: {
+      type: String,
+      required: false,
     },
 
     // Job Basic Info
