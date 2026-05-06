@@ -12,6 +12,8 @@ import {
   resolveCase,
   getViolationSettings,
   updateViolationSettings,
+  listSubscriptions,
+  updateSubscription,
 } from '../controller/admin.controller.js';
 
 const adminRouter = Router();
@@ -34,5 +36,8 @@ adminRouter.put(
   adminAuthorize,
   updateViolationSettings
 );
+
+adminRouter.get('/subscriptions', adminAuthorize, listSubscriptions);
+adminRouter.patch('/subscriptions/:subscriptionId', adminAuthorize, updateSubscription);
 
 export default adminRouter;

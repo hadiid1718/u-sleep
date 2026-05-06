@@ -34,7 +34,7 @@ export const uploadReviewVideo = async (req, res, next) => {
       reviewerName,
       reviewerRole: reviewerRole || '',
       isActive: true,
-      uploadedBy: req.adminId,
+      uploadedByLabel: req.admin?.email || req.user?.email || 'Admin',
     });
 
     res.status(201).json({

@@ -182,9 +182,9 @@ export const generateProposal = async (req, res, next) => {
     // Return immediately with message
     const workflow = isFreelancerJob
       ? freelancerWorkflowService.buildProposalWorkflowContext({
-          job: job.toObject(),
-          bidInput: req.body,
-        })
+        job: job.toObject(),
+        bidInput: req.body,
+      })
       : null;
     const defaultResponse = getDefaultProposalResponse(
       job?.toObject?.() || job,
@@ -399,7 +399,9 @@ export const sendProposal = async (req, res, next) => {
     }
 
     const proposalJob = await Job.findById(proposal.jobId)
-      .select('source title budgetType budget hourlyRate upworkUrl freelancerUrl sourceJobId')
+      .select(
+        'source title budgetType budget hourlyRate upworkUrl freelancerUrl sourceJobId'
+      )
       .lean();
     const isFreelancerJob = proposalJob?.source === 'freelancer_api';
 
@@ -479,8 +481,8 @@ export const sendProposal = async (req, res, next) => {
       timestamp: new Date(),
       notes: isFreelancerJob
         ? `Bid submitted using Freelancer workflow${
-            freelancerBidId ? ` (bid ID: ${freelancerBidId})` : ''
-          }${usedSystemFreelancerToken ? ' (system account)' : ''}`
+          freelancerBidId ? ` (bid ID: ${freelancerBidId})` : ''
+        }${usedSystemFreelancerToken ? ' (system account)' : ''}`
         : 'Proposal sent to client',
     });
 
@@ -528,9 +530,9 @@ export const sendProposal = async (req, res, next) => {
         proposal,
         workflow: isFreelancerJob
           ? freelancerWorkflowService.buildProposalWorkflowContext({
-              job: proposalJob,
-              bidInput: { bidAmount, estimatedDuration, deliveryDate },
-            })
+            job: proposalJob,
+            bidInput: { bidAmount, estimatedDuration, deliveryDate },
+          })
           : null,
       },
     });
@@ -899,16 +901,16 @@ export const getTopTemplates = async (req, res, next) => {
 
     const matchStage = isAdmin
       ? {
-          status: {
-            $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
-          },
-        }
+        status: {
+          $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
+        },
+      }
       : {
-          userId: req.user?._id || req.user?.id,
-          status: {
-            $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
-          },
-        };
+        userId: req.user?._id || req.user?.id,
+        status: {
+          $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
+        },
+      };
 
     const results = await Proposal.aggregate([
       { $match: matchStage },

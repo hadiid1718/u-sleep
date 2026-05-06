@@ -2,11 +2,15 @@ import User from '../models/user.model.js';
 import AdminSetting from '../models/adminSetting.model.js';
 import AdminCase from '../models/adminCase.model.js';
 import Notification from '../models/notification.model.js';
+import Subscription from '../models/subscription.model.js';
+import BillingPlan from '../models/billingPlan.model.js';
+import ReviewVideo from '../models/reviewVideo.model.js';
 import { sendMail } from '../config/nodemailer.js';
 import {
   getMetricsSnapshot,
   getMetricsSummary,
 } from '../services/metrics.service.js';
+import { getPlanConfig, PLAN_CONFIG } from '../utils/subscriptionPlans.js';
 
 const sanitizeUser = user => ({
   _id: user._id,
@@ -78,6 +82,59 @@ const createCaseNotification = async ({ userId, subject, body }) => {
     read: false,
     timestamp: new Date(),
   });
+};
+
+const normalizeSearch = value => String(value || '').trim();
+
+const mapSubscriptionRecord = subscription => {
+  const planConfig = getPlanConfig(subscription.plan) || null;
+  const user = subscription.userId || {};
+
+  return {
+    _id: subscription._id,
+    userId: user._id || subscription.userId || null,
+    userName: user.name || 'Unknown user',
+    userEmail: user.email || '',
+    accountStatus: user.accountStatus || null,
+    stripeCustomerId: subscription.stripeCustomerId || null,
+    stripeSubscriptionId: subscription.stripeSubscriptionId || null,
+    plan: subscription.plan,
+    planLabel: planConfig?.name || subscription.plan,
+    status: subscription.status,
+    currentPeriodEnd: subscription.currentPeriodEnd || null,
+    cancelAtPeriodEnd: Boolean(subscription.cancelAtPeriodEnd),
+    autoSendEnabled: Boolean(subscription.autoSendEnabled),
+    platformLimit: subscription.platformLimit || planConfig?.platformLimit || 0,
+    proposalLimit: subscription.proposalLimit || planConfig?.proposalLimit || 0,
+    createdAt: subscription.createdAt,
+    updatedAt: subscription.updatedAt,
+  };
+};
+
+const mapReviewVideoRecord = video => ({
+  _id: video._id,
+  title: video.title,
+  videoUrl: video.videoUrl,
+  thumbnailUrl: video.thumbnailUrl || '',
+  description: video.description || '',
+  reviewerName: video.reviewerName,
+  reviewerRole: video.reviewerRole || '',
+  uploadedByLabel: video.uploadedByLabel || video.uploadedBy?.name || 'Admin',
+  uploadedBy: video.uploadedBy || null,
+  isActive: Boolean(video.isActive),
+  createdAt: video.createdAt,
+  updatedAt: video.updatedAt,
+});
+
+const resolvePlanPayload = planId => {
+  const planConfig = getPlanConfig(planId) || PLAN_CONFIG[planId];
+  if (!planConfig) return null;
+
+  return {
+    autoSendEnabled: planConfig.autoSendEnabled,
+    platformLimit: planConfig.platformLimit,
+    proposalLimit: planConfig.proposalLimit,
+  };
 };
 
 export const getAdminSession = async (req, res, next) => {
@@ -487,6 +544,387 @@ export const updateViolationSettings = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: settings,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const listSubscriptions = async (req, res, next) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      search = '',
+      status = '',
+      plan = '',
+    } = req.query;
+
+    const parsedPage = Math.max(1, Number(page));
+    const parsedLimit = Math.min(50, Math.max(1, Number(limit)));
+    const skip = (parsedPage - 1) * parsedLimit;
+    const query = {};
+
+    if (status) {
+      query.status = String(status).toLowerCase();
+    }
+
+    if (plan) {
+      query.plan = String(plan).toLowerCase();
+    }
+
+    const trimmedSearch = normalizeSearch(search);
+    if (trimmedSearch) {
+      const regex = new RegExp(trimmedSearch, 'i');
+      const matchingUsers = await User.find({
+        $or: [{ name: regex }, { email: regex }],
+      })
+        .select('_id')
+        .lean();
+
+      const userIds = matchingUsers.map(user => user._id);
+      if (userIds.length === 0) {
+        return res.status(200).json({
+          success: true,
+          data: {
+            items: [],
+            availablePlans: Object.keys(PLAN_CONFIG).map(planId => ({
+              planId,
+              name: getPlanConfig(planId)?.name || planId,
+            })),
+            pagination: {
+              total: 0,
+              page: parsedPage,
+              limit: parsedLimit,
+              pages: 0,
+            },
+          },
+        });
+      }
+
+      query.userId = { $in: userIds };
+    }
+
+    const [items, total, billingPlans] = await Promise.all([
+      Subscription.find(query)
+        .sort({ updatedAt: -1 })
+        .skip(skip)
+        .limit(parsedLimit)
+        .populate('userId', 'name email accountStatus')
+        .lean(),
+      Subscription.countDocuments(query),
+      BillingPlan.find({ isActive: true }).sort({ monthlyPrice: 1 }).lean(),
+    ]);
+
+    let availablePlans = [];
+    if (billingPlans.length > 0) {
+      availablePlans = billingPlans.map(planItem => ({
+        planId: planItem.planId,
+        name: planItem.name,
+        monthlyPrice: planItem.monthlyPrice,
+        proposalLimit: planItem.proposalLimit,
+        platformLimit: planItem.platformLimit,
+        autoSendEnabled: planItem.autoSendEnabled,
+        stripePriceId: planItem.stripePriceId,
+      }));
+    } else {
+      availablePlans = Object.keys(PLAN_CONFIG).map(planId => ({
+        planId,
+        name: getPlanConfig(planId)?.name || planId,
+        monthlyPrice: getPlanConfig(planId)?.monthlyPrice || 0,
+        proposalLimit: getPlanConfig(planId)?.proposalLimit || 0,
+        platformLimit: getPlanConfig(planId)?.platformLimit || 0,
+        autoSendEnabled: getPlanConfig(planId)?.autoSendEnabled || false,
+        stripePriceId: null,
+      }));
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        items: items.map(mapSubscriptionRecord),
+        availablePlans,
+        pagination: {
+          total,
+          page: parsedPage,
+          limit: parsedLimit,
+          pages: Math.ceil(total / parsedLimit),
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateSubscription = async (req, res, next) => {
+  try {
+    const { subscriptionId } = req.params;
+    const subscription = await Subscription.findById(subscriptionId);
+
+    if (!subscription) {
+      const error = new Error('Subscription not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const {
+      plan,
+      status,
+      cancelAtPeriodEnd,
+      autoSendEnabled,
+      platformLimit,
+      proposalLimit,
+      currentPeriodEnd,
+      stripeCustomerId,
+      stripeSubscriptionId,
+    } = req.body;
+
+    if (typeof plan === 'string' && PLAN_CONFIG[plan]) {
+      subscription.plan = plan;
+      const fallbackPlan = resolvePlanPayload(plan);
+
+      if (typeof autoSendEnabled !== 'boolean') {
+        subscription.autoSendEnabled = fallbackPlan?.autoSendEnabled ?? subscription.autoSendEnabled;
+      }
+      if (typeof platformLimit !== 'number') {
+        subscription.platformLimit = fallbackPlan?.platformLimit ?? subscription.platformLimit;
+      }
+      if (typeof proposalLimit !== 'number') {
+        subscription.proposalLimit = fallbackPlan?.proposalLimit ?? subscription.proposalLimit;
+      }
+    }
+
+    if (typeof status === 'string' && status.trim()) {
+      subscription.status = status.trim().toLowerCase();
+    }
+
+    if (typeof cancelAtPeriodEnd === 'boolean') {
+      subscription.cancelAtPeriodEnd = cancelAtPeriodEnd;
+    }
+
+    if (typeof autoSendEnabled === 'boolean') {
+      subscription.autoSendEnabled = autoSendEnabled;
+    }
+
+    if (typeof platformLimit === 'number') {
+      subscription.platformLimit = Math.max(1, platformLimit);
+    }
+
+    if (typeof proposalLimit === 'number') {
+      subscription.proposalLimit = Math.max(0, proposalLimit);
+    }
+
+    if (currentPeriodEnd !== undefined) {
+      subscription.currentPeriodEnd = currentPeriodEnd ? new Date(currentPeriodEnd) : null;
+    }
+
+    if (typeof stripeCustomerId === 'string') {
+      subscription.stripeCustomerId = stripeCustomerId.trim() || null;
+    }
+
+    if (typeof stripeSubscriptionId === 'string') {
+      subscription.stripeSubscriptionId = stripeSubscriptionId.trim() || null;
+    }
+
+    await subscription.save();
+
+    const populated = await Subscription.findById(subscription._id)
+      .populate('userId', 'name email accountStatus')
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      data: mapSubscriptionRecord(populated),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const listReviewVideos = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const parsedPage = Math.max(1, Number(page));
+    const parsedLimit = Math.min(50, Math.max(1, Number(limit)));
+    const skip = (parsedPage - 1) * parsedLimit;
+
+    const [items, total] = await Promise.all([
+      ReviewVideo.find()
+        .sort({ isActive: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(parsedLimit)
+        .populate('uploadedBy', 'name email')
+        .lean(),
+      ReviewVideo.countDocuments(),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        items: items.map(mapReviewVideoRecord),
+        pagination: {
+          total,
+          page: parsedPage,
+          limit: parsedLimit,
+          pages: Math.ceil(total / parsedLimit),
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createReviewVideo = async (req, res, next) => {
+  try {
+    const {
+      title,
+      videoUrl,
+      thumbnailUrl,
+      description,
+      reviewerName,
+      reviewerRole,
+      isActive,
+    } = req.body;
+
+    if (!title || !videoUrl || !reviewerName) {
+      const error = new Error('Title, video URL, and reviewer name are required');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (isActive) {
+      await ReviewVideo.updateMany({}, { isActive: false });
+    }
+
+    const reviewVideo = await ReviewVideo.create({
+      title,
+      videoUrl,
+      thumbnailUrl: thumbnailUrl || '',
+      description: description || '',
+      reviewerName,
+      reviewerRole: reviewerRole || '',
+      isActive: isActive !== false,
+      uploadedByLabel: req.admin?.email || 'Admin',
+    });
+
+    const populated = await ReviewVideo.findById(reviewVideo._id)
+      .populate('uploadedBy', 'name email')
+      .lean();
+
+    res.status(201).json({
+      success: true,
+      data: mapReviewVideoRecord(populated),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateReviewVideo = async (req, res, next) => {
+  try {
+    const { reviewVideoId } = req.params;
+    const video = await ReviewVideo.findById(reviewVideoId);
+
+    if (!video) {
+      const error = new Error('Review video not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const {
+      title,
+      videoUrl,
+      thumbnailUrl,
+      description,
+      reviewerName,
+      reviewerRole,
+      isActive,
+    } = req.body;
+
+    if (typeof title === 'string' && title.trim()) video.title = title.trim();
+    if (typeof videoUrl === 'string' && videoUrl.trim()) video.videoUrl = videoUrl.trim();
+    if (thumbnailUrl !== undefined) video.thumbnailUrl = String(thumbnailUrl || '');
+    if (description !== undefined) video.description = String(description || '');
+    if (typeof reviewerName === 'string' && reviewerName.trim()) video.reviewerName = reviewerName.trim();
+    if (reviewerRole !== undefined) video.reviewerRole = String(reviewerRole || '');
+
+    if (typeof isActive === 'boolean') {
+      if (isActive) {
+        await ReviewVideo.updateMany({ _id: { $ne: video._id } }, { isActive: false });
+      }
+      video.isActive = isActive;
+    }
+
+    await video.save();
+
+    const populated = await ReviewVideo.findById(video._id)
+      .populate('uploadedBy', 'name email')
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      data: mapReviewVideoRecord(populated),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const setActiveReviewVideo = async (req, res, next) => {
+  try {
+    const { reviewVideoId } = req.params;
+    const video = await ReviewVideo.findById(reviewVideoId);
+
+    if (!video) {
+      const error = new Error('Review video not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    await ReviewVideo.updateMany({ _id: { $ne: video._id } }, { isActive: false });
+    video.isActive = true;
+    await video.save();
+
+    const populated = await ReviewVideo.findById(video._id)
+      .populate('uploadedBy', 'name email')
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      data: mapReviewVideoRecord(populated),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteReviewVideo = async (req, res, next) => {
+  try {
+    const { reviewVideoId } = req.params;
+    const video = await ReviewVideo.findById(reviewVideoId);
+
+    if (!video) {
+      const error = new Error('Review video not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const wasActive = Boolean(video.isActive);
+    await ReviewVideo.findByIdAndDelete(reviewVideoId);
+
+    if (wasActive) {
+      const nextVideo = await ReviewVideo.findOne().sort({ createdAt: -1 });
+      if (nextVideo) {
+        nextVideo.isActive = true;
+        await nextVideo.save();
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Review video deleted successfully',
     });
   } catch (error) {
     next(error);

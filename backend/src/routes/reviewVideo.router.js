@@ -7,7 +7,7 @@ import {
   updateReviewVideo,
   setActiveReviewVideo,
 } from '../controller/reviewVideo.controller.js';
-import authorize from '../middleware/auth.middleware.js';
+import adminAuthorize from '../middleware/admin.middleware.js';
 
 const reviewVideoRouter = Router();
 
@@ -15,10 +15,10 @@ const reviewVideoRouter = Router();
 reviewVideoRouter.get('/latest', getLatestReviewVideo);
 
 // Admin routes - require authorization
-reviewVideoRouter.post('/upload', authorize, uploadReviewVideo);
-reviewVideoRouter.get('/all', authorize, getAllReviewVideos);
-reviewVideoRouter.put('/:id', authorize, updateReviewVideo);
-reviewVideoRouter.patch('/:id/set-active', authorize, setActiveReviewVideo);
-reviewVideoRouter.delete('/:id', authorize, deleteReviewVideo);
+reviewVideoRouter.post('/upload', adminAuthorize, uploadReviewVideo);
+reviewVideoRouter.get('/all', adminAuthorize, getAllReviewVideos);
+reviewVideoRouter.put('/:id', adminAuthorize, updateReviewVideo);
+reviewVideoRouter.patch('/:id/set-active', adminAuthorize, setActiveReviewVideo);
+reviewVideoRouter.delete('/:id', adminAuthorize, deleteReviewVideo);
 
 export default reviewVideoRouter;

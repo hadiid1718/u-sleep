@@ -36,6 +36,11 @@ const reviewVideoSchema = new mongoose.Schema(
       maxlength: [100, 'Reviewer role must be at most 100 characters long'],
       default: '',
     },
+    uploadedByLabel: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     isActive: {
       type: Boolean,
       default: true,
@@ -43,7 +48,7 @@ const reviewVideoSchema = new mongoose.Schema(
     uploadedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      default: null,
     },
   },
   { timestamps: true }

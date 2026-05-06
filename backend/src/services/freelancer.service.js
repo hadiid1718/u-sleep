@@ -347,8 +347,8 @@ class FreelancerService {
       category: rawJob?.type || rawJob?.project_type || null,
       skills: Array.isArray(rawJob?.jobs)
         ? rawJob.jobs
-            .map(j => this.normalizeText(j?.name || j?.seo_url || j))
-            .filter(Boolean)
+          .map(j => this.normalizeText(j?.name || j?.seo_url || j))
+          .filter(Boolean)
         : [],
       proposalsCount: Number(
         rawJob?.bid_stats?.bid_count || rawJob?.bid_count || 0
@@ -364,10 +364,10 @@ class FreelancerService {
       },
       hourlyRate: hasHourly
         ? {
-            min: Number(minHourly || maxHourly || 0),
-            max: Number(maxHourly || minHourly || 0),
-            currency: rawJob?.currency?.code || 'USD',
-          }
+          min: Number(minHourly || maxHourly || 0),
+          max: Number(maxHourly || minHourly || 0),
+          currency: rawJob?.currency?.code || 'USD',
+        }
         : null,
       clientInfo: {
         name: owner?.username || owner?.display_name || null,

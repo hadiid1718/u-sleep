@@ -627,15 +627,15 @@ Rules:
       provider === 'openai'
         ? await this.generateJsonWithOpenAI(prompt, systemMessage)
         : await this.generateWithGeminiSdk({
-            prompt,
-            systemInstruction: systemMessage,
-            generationConfig: {
-              temperature: 0.1,
-              maxOutputTokens: 1200,
-              topP: 0.9,
-            },
-            timeoutMessage: 'Job scoring timed out',
-          });
+          prompt,
+          systemInstruction: systemMessage,
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 1200,
+            topP: 0.9,
+          },
+          timeoutMessage: 'Job scoring timed out',
+        });
 
     const parsed = this.parseJsonPayload(rawResult);
     if (!Array.isArray(parsed)) return null;
@@ -887,8 +887,8 @@ Use this case study as the Proof paragraph. Keep it concrete with tools/methods 
       job?.budgetType === 'fixed'
         ? `Fixed $${job?.budget?.amount || 'N/A'}`
         : `Hourly $${job?.hourlyRate?.min || 'N/A'}-${
-            job?.hourlyRate?.max || 'N/A'
-          }`;
+          job?.hourlyRate?.max || 'N/A'
+        }`;
     const clientName = this.normalizeText(job?.clientInfo?.name || 'Unknown');
     const normalizedProposal = this.normalizeText(proposal);
     const normalizedCaseStudy = this.normalizeText(caseStudy);

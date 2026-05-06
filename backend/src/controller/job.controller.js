@@ -38,6 +38,76 @@ const normalizeSelectedLanguage = language => {
   return normalized || null;
 };
 
+const simpleTranslateText = async (text, targetLanguage) => {
+  // Map of language names to language codes
+  const languageMap = {
+    english: 'en',
+    spanish: 'es',
+    french: 'fr',
+    german: 'de',
+    italian: 'it',
+    portuguese: 'pt',
+    dutch: 'nl',
+    russian: 'ru',
+    japanese: 'ja',
+    korean: 'ko',
+    chinese: 'zh',
+    arabic: 'ar',
+    hindi: 'hi',
+    turkish: 'tr',
+    polish: 'pl',
+    swedish: 'sv',
+    norwegian: 'no',
+    danish: 'da',
+    finnish: 'fi',
+    greek: 'el',
+    czech: 'cs',
+    hungarian: 'hu',
+    thai: 'th',
+    vietnamese: 'vi',
+    indonesian: 'id',
+    malaysian: 'ms',
+  };
+
+  const normalizedLang = String(targetLanguage || '').toLowerCase().trim();
+  const langCode = languageMap[normalizedLang];
+
+  if (!langCode || langCode === 'en') {
+    return { translatedText: text, isTranslated: false };
+  }
+
+  try {
+    // Use LibreTranslate free API
+    const response = await fetch('https://libretranslate.de/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        q: text,
+        source: 'en',
+        target: langCode,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Translation API error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    if (!data?.translatedText) {
+      throw new Error('No translation returned');
+    }
+
+    return {
+      translatedText: data.translatedText,
+      isTranslated: data.translatedText !== text,
+    };
+  } catch (error) {
+    console.error(`Simple translation failed for ${targetLanguage}:`, error.message);
+    // Return original text if translation fails
+    return { translatedText: text, isTranslated: false };
+  }
+};
+
 const getJobMatchKey = job => {
   return String(
     job?.upworkJobId || job?.sourceJobId || job?._id || job?.id || ''
@@ -383,16 +453,17 @@ const maybeAutoTranslateFreelancerDescriptions = async (
     return { jobs, summary: null };
   }
 
-  if (
-    String(preferences?.selectedPlatform || '').toLowerCase() !== 'freelancer'
-  ) {
-    return { jobs, summary: null };
-  }
-
+  // Auto-translate works for all platforms now
   const targetLanguage = normalizeSelectedLanguage(
     preferences?.selectedLanguage
   );
+  
   if (!targetLanguage || !preferences?.autoTranslateDescription) {
+    return { jobs, summary: null };
+  }
+
+  // Skip if target language is English (no translation needed)
+  if (targetLanguage.toLowerCase() === 'english') {
     return { jobs, summary: null };
   }
 
@@ -407,7 +478,7 @@ const maybeAutoTranslateFreelancerDescriptions = async (
 
     const job = translatedJobs[i];
     const description = String(job?.description || '').trim();
-    if (!description) continue;
+    if (!description || description.length < 20) continue;
 
     attemptedCount += 1;
 
@@ -420,11 +491,26 @@ const maybeAutoTranslateFreelancerDescriptions = async (
 
       translatedJobs[i] = applyDescriptionTranslationToJob(job, translation);
       if (translation.isTranslated) translatedCount += 1;
-    } catch {
-      translatedJobs[i] = {
-        ...job,
-        translationProvider: 'none',
-      };
+    } catch (error) {
+      // If AI translation fails, try simple approach
+      try {
+        const simpleTranslation = await simpleTranslateText(description, targetLanguage);
+        translatedJobs[i] = {
+          ...job,
+          translatedDescription: simpleTranslation.translatedText,
+          translatedDescriptionLanguage: targetLanguage,
+          descriptionLanguage: 'English',
+          translationProvider: 'simple',
+        };
+        if (simpleTranslation.translatedText !== description) {
+          translatedCount += 1;
+        }
+      } catch {
+        translatedJobs[i] = {
+          ...job,
+          translationProvider: 'none',
+        };
+      }
     }
   }
 
@@ -525,8 +611,8 @@ export const searchJobs = async (req, res, next) => {
       message:
         diagnostics.filtersRelaxed && diagnostics.filtersRelaxed.length > 0
           ? `Total Jobs Found: ${filteredJobs.length} (relaxed ${diagnostics.filtersRelaxed.join(
-              ' + '
-            )} filters)`
+            ' + '
+          )} filters)`
           : `Total Jobs Found: ${filteredJobs.length}`,
       data: {
         jobs: filteredJobs,
@@ -935,8 +1021,8 @@ export const searchJobsWithAIAnalysis = async (req, res, next) => {
         message:
           diagnostics.filtersRelaxed && diagnostics.filtersRelaxed.length > 0
             ? `Total Jobs Found: ${jobsWithScores.length} (relaxed ${diagnostics.filtersRelaxed.join(
-                ' + '
-              )} filters)`
+              ' + '
+            )} filters)`
             : `Total Jobs Found: ${jobsWithScores.length}`,
       },
     });

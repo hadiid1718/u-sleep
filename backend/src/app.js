@@ -17,6 +17,7 @@ import billingRouter from './routes/billing.router.js';
 import webhookRouter from './routes/webhook.router.js';
 import notificationRouter from './routes/notification.router.js';
 import adminRouter from './routes/admin.router.js';
+import supportRouter from './routes/support.router.js';
 import cookieParser from 'cookie-parser';
 import errorMiddleware from './middleware/error.middleware.js';
 import arcjetMiddleware from './middleware/arcject.middleware.js';
@@ -75,5 +76,6 @@ app.use('/api/v1/review-video', reviewVideoRouter);
 app.use('/api/v1/billing', billingRouter);
 app.use('/api/v1/notifications', notificationRouter);
 app.use('/api/v1/admin', adminRouter);
+app.use('/api/v1/support', supportRouter);
 
 export default app;

@@ -310,12 +310,12 @@ const toClientPayload = notification => ({
   group: notification.group,
   billing_meta: notification.billingMeta
     ? {
-        plan: notification.billingMeta.plan || null,
-        amount: notification.billingMeta.amount,
-        currency: notification.billingMeta.currency || 'USD',
-        due_date: toIsoDate(notification.billingMeta.dueDate),
-        invoice_url: notification.billingMeta.invoiceUrl || null,
-      }
+      plan: notification.billingMeta.plan || null,
+      amount: notification.billingMeta.amount,
+      currency: notification.billingMeta.currency || 'USD',
+      due_date: toIsoDate(notification.billingMeta.dueDate),
+      invoice_url: notification.billingMeta.invoiceUrl || null,
+    }
     : null,
 });
 
@@ -823,8 +823,14 @@ class NotificationService {
           matchScore,
           snippet: job?.shortDescription || job?.description,
           budgetLabel: this.buildBudgetLabel(job),
-          jobUrl: job?.source === 'freelancer_api' ? job?.freelancerUrl : job?.upworkUrl,
-          viewJobUrl: (job?.source === 'freelancer_api' ? job?.freelancerUrl : job?.upworkUrl) || `${FRONTEND_BASE_URL}/job-result`,
+          jobUrl:
+            job?.source === 'freelancer_api'
+              ? job?.freelancerUrl
+              : job?.upworkUrl,
+          viewJobUrl:
+            (job?.source === 'freelancer_api'
+              ? job?.freelancerUrl
+              : job?.upworkUrl) || `${FRONTEND_BASE_URL}/job-result`,
           generateProposalUrl: `${FRONTEND_BASE_URL}/job-result`,
           timestamp: new Date(),
         },
