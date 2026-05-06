@@ -75,6 +75,23 @@ export const adminAPI = {
       body: JSON.stringify(payload),
     });
   },
+  getSubscriptions: async ({ page = 1, limit = 10, search = '', status = '', plan = '' } = {}) => {
+    const params = new URLSearchParams();
+    params.append('page', page);
+    params.append('limit', limit);
+    if (search) params.append('search', search);
+    if (status) params.append('status', status);
+    if (plan) params.append('plan', plan);
+    return adminApiRequest(`/admin/subscriptions?${params.toString()}`, {
+      method: 'GET',
+    });
+  },
+  updateSubscription: async (subscriptionId, payload) => {
+    return adminApiRequest(`/admin/subscriptions/${subscriptionId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
   // Demo Management
   getDemos: async () => {
     return adminApiRequest('/demo/all', {
@@ -112,6 +129,37 @@ export const adminAPI = {
   },
   deleteComparison: async comparisonId => {
     return adminApiRequest(`/comparisons/${comparisonId}`, {
+      method: 'DELETE',
+    });
+  },
+  // Review video management
+  getReviewVideos: async ({ page = 1, limit = 10 } = {}) => {
+    const params = new URLSearchParams();
+    params.append('page', page);
+    params.append('limit', limit);
+    return adminApiRequest(`/review-video/all?${params.toString()}`, {
+      method: 'GET',
+    });
+  },
+  createReviewVideo: async payload => {
+    return adminApiRequest('/review-video/upload', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+  updateReviewVideo: async (reviewVideoId, payload) => {
+    return adminApiRequest(`/review-video/${reviewVideoId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+  setActiveReviewVideo: async reviewVideoId => {
+    return adminApiRequest(`/review-video/${reviewVideoId}/set-active`, {
+      method: 'PATCH',
+    });
+  },
+  deleteReviewVideo: async reviewVideoId => {
+    return adminApiRequest(`/review-video/${reviewVideoId}`, {
       method: 'DELETE',
     });
   },

@@ -6,6 +6,7 @@ const ADMIN_TOKEN_KEY = 'adminToken';
 export const setAdminToken = token => {
   if (token) {
     localStorage.setItem(ADMIN_TOKEN_KEY, token);
+    window.dispatchEvent(new Event('auth-token-changed'));
   }
 };
 
@@ -13,6 +14,7 @@ export const getAdminToken = () => localStorage.getItem(ADMIN_TOKEN_KEY);
 
 export const clearAdminToken = () => {
   localStorage.removeItem(ADMIN_TOKEN_KEY);
+  window.dispatchEvent(new Event('auth-token-changed'));
 };
 
 export const adminApiRequest = async (endpoint, options = {}) => {

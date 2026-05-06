@@ -7,6 +7,9 @@ import AdminCasesPanel from '../../components/admin/AdminCasesPanel';
 import AdminViolationSettings from '../../components/admin/AdminViolationSettings';
 import AdminDemoPanel from '../../components/admin/AdminDemoPanel';
 import AdminComparisonPanel from '../../components/admin/AdminComparisonPanel';
+import AdminSupportPanel from '../../components/admin/AdminSupportPanel';
+import AdminSubscriptionPanel from '../../components/admin/AdminSubscriptionPanel';
+import AdminReviewVideoPanel from '../../components/admin/AdminReviewVideoPanel';
 import { adminAPI } from '../../services/adminService';
 import { clearAdminToken } from '../../services/core/adminApiClient';
 import './admin.css';
@@ -23,10 +26,17 @@ const AdminDashboard = () => {
   const [caseLoading, setCaseLoading] = useState(false);
   const [settings, setSettings] = useState(null);
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [subscriptions, setSubscriptions] = useState([]);
+  const [subscriptionPagination, setSubscriptionPagination] = useState(null);
+  const [subscriptionPlans, setSubscriptionPlans] = useState([]);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
   const [demos, setDemos] = useState([]);
   const [demoLoading, setDemoLoading] = useState(false);
   const [comparisons, setComparisons] = useState([]);
   const [comparisonLoading, setComparisonLoading] = useState(false);
+  const [reviewVideos, setReviewVideos] = useState([]);
+  const [reviewVideoPagination, setReviewVideoPagination] = useState(null);
+  const [reviewVideoLoading, setReviewVideoLoading] = useState(false);
   const metricsTimerRef = useRef(null);
   const metricsInFlightRef = useRef(false);
 
@@ -67,6 +77,17 @@ const AdminDashboard = () => {
     }
   };
 
+  const loadSubscriptions = async ({ page = 1, search = '', status = '', plan = '' } = {}) => {
+    setSubscriptionLoading(true);
+    const response = await adminAPI.getSubscriptions({ page, limit: 10, search, status, plan });
+    if (response.success) {
+      setSubscriptions(response.data?.data?.items || []);
+      setSubscriptionPagination(response.data?.data?.pagination || null);
+      setSubscriptionPlans(response.data?.data?.availablePlans || []);
+    }
+    setSubscriptionLoading(false);
+  };
+
   const loadDemos = async () => {
     setDemoLoading(true);
     const response = await adminAPI.getDemos();
@@ -83,6 +104,16 @@ const AdminDashboard = () => {
       setComparisons(response.data?.data || []);
     }
     setComparisonLoading(false);
+  };
+
+  const loadReviewVideos = async ({ page = 1 } = {}) => {
+    setReviewVideoLoading(true);
+    const response = await adminAPI.getReviewVideos({ page, limit: 10 });
+    if (response.success) {
+      setReviewVideos(response.data?.data?.items || []);
+      setReviewVideoPagination(response.data?.data?.pagination || null);
+    }
+    setReviewVideoLoading(false);
   };
 
   useEffect(() => {
@@ -199,6 +230,52 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleUpdateSubscription = async (subscriptionId, payload) => {
+    const response = await adminAPI.updateSubscription(subscriptionId, payload);
+    if (response.success) {
+      const updated = response.data?.data;
+      setSubscriptions(prev => prev.map(item => (item._id === subscriptionId ? updated : item)));
+    }
+  };
+
+  const handleCreateReviewVideo = async payload => {
+    const response = await adminAPI.createReviewVideo(payload);
+    if (response.success) {
+      setReviewVideos(prev => [response.data?.data, ...prev]);
+    }
+  };
+
+  const handleUpdateReviewVideo = async (reviewVideoId, payload) => {
+    const response = await adminAPI.updateReviewVideo(reviewVideoId, payload);
+    if (response.success) {
+      const updated = response.data?.data;
+      setReviewVideos(prev => prev.map(item => (item._id === reviewVideoId ? updated : item)));
+    }
+  };
+
+  const handleSetActiveReviewVideo = async reviewVideoId => {
+    const response = await adminAPI.setActiveReviewVideo(reviewVideoId);
+    if (response.success) {
+      const updated = response.data?.data;
+      setReviewVideos(prev =>
+        prev.map(item => {
+          if (item._id === reviewVideoId) return updated;
+          if (updated?.isActive && item._id !== reviewVideoId) {
+            return { ...item, isActive: false };
+          }
+          return item;
+        })
+      );
+    }
+  };
+
+  const handleDeleteReviewVideo = async reviewVideoId => {
+    const response = await adminAPI.deleteReviewVideo(reviewVideoId);
+    if (response.success) {
+      setReviewVideos(prev => prev.filter(item => item._id !== reviewVideoId));
+    }
+  };
+
   const handleLogout = () => {
     clearAdminToken();
     navigate('/admin/login');
@@ -242,6 +319,28 @@ const AdminDashboard = () => {
                 onSave={handleSaveSettings}
               />
             )}
+            {activeTab === 'subscription' && (
+              <AdminSubscriptionPanel
+                subscriptions={subscriptions}
+                availablePlans={subscriptionPlans}
+                loading={subscriptionLoading}
+                pagination={subscriptionPagination}
+                onFetch={loadSubscriptions}
+                onUpdate={handleUpdateSubscription}
+              />
+            )}
+            {activeTab === 'review-video' && (
+              <AdminReviewVideoPanel
+                videos={reviewVideos}
+                loading={reviewVideoLoading}
+                pagination={reviewVideoPagination}
+                onFetch={loadReviewVideos}
+                onCreate={handleCreateReviewVideo}
+                onUpdate={handleUpdateReviewVideo}
+                onDelete={handleDeleteReviewVideo}
+                onSetActive={handleSetActiveReviewVideo}
+              />
+            )}
             {activeTab === 'demo' && (
               <AdminDemoPanel
                 demos={demos}
@@ -260,6 +359,11 @@ const AdminDashboard = () => {
                 onUpdate={handleUpdateComparison}
                 onDelete={handleDeleteComparison}
               />
+            )}
+            {activeTab === 'support' && (
+              <div style={{ height: '600px' }}>
+                <AdminSupportPanel />
+              </div>
             )}
           </main>
         </div>

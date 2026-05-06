@@ -3,6 +3,7 @@ import './index.css'
 import App from './App.jsx'
 import { RouterProvider, createBrowserRouter } from 'react-router-dom'
 import { ContextProvider } from "./context/Context.jsx"
+import { SocketProvider } from "./context/SocketContext.jsx"
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SubscriptionProvider } from './context/SubscriptionContext.jsx'
 import HomePage from './pages/HomePage.jsx'
@@ -86,7 +87,9 @@ createRoot(document.getElementById('root')).render(
   <ContextProvider>
     <QueryClientProvider client={queryClient}>
       <SubscriptionProvider>
-        <RouterProvider router={router} />
+        <SocketProvider>
+          <RouterProvider router={router} />
+        </SocketProvider>
       </SubscriptionProvider>
     </QueryClientProvider>
   </ContextProvider>

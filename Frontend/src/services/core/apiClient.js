@@ -86,11 +86,13 @@ export const handleApiError = apiResponse => {
 export const setToken = token => {
   if (token) {
     localStorage.setItem('token', token);
+    window.dispatchEvent(new Event('auth-token-changed'));
   }
 };
 
 export const clearToken = () => {
   localStorage.removeItem('token');
+  window.dispatchEvent(new Event('auth-token-changed'));
 };
 
 export const getToken = () => {

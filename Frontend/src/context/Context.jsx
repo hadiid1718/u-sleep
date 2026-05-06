@@ -264,12 +264,58 @@ export const ContextProvider = ({ children }) => {
         return result;
       }
     } catch (err) {
+      // On network or server error, try to restore persisted jobs from localStorage
       setError(err.message || "Failed to load jobs");
+      try {
+        const storageKey = user && (user.id || user._id || user.email)
+          ? `dashboardJobs_${String(user.id || user._id || user.email)}`
+          : null;
+        if (storageKey) {
+          const raw = localStorage.getItem(storageKey);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) setDashboardJobs(parsed);
+          }
+        }
+      } catch {
+        // ignore
+      }
       return { success: false, error: { message: err.message } };
     } finally {
       setDashboardLoading(false);
     }
   };
+
+  // Persist dashboardJobs to localStorage per-user so history survives logout/login
+  useEffect(() => {
+    try {
+      if (!user) return;
+      const storageKey = `dashboardJobs_${String(user.id || user._id || user.email)}`;
+      localStorage.setItem(storageKey, JSON.stringify(dashboardJobs || []));
+    } catch {
+      // ignore storage errors
+    }
+  }, [dashboardJobs, user]);
+
+  // On user change (login), preload persisted jobs immediately to improve UX
+  useEffect(() => {
+    try {
+      if (!user) {
+        setDashboardJobs([]);
+        return;
+      }
+      const storageKey = `dashboardJobs_${String(user.id || user._id || user.email)}`;
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setDashboardJobs(parsed);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [user]);
 
   // Match a job
   const matchJob = async (jobId) => {
