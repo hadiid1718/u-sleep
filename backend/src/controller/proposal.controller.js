@@ -76,7 +76,7 @@ const buildJobLookupQuery = (jobIdentifier, userId) => {
 export const generateProposal = async (req, res, next) => {
   try {
     const { jobId: jobIdentifier } = req.params;
-    const { aiService: preferredAIService = 'openai' } = req.body;
+    const { aiService: preferredAIService = 'gemini' } = req.body;
     const userId =
       req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
@@ -228,11 +228,33 @@ async function generateProposalAsync(
       job?.toObject?.() || job,
       user?.toObject?.() || user
     );
-    const generatedContent = await aiService.generateProposal({
-      aiService: preferredAIService,
-      job: job.toObject(),
-      user: user.toObject(),
-    });
+    const maxAttempts = 2;
+    let generatedContent = '';
+    let generationError = null;
+    let attemptsUsed = 0;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      attemptsUsed = attempt;
+      try {
+        generatedContent = await aiService.generateProposal({
+          aiService: preferredAIService,
+          job: job.toObject(),
+          user: user.toObject(),
+        });
+        generationError = null;
+        break;
+      } catch (error) {
+        generationError = error;
+        if (attempt === maxAttempts) {
+          break;
+        }
+      }
+    }
+
+    if (generationError) {
+      throw generationError;
+    }
+
     const normalizedGenerated = String(generatedContent || '').trim();
     const normalizedDefault = String(defaultResponse || '').trim();
     const usedFallbackTemplate =
@@ -249,6 +271,10 @@ async function generateProposalAsync(
         aiService: storedService,
         generatedAt: new Date(),
         contentType: 'original',
+        generationAttempts: attemptsUsed,
+        generationError: usedFallbackTemplate
+          ? 'AI generation returned fallback/default content.'
+          : null,
       },
     });
   } catch (error) {
@@ -263,8 +289,14 @@ async function generateProposalAsync(
       $set: {
         content: defaultResponse,
         aiModel: 'fallback-template',
+        aiService:
+          aiService.resolveProposalProvider(preferredAIService) === 'fallback'
+            ? null
+            : preferredAIService,
         generatedAt: new Date(),
         contentType: 'original',
+        generationAttempts: 2,
+        generationError: String(error?.message || 'Unknown AI generation error'),
       },
     });
   }
@@ -466,6 +498,19 @@ export const sendProposal = async (req, res, next) => {
         bidResponse?.bid?.id ||
         bidResponse?.result?.id ||
         null;
+
+      // Debug log for remote bid response
+      try {
+        console.debug('Freelancer bid response', {
+          projectId,
+          usedSystemToken: usedSystemFreelancerToken,
+          freelancerTokenPresent: Boolean(freelancerToken),
+          freelancerBidId,
+          rawResponse: bidResponse,
+        });
+      } catch (logErr) {
+        console.error('Failed to log freelancer bid response', logErr);
+      }
     }
 
     // In production, send to Upwork API here

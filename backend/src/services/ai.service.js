@@ -11,12 +11,12 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
  * AI Proposal Generation Service
  * Supports both OpenAI and Google Gemini
  */
-class AIProposalService {
+class AIProposalService { 
   constructor() {
     this.openaiApiKey = OPENAI_API_KEY;
     this.openaiModel = OPENAI_MODEL || 'gpt-4-turbo';
     this.geminiApiKey = GOOGLE_GEMINI_API_KEY;
-    this.geminiModel = GOOGLE_GEMINI_MODEL || 'gemini-2.0-flash';
+    this.geminiModel = GOOGLE_GEMINI_MODEL || 'gemini-2.5-flash';
     this.geminiClient = this.geminiApiKey
       ? new GoogleGenerativeAI(this.geminiApiKey)
       : null;
@@ -35,8 +35,8 @@ My approach is simple: clarify must-haves, ship an initial milestone quickly, an
     return this.defaultProposalResponse;
   }
 
-  resolveProposalProvider(preferred = 'openai') {
-    const requested = String(preferred || 'openai').toLowerCase();
+  resolveProposalProvider(preferred = 'gemini') {
+    const requested = String(preferred || 'gemini').toLowerCase();
     const hasOpenAI = Boolean(this.openaiApiKey);
     const hasGemini = Boolean(this.geminiApiKey);
 
@@ -74,7 +74,7 @@ My approach is simple: clarify must-haves, ship an initial milestone quickly, an
     if (paragraphs.length !== 3) return false;
 
     const wordCount = this.countWords(normalized);
-    if (wordCount < 140 || wordCount > 230) return false;
+    if (wordCount < 130 || wordCount > 230) return false;
 
     const firstWord = normalized
       .split(/\s+/)[0]
@@ -669,7 +669,7 @@ Rules:
    * @returns {Promise<String>} - Generated proposal text
    */
   async generateProposal(params) {
-    const { aiService = 'openai', job, user, caseStudy } = params;
+    const { aiService = 'gemini', job, user, caseStudy } = params;
 
     if (!job || !user) {
       throw new Error('Job and user details are required');
@@ -678,7 +678,11 @@ Rules:
     try {
       const provider = this.resolveProposalProvider(aiService);
       if (provider === 'fallback') {
-        return this.getDefaultProposalResponse(job, user);
+        const error = new Error(
+          'No AI provider is configured for proposal generation. Set GOOGLE_GEMINI_API_KEY or OPENAI_API_KEY.'
+        );
+        error.code = 'AI_PROVIDER_NOT_CONFIGURED';
+        throw error;
       }
 
       let proposal;
@@ -690,17 +694,20 @@ Rules:
       }
 
       if (!this.normalizeText(proposal)) {
-        return this.getDefaultProposalResponse(job, user);
+        const error = new Error('AI returned an empty proposal response.');
+        error.code = 'AI_EMPTY_RESPONSE';
+        throw error;
       }
 
       if (!this.isProposalCompliant(proposal)) {
-        return this.buildFallbackProposal(job, user);
+        // Keep AI-generated content instead of replacing it with a static template.
+        return proposal;
       }
 
       return proposal;
     } catch (error) {
       console.error(`Error generating proposal with ${aiService}:`, error);
-      return this.getDefaultProposalResponse(job, user);
+      throw error;
     }
   }
 
@@ -717,27 +724,27 @@ Rules:
       messages: [
         {
           role: 'system',
-          content: `You are an expert ${platform} proposal writer. Follow the constraints exactly.
+          content: `You are an expert ${platform} proposal writer. Write COMPREHENSIVE, DETAILED proposals.
 Constraints:
 - 3 paragraphs, separated by a blank line.
-- 150-220 words total.
+- Target 180-200 words total (aim for closer to 200, not shorter).
 - First word must NOT be "Hi", "Hello", "I", or the freelancer's name.
-- Open with a specific client problem or goal from the job details.
+- Each paragraph must be 3-4 sentences (not 2-3, aim for more detail).
+- Paragraph 1: Open with a specific client problem or goal from the job details.
+- Paragraph 2: Include concrete past project examples with tools/methods and measurable outcomes.
+- Paragraph 3: Describe your approach and process, then end with ONE smart question or confident call to action.
 - Tone: conversational, direct, client-focused. No fluff.
-- Include 1-2 relevant past projects with concrete outcomes and tools/methods.
-- Paragraph 3 includes the approach (2-3 sentences) and ends with ONE smart question or a confident call to action.
-- Do not restate the job description; reference specifics once.
-- No subject line, no greeting, no labels, no placeholders like [Client Name].
+- Do not restate the job description; reference specifics once with depth.
 - Avoid banned phrases: "I am the perfect candidate", "I would love to work with you", "passionate", "dedicated", "detail-oriented", "guru", "ninja", "rockstar".
-- Output only the proposal text.`,
+- Output ONLY the proposal text - write in full detail.`,
         },
         {
           role: 'user',
           content: prompt,
         },
       ],
-      temperature: 0.7,
-      max_tokens: 800,
+      temperature: 1.0,
+      max_tokens: 2000,
       top_p: 0.9,
     };
 
@@ -787,22 +794,22 @@ Constraints:
       job?.source === 'freelancer_api' ? 'Freelancer.com' : 'Upwork';
     return this.generateWithGeminiSdk({
       prompt,
-      systemInstruction: `You are an expert ${platform} proposal writer. Follow the constraints exactly.
+      systemInstruction: `You are an expert ${platform} proposal writer. Write COMPREHENSIVE, DETAILED proposals.
     Constraints:
     - 3 paragraphs, separated by a blank line.
-    - 150-220 words total.
+    - Target 180-200 words total (aim for closer to 200, not shorter).
+    - Each paragraph must be 3-4 sentences (not 2-3, aim for more detail).
     - First word must NOT be "Hi", "Hello", "I", or the freelancer's name.
-    - Open with a specific client problem or goal from the job details.
+    - Paragraph 1: Open with a specific client problem or goal from the job details.
+    - Paragraph 2: Include concrete past project examples with tools/methods and measurable outcomes.
+    - Paragraph 3: Describe your approach and process, then end with ONE smart question or confident call to action.
     - Tone: conversational, direct, client-focused. No fluff.
-    - Include 1-2 relevant past projects with concrete outcomes and tools/methods.
-    - Paragraph 3 includes the approach (2-3 sentences) and ends with ONE smart question or a confident call to action.
-    - Do not restate the job description; reference specifics once.
-    - No subject line, no greeting, no labels, no placeholders like [Client Name].
+    - Do not restate the job description; reference specifics once with depth.
     - Avoid banned phrases: "I am the perfect candidate", "I would love to work with you", "passionate", "dedicated", "detail-oriented", "guru", "ninja", "rockstar".
-    - Output only the proposal text.`,
+    - Output ONLY the proposal text - write in full detail.`,
       generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 800,
+        temperature: 1.0,
+        maxOutputTokens: 1700,
         topP: 0.9,
       },
       timeoutMessage: 'Proposal generation timed out',
@@ -847,13 +854,14 @@ Keywords/Expertise: ${user.jobPreferences?.keywords?.join(', ') || 'N/A'}
 **INSTRUCTIONS:**
 1. Use the job details and description; reference a specific requirement from the job.
 2. Output exactly 3 paragraphs separated by a blank line.
-3. Word count must be 150-220 words total.
-4. Paragraph 1 (Hook): start with the client's problem/goal; first word must NOT be "Hi", "Hello", "I", or the freelancer's name.
-5. Paragraph 2 (Proof): give 1 concrete past project with tools/methods and a measurable outcome.
-6. Paragraph 3 (Approach + CTA): 2-3 sentences on how you'll solve this job, then end with ONE specific question or direct call to action.
+3. Word count MUST be between 180-200 words total. Aim for closer to 200. Write a comprehensive proposal, not a short one.
+4. Paragraph 1 (Hook): start with the client's problem/goal (3 sentences); first word must NOT be "Hi", "Hello", "I", or the freelancer's name. Be specific about their challenge.
+5. Paragraph 2 (Proof): give 1-2 concrete past projects with tools/methods and measurable outcomes (3-4 sentences). Include specific results and what made them successful.
+6. Paragraph 3 (Approach + CTA): 3-4 sentences on how you'll solve THIS job, your process, and timeline, then end with ONE specific question or direct call to action.
 7. Tone: conversational, direct, client-focused. No fluff. Do not restate the job description.
-8. Avoid banned phrases: "I am the perfect candidate", "I would love to work with you", "passionate", "dedicated", "detail-oriented", "guru", "ninja", "rockstar".
-9. No subject line, no greeting, no labels, no placeholders. Output only the proposal text.`;
+8. Each paragraph should be detailed and substantive - minimum 3 sentences each. Provide depth and specifics.
+9. Avoid banned phrases: "I am the perfect candidate", "I would love to work with you", "passionate", "dedicated", "detail-oriented", "guru", "ninja", "rockstar".
+10. No subject line, no greeting, no labels, no placeholders. Output ONLY the full proposal text - aim for 190-200 words.`;
 
     if (caseStudy) {
       prompt += `
@@ -914,13 +922,14 @@ ${normalizedCaseStudy || 'N/A'}
 
 INSTRUCTIONS:
 - Rewrite to exactly 3 paragraphs separated by a blank line
-- Keep total length 150-220 words
-- Paragraph 1 is the Hook: must reference at least one specific job detail from JOB DETAILS
-- Paragraph 2 is Proof: use the CASE STUDY with tools/methods and measurable outcomes
-- Paragraph 3 is Approach: describe how you will solve THIS job, then end with ONE smart question or confident call to action
+- Target 180-200 words total. Aim for closer to 200 words with comprehensive detail.
+- Paragraph 1 is the Hook (3-4 sentences): must reference at least one specific job detail from JOB DETAILS with depth
+- Paragraph 2 is Proof (3-4 sentences): use the CASE STUDY with tools/methods and specific measurable outcomes
+- Paragraph 3 is Approach (3-4 sentences): describe your process for solving THIS job and outcome, then end with ONE smart question or confident call to action
+- Each paragraph must be detailed and substantive - 3-4 sentences each
 - No subject line, no greeting, no labels, no placeholders
 - Avoid banned phrases: "I am the perfect candidate", "I would love to work with you", "passionate", "dedicated", "detail-oriented", "guru", "ninja", "rockstar"
-- Output only the proposal text`;
+- Output ONLY the full proposal text - aim for 190-200 words`;
 
     try {
       let upgradedProposal;
@@ -1001,11 +1010,108 @@ INSTRUCTIONS:
       systemInstruction:
         'You are an expert proposal editor. Enforce a 3-paragraph, 150-220 word response with a hook, proof using the case study, and an approach ending with one question or CTA. No greetings, no labels, no placeholders.',
       generationConfig: {
-        temperature: 0.7,
+        temperature: 0.1,
         maxOutputTokens: 900,
       },
       timeoutMessage: 'Proposal upgrade timed out',
     });
+  }
+
+  /**
+   * Generate a short support reply for a user message using configured AI providers.
+   * Returns plain text. Throws on failure.
+   */
+  async generateChatReply({ message, aiService = 'gemini', maxTokens = 400 } = {}) {
+    const provider = this.resolveProposalProvider(aiService);
+    if (provider === 'fallback') {
+      throw new Error('No AI provider configured for chat replies');
+    }
+
+    const systemInstruction = `You are a concise, professional product support assistant.
+Respond helpfully and directly. Prioritize clarity and actionable steps. If the user's question is about billing, subscriptions or payments include next steps and links. If it is a systems/architecture question, keep the explanation high-level and user-friendly. If the question is purely out-of-scope for product support, respond with a short sentence that starts with "OUT_OF_CONTEXT:" followed by a brief suggestion to contact human support.
+Limit your answer to roughly 2-6 short paragraphs and keep it under ${maxTokens} tokens.`;
+
+    const prompt = String(message || '').trim();
+    if (!prompt) return '';
+
+    if (provider === 'openai') {
+      const payload = {
+        model: this.openaiModel,
+        messages: [
+          { role: 'system', content: systemInstruction },
+          { role: 'user', content: prompt },
+        ],
+        temperature: 0.2,
+        max_tokens: Math.min(800, maxTokens),
+        top_p: 0.9,
+      };
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+      try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${this.openaiApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const body = await response.json().catch(() => null);
+          throw new Error(`OpenAI Error: ${body?.error?.message || response.statusText}`);
+        }
+
+        const data = await response.json();
+        return this.normalizeText(data.choices?.[0]?.message?.content || '');
+      } catch (err) {
+        clearTimeout(timeoutId);
+        throw err;
+      }
+    }
+
+    // Gemini path
+    const raw = await this.generateWithGeminiSdk({
+      prompt,
+      systemInstruction,
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: Math.min(1024, Math.floor(maxTokens * 2)),
+        topP: 0.9,
+      },
+      timeoutMessage: 'Gemini chat reply timed out',
+    });
+
+    return this.normalizeText(raw || '');
+  }
+
+  /**
+   * Generate chat reply with provider failover (Gemini -> OpenAI by default).
+   * Returns both reply text and provider used.
+   */
+  async generateChatReplyWithFallback({ message, preferred = 'gemini', maxTokens = 400 } = {}) {
+    const first = String(preferred || 'gemini').toLowerCase() === 'openai' ? 'openai' : 'gemini';
+    const second = first === 'gemini' ? 'openai' : 'gemini';
+
+    const attempts = [first, second];
+    let lastError = null;
+
+    for (const provider of attempts) {
+      try {
+        const text = await this.generateChatReply({ message, aiService: provider, maxTokens });
+        if (text) {
+          return { text, provider };
+        }
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError || new Error('Unable to generate chat reply from configured AI providers');
   }
 }
 

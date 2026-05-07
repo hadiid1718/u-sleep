@@ -96,6 +96,14 @@ const proposalSchema = new mongoose.Schema(
     },
     aiModel: String,
     generatedAt: Date,
+    generationAttempts: {
+      type: Number,
+      default: 0,
+    },
+    generationError: {
+      type: String,
+      default: null,
+    },
 
     // User Feedback
     userRating: {

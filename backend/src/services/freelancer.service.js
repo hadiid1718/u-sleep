@@ -555,10 +555,20 @@ class FreelancerService {
       const result = await response.json().catch(() => null);
 
       if (!response.ok) {
-        const message =
-          result?.message ||
-          result?.error ||
-          `Freelancer bid request failed with status ${response.status}.`;
+        // Handle authentication errors with a clear message
+        let message =
+          result?.message || result?.error || null;
+
+        if (response.status === 401 || response.status === 403) {
+          message =
+            message ||
+            'Freelancer authentication failed: token invalid or expired. Please reconnect your Freelancer account.';
+        }
+
+        if (!message) {
+          message = `Freelancer bid request failed with status ${response.status}.`;
+        }
+
         const error = new Error(message);
         error.statusCode = response.status;
         error.code = 'FREELANCER_BID_ERROR';
