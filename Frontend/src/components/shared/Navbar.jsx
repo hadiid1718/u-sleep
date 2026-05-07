@@ -2,6 +2,7 @@ import { useContext, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AppContext } from "../../context/Context";
 import NotificationDrawer from "./NotificationDrawer";
+import logo from "../../assets/U sleep.png";
 
 const Header = () => {
   const { user, handleLogout } = useContext(AppContext);
@@ -21,8 +22,12 @@ const Header = () => {
   return (
     <>
       <header className="flex justify-between items-center px-6 py-4 bg-black relative z-50">
-        <Link to="/" className="text-white font-medium text-lg">
-          <span className="text-lime-400">U</span> sleep
+        <Link to="/" className="flex items-center bg-black rounded-lg p-1" aria-label="U Never Sleep home">
+          <img
+            src={logo}
+            alt="U Never Sleep"
+            className="h-16 w-auto object-contain"
+          />
         </Link>
 
         <div className="flex items-center gap-3">
