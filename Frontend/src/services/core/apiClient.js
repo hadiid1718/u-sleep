@@ -24,12 +24,13 @@ export const apiRequest = async (endpoint, options = {}) => {
 
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {
-      throw Object.assign(
-        new Error(
-          `Server returned non-JSON response (${response.status}). Is the backend running?`
-        ),
-        { statusCode: response.status }
+      const text = await response.text().catch(() => null);
+      const err = new Error(
+        `Server returned non-JSON response (${response.status}).`
       );
+      err.statusCode = response.status;
+      err.responseText = text;
+      throw err;
     }
 
     const data = await response.json();
@@ -55,6 +56,7 @@ export const apiRequest = async (endpoint, options = {}) => {
         message: error.message || 'An unexpected error occurred',
         statusCode: error.statusCode || 500,
         details: error.response || null,
+        responseText: error.responseText || null,
       },
     };
   }

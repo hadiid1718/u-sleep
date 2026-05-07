@@ -7,7 +7,6 @@ import AdminCasesPanel from '../../components/admin/AdminCasesPanel';
 import AdminViolationSettings from '../../components/admin/AdminViolationSettings';
 import AdminDemoPanel from '../../components/admin/AdminDemoPanel';
 import AdminComparisonPanel from '../../components/admin/AdminComparisonPanel';
-import AdminSupportPanel from '../../components/admin/AdminSupportPanel';
 import AdminSubscriptionPanel from '../../components/admin/AdminSubscriptionPanel';
 import AdminReviewVideoPanel from '../../components/admin/AdminReviewVideoPanel';
 import { adminAPI } from '../../services/adminService';
@@ -360,11 +359,7 @@ const AdminDashboard = () => {
                 onDelete={handleDeleteComparison}
               />
             )}
-            {activeTab === 'support' && (
-              <div style={{ height: '600px' }}>
-                <AdminSupportPanel />
-              </div>
-            )}
+            {/* Support chats removed from admin UI */}
           </main>
         </div>
       </div>

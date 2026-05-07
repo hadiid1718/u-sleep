@@ -1,7 +1,7 @@
 import { apiRequest } from './core/apiClient';
 
 export const proposalAPI = {
-  generateProposal: async (jobId, aiService = 'openai') => {
+  generateProposal: async (jobId, aiService = 'gemini') => {
     if (!jobId) {
       return {
         success: false,

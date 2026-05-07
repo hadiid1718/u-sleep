@@ -19,6 +19,7 @@ const JobResultPage = () => {
     matchJob,
     rejectJob,
     removeJobFromResults,
+    translateJobDescription,
   } = useContext(AppContext);
 
   const [currentJobIndex, setCurrentJobIndex] = useState(0);
@@ -256,6 +257,27 @@ const JobResultPage = () => {
                 {currentJob.translatedDescription || currentJob.description}
               </p>
             </div>
+          </div>
+          <div className="mb-6 flex items-center gap-3">
+            {/* Show translate button when description appears non-English and not already translated */}
+            {currentJob?.descriptionLanguage &&
+              currentJob.descriptionLanguage.toLowerCase() !== 'english' && (
+                <button
+                  onClick={async () => {
+                    const jobId = getJobId(currentJob);
+                    if (!jobId) return;
+                    try {
+                      // optimistic UI handled in context
+                      await translateJobDescription(jobId, 'English');
+                    } catch (err) {
+                      // ignore, context will set error
+                    }
+                  }}
+                  className="text-sm bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-500 transition"
+                >
+                  Translate with AI
+                </button>
+              )}
           </div>
 
           <a

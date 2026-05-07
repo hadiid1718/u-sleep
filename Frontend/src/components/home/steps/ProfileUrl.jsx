@@ -15,12 +15,7 @@ const ProfileUrl = () => {
   } = useContext(AppContext);
 
   const [profileLink, setProfileLink] = useState(formData.profileUrl || '');
-  const [selectedLanguage, setSelectedLanguage] = useState(
-    formData.selectedLanguage || 'English'
-  );
-  const [autoTranslateDescription, setAutoTranslateDescription] = useState(
-    Boolean(formData.autoTranslateDescription)
-  );
+  // language selection and auto-translate removed per UX change
   const [showError, setShowError] = useState(false);
   const selectedPlatform = formData.selectedPlatform || 'upwork';
 
@@ -48,8 +43,7 @@ const ProfileUrl = () => {
       ...(isFreelancer
         ? { freelancerProfileUrl: profileUrl }
         : { upworkProfileUrl: profileUrl }),
-      selectedLanguage: data.selectedLanguage || 'English',
-      autoTranslateDescription: Boolean(data.autoTranslateDescription),
+      // selectedLanguage and autoTranslateDescription intentionally omitted
     };
 
     if (rateType) payload.rateType = rateType;
@@ -63,8 +57,6 @@ const ProfileUrl = () => {
     const updatedData = {
       ...formData,
       profileUrl: profileLink,
-      selectedLanguage,
-      autoTranslateDescription,
     };
     setFormData(updatedData);
 
@@ -156,42 +148,6 @@ const ProfileUrl = () => {
 
             {selectedPlatform === 'freelancer' && (
               <div className="mb-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5 text-left">
-                  <div>
-                    <label className="block text-gray-300 text-sm mb-2">
-                      Preferred freelancer language
-                    </label>
-                    <select
-                      value={selectedLanguage}
-                      onChange={e => setSelectedLanguage(e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-800 border-2 border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-lime-400 focus:border-lime-400"
-                    >
-                      <option>English</option>
-                      <option>Indonesian</option>
-                      <option>Spanish</option>
-                      <option>French</option>
-                      <option>German</option>
-                      <option>Portuguese</option>
-                      <option>Arabic</option>
-                      <option>Hindi</option>
-                    </select>
-                  </div>
-
-                  <div className="flex items-end">
-                    <label className="flex items-center gap-3 text-sm text-gray-300 bg-gray-800/70 border border-gray-700 rounded-lg px-4 py-3 w-full">
-                      <input
-                        type="checkbox"
-                        checked={autoTranslateDescription}
-                        onChange={e =>
-                          setAutoTranslateDescription(e.target.checked)
-                        }
-                        className="h-4 w-4 rounded border-gray-600 bg-gray-900 text-lime-400 focus:ring-lime-400"
-                      />
-                      Auto-translate project descriptions during search
-                    </label>
-                  </div>
-                </div>
-
                 <div className="text-center text-sm">
                   <button
                     onClick={handleFreelancerConnect}

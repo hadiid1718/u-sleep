@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { MessageCircle, Send, X } from 'lucide-react';
 import './FounderChatWidget.css';
 import { supportAPI } from '../../services/supportService';
 import { useSocket } from '../../context/SocketContext';
+import { AppContext } from '../../context/Context';
 
 const FOUNDER_TELEGRAM_URL = import.meta.env.VITE_FOUNDER_TELEGRAM_URL || 'https://t.me/';
 const FOUNDER_WHATSAPP_URL = import.meta.env.VITE_FOUNDER_WHATSAPP_URL || 'https://wa.me/';
@@ -13,14 +14,37 @@ const FounderAvatar = () => (
   </div>
 );
 
+const makeProcessingMessage = () => ({
+  _id: `processing-${Date.now()}`,
+  sender: 'system',
+  message: 'AI is thinking...',
+  createdAt: new Date().toISOString(),
+  _processing: true,
+});
+
 function FounderChatWidget() {
+  const { user } = useContext(AppContext);
+  const isLoggedIn = useMemo(() => Boolean(user && (user._id || user.id || user.email)), [user]);
+
   const [isOpen, setIsOpen] = useState(false);
   const [draftMessage, setDraftMessage] = useState('');
   const [messages, setMessages] = useState([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
   const inputRef = useRef(null);
   const scrollAnchorRef = useRef(null);
   const retentionTimerRef = useRef(null);
   const { socket } = useSocket();
+
+  const sanitizeMessageText = useCallback((text) => {
+    if (!text) return '';
+    let t = String(text).replace(/data:image[^\s"']*/gi, '[image removed]');
+    t = t.replace(/<img[^>]*>/gi, '');
+    t = t.replace(/<[^>]+>/g, '');
+    return t.trim();
+  }, []);
 
   const clearRetentionTimer = useCallback(() => {
     if (retentionTimerRef.current) {
@@ -60,92 +84,173 @@ function FounderChatWidget() {
   }, [clearRetentionTimer, isOpen]);
 
   useEffect(() => {
-    if (isOpen && inputRef.current) inputRef.current.focus();
+    if (isOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
   }, [isOpen]);
 
   useEffect(() => {
-    if (scrollAnchorRef.current) scrollAnchorRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (scrollAnchorRef.current) {
+      scrollAnchorRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages, isOpen]);
 
   useEffect(() => {
     scheduleExpiryFromMessages(messages);
-
     return clearRetentionTimer;
   }, [messages, isOpen, scheduleExpiryFromMessages, clearRetentionTimer]);
 
-  // Fetch history when opened and set up Socket.IO listeners
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !isLoggedIn) {
+      return undefined;
+    }
 
+    let isMounted = true;
     const load = async () => {
-      const res = await supportAPI.getUserChats();
-      if (res.success) setMessages(res.data?.data?.messages || []);
+      setIsLoadingHistory(true);
+      setErrorMessage('');
+
+      try {
+        const res = await supportAPI.getUserChats();
+        if (!isMounted) return;
+
+        if (!res?.success) {
+          throw new Error(res?.error?.message || 'Unable to load chat history.');
+        }
+
+        const raw = res.data?.data?.messages || [];
+        setMessages(raw.map(m => ({ ...m, message: sanitizeMessageText(m.message || m.body || '') })));
+      } catch (error) {
+        if (!isMounted) return;
+        setErrorMessage(error?.message || 'Failed to load chat history.');
+      } finally {
+        if (isMounted) {
+          setIsLoadingHistory(false);
+        }
+      }
     };
 
     load();
 
-    // Listen for new admin replies via Socket.IO
     if (socket) {
-      socket.on('support-chat:new-admin-reply', (data) => {
-        setMessages(prev => [
-          ...prev,
-          {
-            _id: `socket-${Date.now()}`,
-            sender: data.sender,
-            message: data.message,
-            createdAt: data.timestamp,
-          },
-        ]);
-      });
+      const onSystemReply = (data) => {
+        setMessages(prev => {
+          const withoutProcessing = prev.filter(item => !item._processing);
+          return [
+            ...withoutProcessing,
+            {
+              _id: data.messageId || `socket-${Date.now()}`,
+              sender: 'system',
+              message: sanitizeMessageText(data.message),
+              createdAt: data.timestamp || new Date().toISOString(),
+            },
+          ];
+        });
+        setIsSending(false);
+        setErrorMessage('');
+      };
 
-      socket.on('support-chat:new-system-reply', (data) => {
-        setMessages(prev => [
-          ...prev,
-          {
-            _id: data.messageId || `socket-${Date.now()}`,
-            sender: 'system',
-            message: data.message,
-            createdAt: data.timestamp,
-          },
-        ]);
-      });
+      const onAiError = (data) => {
+        setMessages(prev => prev.filter(item => !item._processing));
+        setIsSending(false);
+        setErrorMessage(data?.message || 'AI response failed. Please try again.');
+      };
+
+      socket.on('support-chat:new-system-reply', onSystemReply);
+      socket.on('support-chat:ai-error', onAiError);
 
       return () => {
-        socket.off('support-chat:new-admin-reply');
-        socket.off('support-chat:new-system-reply');
+        isMounted = false;
+        socket.off('support-chat:new-system-reply', onSystemReply);
+        socket.off('support-chat:ai-error', onAiError);
       };
     }
 
-    return clearRetentionTimer;
-  }, [isOpen, socket, clearRetentionTimer]);
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, isLoggedIn, sanitizeMessageText, socket]);
+
+  const handlePaste = useCallback((event) => {
+    const clipboardData = event.clipboardData || window.clipboardData;
+    const items = clipboardData?.items || [];
+
+    let hasFiles = false;
+    for (let i = 0; i < items.length; i += 1) {
+      if (items[i].kind === 'file') {
+        hasFiles = true;
+        break;
+      }
+    }
+
+    if (!hasFiles) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const textData = clipboardData?.getData?.('text/plain') || '';
+    if (!textData || !inputRef.current) {
+      return;
+    }
+
+    const currentValue = inputRef.current.value;
+    const start = inputRef.current.selectionStart || currentValue.length;
+    const end = inputRef.current.selectionEnd || currentValue.length;
+
+    const nextValue = currentValue.slice(0, start) + textData + currentValue.slice(end);
+    setDraftMessage(nextValue);
+  }, []);
 
   const handleSendMessage = async (event) => {
     event?.preventDefault();
-    const trimmed = String(draftMessage || '').trim();
-    if (!trimmed) return;
 
-    // Optimistic UI: append the user message locally
+    const trimmed = sanitizeMessageText(draftMessage);
+    if (!trimmed || isSending) return;
+
+    setIsSending(true);
+    setErrorMessage('');
+
+    const localId = `local-${Date.now()}`;
     const optimistic = {
-      _id: `local-${Date.now()}`,
-      userId: null,
+      _id: localId,
       sender: 'user',
       message: trimmed,
       createdAt: new Date().toISOString(),
     };
-    setMessages(prev => [...prev, optimistic]);
+
+    setMessages(prev => [...prev, optimistic, makeProcessingMessage()]);
     setDraftMessage('');
 
-    const res = await supportAPI.postUserMessage(trimmed);
-    if (res.success) {
-      // Replace local optimistic with server-saved messages (user + auto-reply)
-      const serverMessages = res.data?.data?.messages || [];
-      setMessages(prev => {
-        // Drop optimistic markers and merge server messages
-        const withoutLocal = prev.filter(m => !String(m._id || m.id).startsWith('local-'));
-        return [...withoutLocal, ...serverMessages];
-      });
+    try {
+      const res = await supportAPI.postUserMessage(trimmed);
+      if (!res?.success) {
+        throw new Error(res?.error?.message || 'Unable to send message.');
+      }
+
+      const serverMessages = (res.data?.data?.messages || []).map(m => ({
+        ...m,
+        message: sanitizeMessageText(m.message || m.body || ''),
+      }));
+
+      if (serverMessages.length > 0) {
+        setMessages(prev => {
+          const filtered = prev.filter(m => m._id !== localId && !m._processing);
+          return [...filtered, ...serverMessages];
+        });
+        setIsSending(false);
+      }
+    } catch (error) {
+      setMessages(prev => prev.filter(m => m._id !== localId && !m._processing));
+      setIsSending(false);
+      setErrorMessage(error?.message || 'Failed to send message. Please retry.');
     }
   };
+
+  if (!isLoggedIn) {
+    return null;
+  }
 
   return (
     <div className="founder-chat-root" role="complementary" aria-label="Founder chat">
@@ -153,13 +258,13 @@ function FounderChatWidget() {
         <section className="founder-chat-panel" aria-label="Support chat panel">
           <header className="founder-chat-header">
             <div className="founder-chat-title-wrap">
-              <h3 className="founder-chat-title">Support Chat</h3>
+              <h3 className="founder-chat-title">Chat with Founder AI</h3>
               <MessageCircle size={16} className="founder-chat-title-icon" />
             </div>
             <button type="button" className="founder-chat-close" onClick={() => setIsOpen(false)} aria-label="Close support chat">
               <X size={18} />
             </button>
-            <p className="founder-chat-subtitle">Hi, the founder here! How can I help?</p>
+            <p className="founder-chat-subtitle">Ask anything about the product, billing, or troubleshooting.</p>
             <div className="founder-chat-links">
               <a href={FOUNDER_TELEGRAM_URL} target="_blank" rel="noreferrer">Telegram</a>
               <a href={FOUNDER_WHATSAPP_URL} target="_blank" rel="noreferrer">WhatsApp</a>
@@ -167,18 +272,39 @@ function FounderChatWidget() {
           </header>
 
           <div className="founder-chat-body">
+            {isLoadingHistory && <article className="founder-chat-message is-founder"><p>Loading conversation...</p></article>}
+
             {messages.map((m) => (
-              <article key={m._id || m.id || `${m.sender}-${m.createdAt}`} className={`founder-chat-message ${m.sender === 'user' ? 'is-user' : 'is-founder'}`}>
+              <article key={m._id || `${m.sender}-${m.createdAt}`} className={`founder-chat-message ${m.sender === 'user' ? 'is-user' : 'is-founder'}`}>
                 {m.sender !== 'user' && <FounderAvatar />}
                 <p>{m.message || m.body}</p>
               </article>
             ))}
+
+            {errorMessage && (
+              <article className="founder-chat-message is-founder">
+                <FounderAvatar />
+                <p>{errorMessage}</p>
+              </article>
+            )}
+
             <div ref={scrollAnchorRef} />
           </div>
 
           <form className="founder-chat-input-row" onSubmit={handleSendMessage}>
-            <input ref={inputRef} type="text" value={draftMessage} onChange={(e) => setDraftMessage(e.target.value)} placeholder="Type your message..." aria-label="Type your message" />
-            <button type="submit" aria-label="Send message"><Send size={16} /></button>
+            <input
+              ref={inputRef}
+              type="text"
+              value={draftMessage}
+              onChange={(event) => setDraftMessage(event.target.value)}
+              onPaste={handlePaste}
+              placeholder={isSending ? 'Waiting for AI response...' : 'Type your message...'}
+              aria-label="Type your message"
+              disabled={isSending}
+            />
+            <button type="submit" aria-label="Send message" disabled={isSending || !draftMessage.trim()}>
+              <Send size={16} />
+            </button>
           </form>
         </section>
       ) : (

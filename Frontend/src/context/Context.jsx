@@ -433,7 +433,7 @@ export const ContextProvider = ({ children }) => {
   const [proposalLoading, setProposalLoading] = useState(false);
 
   // Generate proposal for a job
-  const generateProposal = async (jobId, aiService = 'openai') => {
+  const generateProposal = async (jobId, aiService = 'gemini') => {
     setProposalLoading(true);
     try {
       const result = await proposalAPI.generateProposal(jobId, aiService);

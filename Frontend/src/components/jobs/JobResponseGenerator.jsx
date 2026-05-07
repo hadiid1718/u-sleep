@@ -9,7 +9,7 @@ import { AppContext } from '../../context/Context';
 import { proposalAPI } from '../../services/proposalService';
 import useSubscription from '../../hooks/useSubscription';
 
-const JobResponseGenerator = ({ job, aiService = 'openai', onBack = null }) => {
+const JobResponseGenerator = ({ job, aiService = 'gemini', onBack = null }) => {
   const {
     generateProposal,
     pollProposal,

@@ -8,7 +8,6 @@ const AdminSidebar = ({ activeTab, onTabChange, onLogout }) => {
     { id: 'review-video', label: 'Review Video' },
     { id: 'demo', label: 'Demo Requests' },
     { id: 'comparisons', label: 'Comparisons' },
-    { id: 'support', label: 'Support Chats' },
   ];
 
   return (

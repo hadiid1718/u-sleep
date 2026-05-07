@@ -1,6 +1,7 @@
 import React, { useState, useContext, useEffect, useMemo } from 'react';
 import { ArrowLeft, Copy, Send } from 'lucide-react';
 import { AppContext } from '../../context/Context';
+import { authAPI } from '../../services/authService';
 import { proposalAPI } from '../../services/proposalService';
 import useSubscription from '../../hooks/useSubscription';
 
@@ -23,6 +24,8 @@ const GeneratedResponse = ({
   const [estimatedDuration, setEstimatedDuration] = useState('');
   const [deliveryDate, setDeliveryDate] = useState('');
   const [bidFormError, setBidFormError] = useState('');
+  const [showConnectBanner, setShowConnectBanner] = useState(false);
+  const [connectUrl, setConnectUrl] = useState('');
 
   const { currentProposal } = useContext(AppContext);
   const { canDirectSend, refreshSubscription } = useSubscription();
@@ -30,6 +33,7 @@ const GeneratedResponse = ({
   const proposalId = currentProposal?.proposalId || currentProposal?._id;
   const isFreelancerJob = job?.source === 'freelancer_api';
   const usedFallbackTemplate = currentProposal?.aiModel === 'fallback-template';
+  const aiFailureReason = currentProposal?.generationError || '';
   const displayText = responseText || currentProposal?.content || '';
 
   const initialBidAmount = useMemo(() => {
@@ -155,10 +159,30 @@ const GeneratedResponse = ({
         setSent(true);
         await refreshSubscription();
       } else {
-        alert(result.error?.message || 'Failed to send proposal');
+        const status = result.error?.statusCode || result.error?.status || 0;
+
+        if (status === 401 || status === 403) {
+          // Show connect option for Freelancer OAuth
+          const url = authAPI.getFreelancerOAuthUrl('connect-from-proposal');
+          setConnectUrl(url);
+          setShowConnectBanner(true);
+        } else {
+          const extra = result.error?.responseText
+            ? `\n\nServer response:\n${result.error.responseText}`
+            : '';
+          alert((result.error?.message || 'Failed to send proposal') + extra);
+        }
       }
     } catch (err) {
-      alert(err.message || 'Failed to send proposal');
+      const status = err.statusCode || err.status || 0;
+      if (status === 401 || status === 403) {
+        const url = authAPI.getFreelancerOAuthUrl('connect-from-proposal');
+        setConnectUrl(url);
+        setShowConnectBanner(true);
+      } else {
+        const extra = err.responseText ? `\n\nServer response:\n${err.responseText}` : '';
+        alert((err.message || 'Failed to send proposal') + extra);
+      }
     } finally {
       setSending(false);
     }
@@ -254,6 +278,32 @@ const GeneratedResponse = ({
             </div>
           )}
 
+            {showConnectBanner && (
+              <div className="mb-6 p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900 border border-yellow-300 dark:border-yellow-700">
+                <p className="text-yellow-800 dark:text-yellow-200 mb-3">
+                  Your Freelancer account is not connected or authentication failed. Connect to Freelancer to submit bids directly from the app.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => window.open(connectUrl, '_blank')}
+                    className="px-4 py-2 bg-lime-500 text-white rounded-lg font-semibold"
+                  >
+                    Connect Freelancer Account
+                  </button>
+                  <button
+                    onClick={() => {
+                      // copy proposal to clipboard as fallback
+                      navigator.clipboard.writeText(displayText || '');
+                      alert('Proposal copied to clipboard. Open project on Freelancer and paste your proposal.');
+                    }}
+                    className="px-4 py-2 border border-lime-500 text-lime-600 rounded-lg font-semibold"
+                  >
+                    Copy Proposal (Manual)
+                  </button>
+                </div>
+              </div>
+            )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <label className="text-sm text-gray-700 dark:text-gray-300">
               Bid amount (USD)
@@ -308,6 +358,7 @@ const GeneratedResponse = ({
       {(generationError || usedFallbackTemplate) && (
         <div className="mb-6 rounded-xl border border-amber-300 dark:border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 p-4 text-sm text-amber-800 dark:text-amber-200">
           {generationError ||
+            aiFailureReason ||
             'AI generation returned a fallback template. Please verify your AI API keys and try again.'}
         </div>
       )}
