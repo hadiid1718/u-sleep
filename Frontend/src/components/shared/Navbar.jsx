@@ -21,11 +21,11 @@ const Header = () => {
 
   return (
     <>
-      <header className="flex justify-between items-center px-6 py-4 bg-black relative z-50">
-        <Link to="/" className="flex items-center bg-black rounded-lg p-1" aria-label="U Never Sleep home">
+      <header className="sticky top-0 z-50 flex w-full justify-between items-center px-6 py-4 bg-black/95 text-white backdrop-blur-sm border-b-2 border-lime-400/40 shadow-[0_12px_32px_-14px_rgba(163,230,53,0.95)]">
+        <Link to="/" className="flex items-center bg-black rounded-lg p-1" aria-label="U sleep home">
           <img
             src={logo}
-            alt="U Never Sleep"
+            alt="U sleep"
             className="h-16 w-auto object-contain"
           />
         </Link>

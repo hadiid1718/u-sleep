@@ -1,10 +1,10 @@
 const Footer = () => {
     return (
-  <footer className="bg-black text-gray-100 py-8 px-6 border-t border-gray-800">
+  <footer className="bg-gradient-to-br bg-black text-gray-100 py-8 px-6 border-t border-gray-800">
     <div className="max-w-6xl mx-auto">
       <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
         <div className="flex items-center space-x-2">
-          <span className="text-gray-700 font-medium text-lg">U never sleep</span>
+          <span className="text-gray-700 font-medium text-lg">U sleep</span>
         </div>
         
         <div className="flex items-center space-x-6 text-sm">
@@ -21,7 +21,7 @@ const Footer = () => {
       
       <div className="mt-6 pt-6 border-t border-gray-800 text-center">
         <p className="text-gray-500 text-xs">
-          © 2024 U never sleep. All rights reserved. Built with love for freelancers who never sleep.
+          © 2024 U sleep. All rights reserved. Built with love for freelancers who never sleep.
         </p>
       </div>
     </div>
