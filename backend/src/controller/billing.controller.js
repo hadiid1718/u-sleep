@@ -100,6 +100,65 @@ const upsertSubscriptionForUser = async ({
   );
 };
 
+const syncSubscriptionFromStripeSession = async session => {
+  if (!session) {
+    const error = new Error('Missing Stripe session');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (session.mode !== 'subscription' || !session.subscription) {
+    const error = new Error('Stripe session is not a completed subscription checkout');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const userId = String(session.client_reference_id || session.metadata?.userId || '');
+  if (!userId) {
+    const error = new Error('Missing user reference on Stripe session');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const existingSubscription = await Subscription.findOne({ userId }).lean();
+  const stripeSubscription = await stripe.subscriptions.retrieve(session.subscription);
+  const { planId } = resolvePlanFromSubscription(stripeSubscription);
+
+  if (!planId) {
+    const priceId = getStripePriceIdFromSubscription(stripeSubscription);
+    const error = new Error(
+      `No local plan mapping found for Stripe price id ${priceId || 'unknown'}`
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const subscription = await upsertSubscriptionForUser({
+    userId,
+    stripeCustomerId: session.customer || stripeSubscription.customer,
+    stripeSubscriptionId: stripeSubscription.id,
+    planId,
+    status: stripeSubscription.status,
+    currentPeriodEnd: toDateFromUnix(stripeSubscription.current_period_end),
+    cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
+  });
+
+  if (!existingSubscription || existingSubscription.plan !== planId) {
+    await notificationService.notifyBillingPlanChange({
+      userId,
+      oldPlan: existingSubscription?.plan
+        ? getPlanConfig(existingSubscription.plan)?.name || existingSubscription.plan
+        : 'No Plan',
+      newPlan: getPlanConfig(planId)?.name || planId,
+      effectiveDate: new Date(),
+      proratedAmount: Number(session.amount_total || 0) / 100,
+      currency: String(session.currency || 'usd').toUpperCase(),
+    });
+  }
+
+  return { subscription, stripeSubscription, planId };
+};
+
 export const createCheckoutSession = async (req, res, next) => {
   try {
     const authUserId = getAuthUserId(req);
@@ -393,45 +452,57 @@ const handleCheckoutSessionCompleted = async event => {
   const session = event.data.object;
 
   if (session.mode !== 'subscription' || !session.subscription) {
+    // Log for debugging: unexpected session mode or missing subscription
+    // eslint-disable-next-line no-console
+    console.warn('[Stripe] Ignoring checkout.session.completed: mode or subscription missing', {
+      mode: session.mode,
+      subscription: session.subscription,
+    });
     return;
   }
 
-  const userId = String(
-    session.client_reference_id || session.metadata?.userId || ''
-  );
-  if (!userId) return;
+  await syncSubscriptionFromStripeSession(session);
+};
 
-  const existingSubscription = await Subscription.findOne({ userId }).lean();
+export const finalizeCheckoutSession = async (req, res, next) => {
+  try {
+    const authUserId = getAuthUserId(req);
+    if (!authUserId) {
+      const error = new Error('Unauthorized');
+      error.statusCode = 401;
+      throw error;
+    }
 
-  const stripeSubscription = await stripe.subscriptions.retrieve(
-    session.subscription
-  );
-  const { planId } = resolvePlanFromSubscription(stripeSubscription);
+    const { sessionId } = req.body;
+    if (!sessionId) {
+      const error = new Error('sessionId is required');
+      error.statusCode = 400;
+      throw error;
+    }
 
-  if (!planId) return;
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
 
-  await upsertSubscriptionForUser({
-    userId,
-    stripeCustomerId: session.customer || stripeSubscription.customer,
-    stripeSubscriptionId: stripeSubscription.id,
-    planId,
-    status: stripeSubscription.status,
-    currentPeriodEnd: toDateFromUnix(stripeSubscription.current_period_end),
-    cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
-  });
+    if (
+      String(session.client_reference_id || session.metadata?.userId || '') !==
+      authUserId
+    ) {
+      const error = new Error('This checkout session does not belong to the current user');
+      error.statusCode = 403;
+      throw error;
+    }
 
-  if (!existingSubscription || existingSubscription.plan !== planId) {
-    await notificationService.notifyBillingPlanChange({
-      userId,
-      oldPlan: existingSubscription?.plan
-        ? getPlanConfig(existingSubscription.plan)?.name ||
-          existingSubscription.plan
-        : 'No Plan',
-      newPlan: getPlanConfig(planId)?.name || planId,
-      effectiveDate: new Date(),
-      proratedAmount: Number(session.amount_total || 0) / 100,
-      currency: String(session.currency || 'usd').toUpperCase(),
+    const result = await syncSubscriptionFromStripeSession(session);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        subscriptionId: result.subscription._id,
+        status: result.subscription.status,
+        plan: result.planId,
+      },
     });
+  } catch (error) {
+    next(error);
   }
 };
 

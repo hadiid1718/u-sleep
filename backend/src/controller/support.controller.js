@@ -25,6 +25,7 @@ const getConversationWindow = (latestMessage) => {
 };
 
 const AI_QUICK_TIMEOUT_MS = 7000;
+const AI_BACKGROUND_TIMEOUT_MS = 45000; // Longer timeout for background processing
 const SUPPORT_CHAT_AI_PROVIDER = 'gemini';
 
 const withTimeout = (promise, timeoutMs, label = 'Operation timed out') => {
@@ -91,11 +92,20 @@ export const postUserMessage = async (req, res, next) => {
       // schedule background processing so the user's experience isn't blocked
       setTimeout(async () => {
         try {
-          const text = await aiService.generateChatReply({
-            message,
-            aiService: SUPPORT_CHAT_AI_PROVIDER,
-            maxTokens: 500,
-          });
+          const text = await withTimeout(
+            aiService.generateChatReply({
+              message,
+              aiService: SUPPORT_CHAT_AI_PROVIDER,
+              maxTokens: 500,
+            }),
+            AI_BACKGROUND_TIMEOUT_MS,
+            'AI background processing timed out'
+          );
+
+          if (!text || !text.trim()) {
+            throw new Error('AI generated empty response');
+          }
+
           const bgMsg = await SupportChat.create({
             userId,
             sender: 'system',
@@ -120,7 +130,7 @@ export const postUserMessage = async (req, res, next) => {
           console.error('Background AI reply generation failed:', e);
           if (io) {
             io.to(`user:${userId}`).emit('support-chat:ai-error', {
-              message: 'AI response failed. Please resend your message.',
+              message: 'AI took too long to respond. Please try again or contact support.',
               timestamp: new Date(),
             });
           }

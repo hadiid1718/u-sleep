@@ -39,8 +39,12 @@ const subscriptionSchema = new mongoose.Schema(
         'incomplete',
         'incomplete_expired',
         'unpaid',
+        'pending_approval',
+        'declined',
+        'declined_by_user',
+        'cancelled',
       ],
-      default: 'active',
+      default: 'pending_approval',
       index: true,
     },
     currentPeriodEnd: {
@@ -63,6 +67,45 @@ const subscriptionSchema = new mongoose.Schema(
     proposalLimit: {
       type: Number,
       default: 30,
+    },
+    // Admin approval fields
+    adminApprovedAt: {
+      type: Date,
+      default: null,
+    },
+    adminApprovedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Admin',
+      default: null,
+    },
+    activatedAt: {
+      type: Date,
+      default: null,
+    },
+    declinedAt: {
+      type: Date,
+      default: null,
+    },
+    declinedReason: {
+      type: String,
+      default: null,
+    },
+    declinedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Admin',
+      default: null,
+    },
+    declinedByUserAt: {
+      type: Date,
+      default: null,
+    },
+    cancelledAt: {
+      type: Date,
+      default: null,
+    },
+    nextBillingDate: {
+      type: Date,
+      default: null,
     },
   },
   { timestamps: true }
