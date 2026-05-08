@@ -19,7 +19,7 @@ export const apiRequest = async (endpoint, options = {}) => {
     });
 
     if (response.status === 204) {
-      return { success: true, data: null };
+      return { success: true, data: null, status: 204 };
     }
 
     const contentType = response.headers.get('content-type') || '';
@@ -46,7 +46,7 @@ export const apiRequest = async (endpoint, options = {}) => {
       throw error;
     }
 
-    return { success: true, data };
+    return { success: true, data, status: response.status };
   } catch (error) {
     console.error('API Error:', error);
 

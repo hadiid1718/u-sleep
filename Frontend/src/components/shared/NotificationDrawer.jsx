@@ -242,14 +242,14 @@ const NotificationDrawer = ({ user }) => {
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 z-[70]">
+        <>
           <div
-            className="absolute inset-0 bg-black/50"
+            className="fixed inset-0 z-40 bg-black/50"
             onClick={closeDrawer}
             aria-hidden="true"
           />
 
-          <aside className="absolute right-0 top-0 h-full w-full max-w-md bg-zinc-900 border-l border-lime-400/50 shadow-2xl flex flex-col">
+          <aside className="fixed right-0 top-0 h-screen w-full max-w-md bg-zinc-900 border-l border-lime-400/50 shadow-2xl flex flex-col z-50 pt-20">
             <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-700">
               <div>
                 <h3 className="text-white font-semibold text-lg">Notifications</h3>
@@ -401,7 +401,7 @@ const NotificationDrawer = ({ user }) => {
                 })}
             </div>
           </aside>
-        </div>
+        </>
       )}
     </>
   );

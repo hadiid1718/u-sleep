@@ -105,6 +105,24 @@ export const billingService = {
       };
     }
   },
+
+  async finalizeCheckoutSession(sessionId) {
+    try {
+      const response = await billingClient.post('/billing/checkout-session/complete', {
+        sessionId,
+      });
+
+      return {
+        success: true,
+        data: response.data?.data || null,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: parseApiError(error, 'Failed to finalize checkout session'),
+      };
+    }
+  },
 };
 
 export default billingService;

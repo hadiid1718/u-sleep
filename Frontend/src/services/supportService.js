@@ -11,7 +11,6 @@ export const supportAPI = {
       body: JSON.stringify({ message }),
     });
   },
-
 };
 
 export default supportAPI;

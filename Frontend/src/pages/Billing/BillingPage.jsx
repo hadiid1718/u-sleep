@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import useSubscription from '../../hooks/useSubscription';
 import PlanCard from '../../components/billing/PlanCard';
 import UsageBar from '../../components/billing/UsageBar';
-import UpgradeBanner from '../../components/billing/UpgradeBanner';
 
 const BillingPage = ({ embedded = false }) => {
   const {
@@ -73,24 +72,6 @@ const BillingPage = ({ embedded = false }) => {
         <div className="rounded-xl border border-blue-400/30 bg-blue-500/10 p-4 text-sm text-blue-100">
           Sign in to view your usage, current subscription status, and manage billing.
         </div>
-      )}
-
-      {shouldShowUpgradeWarning && (
-        <UpgradeBanner
-          tone={isQuotaExhausted ? 'danger' : 'warning'}
-          title={
-            isQuotaExhausted
-              ? 'Monthly proposal quota reached'
-              : 'You are close to your monthly proposal limit'
-          }
-          description={
-            isQuotaExhausted
-              ? 'Upgrade your plan to continue generating more AI proposals this month.'
-              : 'Upgrade now to avoid interruptions and unlock direct send with higher limits.'
-          }
-          onAction={() => startCheckout('pro')}
-          ctaLabel="Upgrade to Pro"
-        />
       )}
 
       {isAuthenticated && (

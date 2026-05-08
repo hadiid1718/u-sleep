@@ -36,6 +36,7 @@ function FounderChatWidget() {
   const inputRef = useRef(null);
   const scrollAnchorRef = useRef(null);
   const retentionTimerRef = useRef(null);
+  const aiResponseTimeoutRef = useRef(null);
   const { socket } = useSocket();
 
   const sanitizeMessageText = useCallback((text) => {
@@ -134,6 +135,12 @@ function FounderChatWidget() {
 
     if (socket) {
       const onSystemReply = (data) => {
+        // Clear the AI response timeout when reply arrives
+        if (aiResponseTimeoutRef.current) {
+          clearTimeout(aiResponseTimeoutRef.current);
+          aiResponseTimeoutRef.current = null;
+        }
+
         setMessages(prev => {
           const withoutProcessing = prev.filter(item => !item._processing);
           return [
@@ -151,6 +158,12 @@ function FounderChatWidget() {
       };
 
       const onAiError = (data) => {
+        // Clear the AI response timeout on error
+        if (aiResponseTimeoutRef.current) {
+          clearTimeout(aiResponseTimeoutRef.current);
+          aiResponseTimeoutRef.current = null;
+        }
+
         setMessages(prev => prev.filter(item => !item._processing));
         setIsSending(false);
         setErrorMessage(data?.message || 'AI response failed. Please try again.');
@@ -223,8 +236,22 @@ function FounderChatWidget() {
     setMessages(prev => [...prev, optimistic, makeProcessingMessage()]);
     setDraftMessage('');
 
+    // Clear any existing AI response timeout
+    if (aiResponseTimeoutRef.current) {
+      clearTimeout(aiResponseTimeoutRef.current);
+      aiResponseTimeoutRef.current = null;
+    }
+
+    // Set timeout for AI response (15 seconds) - if no response, clear processing message
+    aiResponseTimeoutRef.current = setTimeout(() => {
+      setMessages(prev => prev.filter(m => !m._processing));
+      setIsSending(false);
+      setErrorMessage('AI is taking longer than expected. Please try again.');
+    }, 15000);
+
     try {
       const res = await supportAPI.postUserMessage(trimmed);
+      
       if (!res?.success) {
         throw new Error(res?.error?.message || 'Unable to send message.');
       }
@@ -235,6 +262,27 @@ function FounderChatWidget() {
       }));
 
       if (serverMessages.length > 0) {
+        // Clear the timeout since we got a response (or processing started)
+        if (aiResponseTimeoutRef.current) {
+          clearTimeout(aiResponseTimeoutRef.current);
+          aiResponseTimeoutRef.current = null;
+        }
+
+        // If processing is ongoing (202 response), keep timeout for socket response
+        if (res.status === 202 || res.data?.data?.processing) {
+          aiResponseTimeoutRef.current = setTimeout(() => {
+            setMessages(prev => prev.filter(m => !m._processing));
+            setIsSending(false);
+            setErrorMessage('AI response delayed. Please try again later.');
+          }, 20000);
+        } else {
+          // Immediate response received, clear the timeout
+          if (aiResponseTimeoutRef.current) {
+            clearTimeout(aiResponseTimeoutRef.current);
+            aiResponseTimeoutRef.current = null;
+          }
+        }
+
         setMessages(prev => {
           const filtered = prev.filter(m => m._id !== localId && !m._processing);
           return [...filtered, ...serverMessages];
@@ -242,6 +290,12 @@ function FounderChatWidget() {
         setIsSending(false);
       }
     } catch (error) {
+      // Clear the timeout on error
+      if (aiResponseTimeoutRef.current) {
+        clearTimeout(aiResponseTimeoutRef.current);
+        aiResponseTimeoutRef.current = null;
+      }
+
       setMessages(prev => prev.filter(m => m._id !== localId && !m._processing));
       setIsSending(false);
       setErrorMessage(error?.message || 'Failed to send message. Please retry.');
