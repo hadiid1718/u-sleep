@@ -333,7 +333,7 @@ class FreelancerService {
       : `${this.baseUrl}/projects/${projectId}`;
 
     return {
-      upworkJobId: `freelancer-${projectId}`,
+      freelancerJobId: `freelancer-${projectId}`,
       freelancerUrl: projectUrl,
       source: 'freelancer_api',
       sourceJobId: String(projectId),
@@ -347,8 +347,8 @@ class FreelancerService {
       category: rawJob?.type || rawJob?.project_type || null,
       skills: Array.isArray(rawJob?.jobs)
         ? rawJob.jobs
-          .map(j => this.normalizeText(j?.name || j?.seo_url || j))
-          .filter(Boolean)
+            .map(j => this.normalizeText(j?.name || j?.seo_url || j))
+            .filter(Boolean)
         : [],
       proposalsCount: Number(
         rawJob?.bid_stats?.bid_count || rawJob?.bid_count || 0
@@ -364,10 +364,10 @@ class FreelancerService {
       },
       hourlyRate: hasHourly
         ? {
-          min: Number(minHourly || maxHourly || 0),
-          max: Number(maxHourly || minHourly || 0),
-          currency: rawJob?.currency?.code || 'USD',
-        }
+            min: Number(minHourly || maxHourly || 0),
+            max: Number(maxHourly || minHourly || 0),
+            currency: rawJob?.currency?.code || 'USD',
+          }
         : null,
       clientInfo: {
         name: owner?.username || owner?.display_name || null,
@@ -556,8 +556,7 @@ class FreelancerService {
 
       if (!response.ok) {
         // Handle authentication errors with a clear message
-        let message =
-          result?.message || result?.error || null;
+        let message = result?.message || result?.error || null;
 
         if (response.status === 401 || response.status === 403) {
           message =
@@ -679,7 +678,8 @@ class FreelancerService {
 
       const operations = sanitizedJobs.map(job => ({
         updateOne: {
-          filter: { upworkJobId: job.upworkJobId },
+          // Use freelancerJobId for freelancer platform caching
+          filter: { freelancerJobId: job.freelancerJobId },
           update: {
             $set: {
               ...job,

@@ -16,7 +16,11 @@ billingRouter.post(
   authorize,
   createCheckoutSession
 );
-billingRouter.post('/checkout-session/complete', authorize, finalizeCheckoutSession);
+billingRouter.post(
+  '/checkout-session/complete',
+  authorize,
+  finalizeCheckoutSession
+);
 billingRouter.post('/create-portal-session', authorize, createPortalSession);
 billingRouter.get('/subscription', authorize, getSubscription);
 billingRouter.get('/plans', getPlans);

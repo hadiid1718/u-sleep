@@ -3,7 +3,11 @@ import mongoose from 'mongoose';
 const supportChatSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
-    sender: { type: String, enum: ['user', 'admin', 'system', 'founder'], required: true },
+    sender: {
+      type: String,
+      enum: ['user', 'admin', 'system', 'founder'],
+      required: true,
+    },
     message: { type: String, required: true },
     read: { type: Boolean, default: false },
     readAt: { type: Date, default: null },

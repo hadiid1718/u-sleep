@@ -108,12 +108,16 @@ const syncSubscriptionFromStripeSession = async session => {
   }
 
   if (session.mode !== 'subscription' || !session.subscription) {
-    const error = new Error('Stripe session is not a completed subscription checkout');
+    const error = new Error(
+      'Stripe session is not a completed subscription checkout'
+    );
     error.statusCode = 400;
     throw error;
   }
 
-  const userId = String(session.client_reference_id || session.metadata?.userId || '');
+  const userId = String(
+    session.client_reference_id || session.metadata?.userId || ''
+  );
   if (!userId) {
     const error = new Error('Missing user reference on Stripe session');
     error.statusCode = 400;
@@ -121,7 +125,9 @@ const syncSubscriptionFromStripeSession = async session => {
   }
 
   const existingSubscription = await Subscription.findOne({ userId }).lean();
-  const stripeSubscription = await stripe.subscriptions.retrieve(session.subscription);
+  const stripeSubscription = await stripe.subscriptions.retrieve(
+    session.subscription
+  );
   const { planId } = resolvePlanFromSubscription(stripeSubscription);
 
   if (!planId) {
@@ -147,7 +153,8 @@ const syncSubscriptionFromStripeSession = async session => {
     await notificationService.notifyBillingPlanChange({
       userId,
       oldPlan: existingSubscription?.plan
-        ? getPlanConfig(existingSubscription.plan)?.name || existingSubscription.plan
+        ? getPlanConfig(existingSubscription.plan)?.name ||
+          existingSubscription.plan
         : 'No Plan',
       newPlan: getPlanConfig(planId)?.name || planId,
       effectiveDate: new Date(),
@@ -453,11 +460,14 @@ const handleCheckoutSessionCompleted = async event => {
 
   if (session.mode !== 'subscription' || !session.subscription) {
     // Log for debugging: unexpected session mode or missing subscription
-    // eslint-disable-next-line no-console
-    console.warn('[Stripe] Ignoring checkout.session.completed: mode or subscription missing', {
-      mode: session.mode,
-      subscription: session.subscription,
-    });
+
+    console.warn(
+      '[Stripe] Ignoring checkout.session.completed: mode or subscription missing',
+      {
+        mode: session.mode,
+        subscription: session.subscription,
+      }
+    );
     return;
   }
 
@@ -486,7 +496,9 @@ export const finalizeCheckoutSession = async (req, res, next) => {
       String(session.client_reference_id || session.metadata?.userId || '') !==
       authUserId
     ) {
-      const error = new Error('This checkout session does not belong to the current user');
+      const error = new Error(
+        'This checkout session does not belong to the current user'
+      );
       error.statusCode = 403;
       throw error;
     }

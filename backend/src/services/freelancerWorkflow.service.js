@@ -170,13 +170,13 @@ class FreelancerWorkflowService {
       },
       project: job
         ? {
-          title: job.title || 'Untitled Project',
-          budgetType: job.budgetType || null,
-          budget: job.budget || null,
-          hourlyRate: job.hourlyRate || null,
-          sourceJobId: job.sourceJobId || null,
-          projectUrl: job.freelancerUrl || job.upworkUrl || job.url || null,
-        }
+            title: job.title || 'Untitled Project',
+            budgetType: job.budgetType || null,
+            budget: job.budget || null,
+            hourlyRate: job.hourlyRate || null,
+            sourceJobId: job.sourceJobId || null,
+            projectUrl: job.freelancerUrl || job.upworkUrl || job.url || null,
+          }
         : null,
     };
   }

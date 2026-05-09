@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import authorize from '../middleware/auth.middleware.js';
-import { postUserMessage, getUserMessages } from '../controller/support.controller.js';
+import {
+  postUserMessage,
+  getUserMessages,
+} from '../controller/support.controller.js';
 
 const supportRouter = Router();
 

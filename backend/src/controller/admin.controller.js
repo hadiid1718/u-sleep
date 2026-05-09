@@ -685,13 +685,16 @@ export const updateSubscription = async (req, res, next) => {
       const fallbackPlan = resolvePlanPayload(plan);
 
       if (typeof autoSendEnabled !== 'boolean') {
-        subscription.autoSendEnabled = fallbackPlan?.autoSendEnabled ?? subscription.autoSendEnabled;
+        subscription.autoSendEnabled =
+          fallbackPlan?.autoSendEnabled ?? subscription.autoSendEnabled;
       }
       if (typeof platformLimit !== 'number') {
-        subscription.platformLimit = fallbackPlan?.platformLimit ?? subscription.platformLimit;
+        subscription.platformLimit =
+          fallbackPlan?.platformLimit ?? subscription.platformLimit;
       }
       if (typeof proposalLimit !== 'number') {
-        subscription.proposalLimit = fallbackPlan?.proposalLimit ?? subscription.proposalLimit;
+        subscription.proposalLimit =
+          fallbackPlan?.proposalLimit ?? subscription.proposalLimit;
       }
     }
 
@@ -716,7 +719,9 @@ export const updateSubscription = async (req, res, next) => {
     }
 
     if (currentPeriodEnd !== undefined) {
-      subscription.currentPeriodEnd = currentPeriodEnd ? new Date(currentPeriodEnd) : null;
+      subscription.currentPeriodEnd = currentPeriodEnd
+        ? new Date(currentPeriodEnd)
+        : null;
     }
 
     if (typeof stripeCustomerId === 'string') {
@@ -789,7 +794,9 @@ export const createReviewVideo = async (req, res, next) => {
     } = req.body;
 
     if (!title || !videoUrl || !reviewerName) {
-      const error = new Error('Title, video URL, and reviewer name are required');
+      const error = new Error(
+        'Title, video URL, and reviewer name are required'
+      );
       error.statusCode = 400;
       throw error;
     }
@@ -844,15 +851,23 @@ export const updateReviewVideo = async (req, res, next) => {
     } = req.body;
 
     if (typeof title === 'string' && title.trim()) video.title = title.trim();
-    if (typeof videoUrl === 'string' && videoUrl.trim()) video.videoUrl = videoUrl.trim();
-    if (thumbnailUrl !== undefined) video.thumbnailUrl = String(thumbnailUrl || '');
-    if (description !== undefined) video.description = String(description || '');
-    if (typeof reviewerName === 'string' && reviewerName.trim()) video.reviewerName = reviewerName.trim();
-    if (reviewerRole !== undefined) video.reviewerRole = String(reviewerRole || '');
+    if (typeof videoUrl === 'string' && videoUrl.trim())
+      video.videoUrl = videoUrl.trim();
+    if (thumbnailUrl !== undefined)
+      video.thumbnailUrl = String(thumbnailUrl || '');
+    if (description !== undefined)
+      video.description = String(description || '');
+    if (typeof reviewerName === 'string' && reviewerName.trim())
+      video.reviewerName = reviewerName.trim();
+    if (reviewerRole !== undefined)
+      video.reviewerRole = String(reviewerRole || '');
 
     if (typeof isActive === 'boolean') {
       if (isActive) {
-        await ReviewVideo.updateMany({ _id: { $ne: video._id } }, { isActive: false });
+        await ReviewVideo.updateMany(
+          { _id: { $ne: video._id } },
+          { isActive: false }
+        );
       }
       video.isActive = isActive;
     }
@@ -883,7 +898,10 @@ export const setActiveReviewVideo = async (req, res, next) => {
       throw error;
     }
 
-    await ReviewVideo.updateMany({ _id: { $ne: video._id } }, { isActive: false });
+    await ReviewVideo.updateMany(
+      { _id: { $ne: video._id } },
+      { isActive: false }
+    );
     video.isActive = true;
     await video.save();
 

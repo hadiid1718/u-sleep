@@ -1,6 +1,5 @@
 import Subscription from '../models/subscription.model.js';
 import RefundRequest from '../models/refundRequest.model.js';
-import User from '../models/user.model.js';
 import { stripe } from '../config/stripe.js';
 import notificationService from '../services/notification.service.js';
 
@@ -42,7 +41,6 @@ export const getAdminSubscriptions = async (req, res, next) => {
 export const approveSubscription = async (req, res, next) => {
   try {
     const { subscriptionId } = req.params;
-    const { userId } = req.body;
 
     const subscription = await Subscription.findById(subscriptionId);
     if (!subscription) {
@@ -83,7 +81,7 @@ export const approveSubscription = async (req, res, next) => {
 export const declineSubscription = async (req, res, next) => {
   try {
     const { subscriptionId } = req.params;
-    const { userId, reason = '' } = req.body;
+    const { reason = '' } = req.body;
 
     const subscription = await Subscription.findById(subscriptionId);
     if (!subscription) {
@@ -168,7 +166,6 @@ export const getRefundRequests = async (req, res, next) => {
 export const approveRefund = async (req, res, next) => {
   try {
     const { refundId } = req.params;
-    const { userId } = req.body;
 
     const refundRequest = await RefundRequest.findById(refundId);
     if (!refundRequest) {
@@ -179,7 +176,8 @@ export const approveRefund = async (req, res, next) => {
 
     // Check if within 5-day window
     const daysSince = Math.ceil(
-      (new Date() - new Date(refundRequest.purchaseDate)) / (1000 * 60 * 60 * 24)
+      (new Date() - new Date(refundRequest.purchaseDate)) /
+        (1000 * 60 * 60 * 24)
     );
 
     if (daysSince > 5) {
@@ -208,7 +206,9 @@ export const approveRefund = async (req, res, next) => {
     await refundRequest.save();
 
     // Cancel subscription if still active
-    const subscription = await Subscription.findById(refundRequest.subscriptionId);
+    const subscription = await Subscription.findById(
+      refundRequest.subscriptionId
+    );
     if (subscription && subscription.status === 'active') {
       subscription.status = 'cancelled';
       subscription.cancelledAt = new Date();
@@ -240,7 +240,7 @@ export const approveRefund = async (req, res, next) => {
 export const declineRefund = async (req, res, next) => {
   try {
     const { refundId } = req.params;
-    const { userId, reason = '' } = req.body;
+    const { reason = '' } = req.body;
 
     const refundRequest = await RefundRequest.findById(refundId);
     if (!refundRequest) {

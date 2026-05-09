@@ -2,16 +2,17 @@ import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '../config/env.js';
 import User from '../models/user.model.js';
 
-const extractUserFromSocket = async (socket) => {
+const extractUserFromSocket = async socket => {
   try {
-    const token = socket.handshake.auth?.token || 
-                  socket.handshake.headers?.authorization?.split(' ')[1];
-    
+    const token =
+      socket.handshake.auth?.token ||
+      socket.handshake.headers?.authorization?.split(' ')[1];
+
     if (!token) return null;
-    
+
     const decoded = jwt.verify(token, JWT_SECRET);
     if (!decoded.userId) return null;
-    
+
     const user = await User.findById(decoded.userId);
     return user || null;
   } catch {
@@ -19,28 +20,11 @@ const extractUserFromSocket = async (socket) => {
   }
 };
 
-const extractAdminFromSocket = async (socket) => {
-  try {
-    const token = socket.handshake.auth?.token || 
-                  socket.handshake.headers?.authorization?.split(' ')[1];
-    
-    if (!token) return null;
-    
-    const decoded = jwt.verify(token, JWT_SECRET);
-    if (!decoded.adminId) return null;
-    
-    // For now, we check if the user is admin by a flag (you can add role checking)
-    return { id: decoded.adminId, token };
-  } catch {
-    return null;
-  }
-};
-
-const initializeSocketHandlers = (io) => {
+const initializeSocketHandlers = io => {
   // Map to track connected users
   const userSockets = new Map(); // userId -> socket.id
 
-  io.on('connection', async (socket) => {
+  io.on('connection', async socket => {
     console.log(`[Socket] New connection: ${socket.id}`);
 
     // ========================
@@ -63,7 +47,7 @@ const initializeSocketHandlers = (io) => {
     // ========================
 
     // Client: User sends a message (should be also sent via REST API)
-    socket.on('support-chat:send-user-message', async (data) => {
+    socket.on('support-chat:send-user-message', async data => {
       if (!user) {
         socket.emit('error', { message: 'Not authenticated' });
         return;

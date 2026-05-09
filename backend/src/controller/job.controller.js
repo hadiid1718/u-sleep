@@ -69,7 +69,9 @@ const simpleTranslateText = async (text, targetLanguage) => {
     malaysian: 'ms',
   };
 
-  const normalizedLang = String(targetLanguage || '').toLowerCase().trim();
+  const normalizedLang = String(targetLanguage || '')
+    .toLowerCase()
+    .trim();
   const langCode = languageMap[normalizedLang];
 
   if (!langCode || langCode === 'en') {
@@ -102,7 +104,10 @@ const simpleTranslateText = async (text, targetLanguage) => {
       isTranslated: data.translatedText !== text,
     };
   } catch (error) {
-    console.error(`Simple translation failed for ${targetLanguage}:`, error.message);
+    console.error(
+      `Simple translation failed for ${targetLanguage}:`,
+      error.message
+    );
     // Return original text if translation fails
     return { translatedText: text, isTranslated: false };
   }
@@ -110,7 +115,7 @@ const simpleTranslateText = async (text, targetLanguage) => {
 
 const getJobMatchKey = job => {
   return String(
-    job?.upworkJobId || job?.sourceJobId || job?._id || job?.id || ''
+    job?.upworkJobId || job?.freelancerJobId || job?.sourceJobId || job?._id || job?.id || ''
   ).trim();
 };
 
@@ -286,6 +291,7 @@ const buildJobLookupQuery = jobIdentifier => {
 
   const orConditions = [
     { upworkJobId: normalizedIdentifier },
+    { freelancerJobId: normalizedIdentifier },
     { sourceJobId: normalizedIdentifier },
   ];
 
@@ -338,22 +344,35 @@ const persistJobsIfPossible = async (jobs, userId) => {
   }
 
   const operations = jobs
-    .filter(job => job?.upworkJobId)
-    .map(job => ({
-      updateOne: {
-        filter: { upworkJobId: job.upworkJobId },
-        update: {
-          $set: {
-            ...job,
+    .filter(job => job?.upworkJobId || job?.freelancerJobId)
+    .map(job => {
+      // Determine which id field to use for this job (platform-aware)
+      const idFilter = job?.freelancerJobId
+        ? { freelancerJobId: job.freelancerJobId }
+        : { upworkJobId: job.upworkJobId };
+
+      const filter = userId ? { ...idFilter, userId } : idFilter;
+
+      // Avoid accidentally overwriting stored userId from incoming payload
+      const jobToSet = { ...job };
+      delete jobToSet.userId;
+
+      return {
+        updateOne: {
+          filter,
+          update: {
+            $set: {
+              ...jobToSet,
+            },
+            $setOnInsert: {
+              userId,
+              matchStatus: 'pending',
+            },
           },
-          $setOnInsert: {
-            userId,
-            matchStatus: 'pending',
-          },
+          upsert: true,
         },
-        upsert: true,
-      },
-    }));
+      };
+    });
 
   if (operations.length === 0) return false;
 
@@ -377,28 +396,51 @@ const attachPersistedJobMetadataIfPossible = async (jobs, userId) => {
     .map(job => String(job?.upworkJobId || '').trim())
     .filter(Boolean);
 
-  if (upworkJobIds.length === 0) {
+  if (upworkJobIds.length === 0 && jobs.every(j => !j?.freelancerJobId)) {
     return jobs;
   }
 
   try {
-    const persistedJobs = await Job.find({
+    // Support persisted metadata for both upwork and freelancer job ids
+    const freelancerJobIds = jobs
+      .map(job => String(job?.freelancerJobId || '').trim())
+      .filter(Boolean);
+
+    const query = {
       userId,
-      upworkJobId: { $in: upworkJobIds },
       isActive: true,
-    })
+      $or: [],
+    };
+
+    if (upworkJobIds.length > 0) query.$or.push({ upworkJobId: { $in: upworkJobIds } });
+    if (freelancerJobIds.length > 0) query.$or.push({ freelancerJobId: { $in: freelancerJobIds } });
+
+    if (query.$or.length === 0) return jobs;
+
+    const persistedJobs = await Job.find(query)
       .select(
-        '_id upworkJobId matchStatus rejectionReason translatedDescription descriptionLanguage translatedDescriptionLanguage translationProvider descriptionTranslatedAt'
+        '_id upworkJobId freelancerJobId matchStatus rejectionReason translatedDescription descriptionLanguage translatedDescriptionLanguage translationProvider descriptionTranslatedAt'
       )
       .lean();
 
     const persistedByUpworkJobId = new Map(
-      persistedJobs.map(job => [String(job.upworkJobId), job])
+      persistedJobs
+        .filter(p => p.upworkJobId)
+        .map(job => [String(job.upworkJobId), job])
+    );
+
+    const persistedByFreelancerJobId = new Map(
+      persistedJobs
+        .filter(p => p.freelancerJobId)
+        .map(job => [String(job.freelancerJobId), job])
     );
 
     return jobs.map(job => {
-      const key = String(job?.upworkJobId || '').trim();
-      const persisted = persistedByUpworkJobId.get(key);
+      const upKey = String(job?.upworkJobId || '').trim();
+      const frKey = String(job?.freelancerJobId || '').trim();
+
+      const persisted = (upKey && persistedByUpworkJobId.get(upKey)) ||
+        (frKey && persistedByFreelancerJobId.get(frKey));
 
       if (!persisted) return job;
 
@@ -457,7 +499,7 @@ const maybeAutoTranslateFreelancerDescriptions = async (
   const targetLanguage = normalizeSelectedLanguage(
     preferences?.selectedLanguage
   );
-  
+
   if (!targetLanguage || !preferences?.autoTranslateDescription) {
     return { jobs, summary: null };
   }
@@ -491,10 +533,19 @@ const maybeAutoTranslateFreelancerDescriptions = async (
 
       translatedJobs[i] = applyDescriptionTranslationToJob(job, translation);
       if (translation.isTranslated) translatedCount += 1;
-    } catch (error) {
+    } catch (err) {
+      // Log the translation error for diagnostics
+      console.warn(
+        'AI translation failed for job:',
+        String(job._id || job.upworkJobId),
+        err.message || err
+      );
       // If AI translation fails, try simple approach
       try {
-        const simpleTranslation = await simpleTranslateText(description, targetLanguage);
+        const simpleTranslation = await simpleTranslateText(
+          description,
+          targetLanguage
+        );
         translatedJobs[i] = {
           ...job,
           translatedDescription: simpleTranslation.translatedText,
@@ -611,8 +662,8 @@ export const searchJobs = async (req, res, next) => {
       message:
         diagnostics.filtersRelaxed && diagnostics.filtersRelaxed.length > 0
           ? `Total Jobs Found: ${filteredJobs.length} (relaxed ${diagnostics.filtersRelaxed.join(
-            ' + '
-          )} filters)`
+              ' + '
+            )} filters)`
           : `Total Jobs Found: ${filteredJobs.length}`,
       data: {
         jobs: filteredJobs,
@@ -1021,8 +1072,8 @@ export const searchJobsWithAIAnalysis = async (req, res, next) => {
         message:
           diagnostics.filtersRelaxed && diagnostics.filtersRelaxed.length > 0
             ? `Total Jobs Found: ${jobsWithScores.length} (relaxed ${diagnostics.filtersRelaxed.join(
-              ' + '
-            )} filters)`
+                ' + '
+              )} filters)`
             : `Total Jobs Found: ${jobsWithScores.length}`,
       },
     });

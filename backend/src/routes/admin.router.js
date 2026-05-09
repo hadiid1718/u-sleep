@@ -38,6 +38,10 @@ adminRouter.put(
 );
 
 adminRouter.get('/subscriptions', adminAuthorize, listSubscriptions);
-adminRouter.patch('/subscriptions/:subscriptionId', adminAuthorize, updateSubscription);
+adminRouter.patch(
+  '/subscriptions/:subscriptionId',
+  adminAuthorize,
+  updateSubscription
+);
 
 export default adminRouter;

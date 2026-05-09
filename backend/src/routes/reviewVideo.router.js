@@ -18,7 +18,11 @@ reviewVideoRouter.get('/latest', getLatestReviewVideo);
 reviewVideoRouter.post('/upload', adminAuthorize, uploadReviewVideo);
 reviewVideoRouter.get('/all', adminAuthorize, getAllReviewVideos);
 reviewVideoRouter.put('/:id', adminAuthorize, updateReviewVideo);
-reviewVideoRouter.patch('/:id/set-active', adminAuthorize, setActiveReviewVideo);
+reviewVideoRouter.patch(
+  '/:id/set-active',
+  adminAuthorize,
+  setActiveReviewVideo
+);
 reviewVideoRouter.delete('/:id', adminAuthorize, deleteReviewVideo);
 
 export default reviewVideoRouter;

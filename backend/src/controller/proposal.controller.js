@@ -49,6 +49,7 @@ const buildJobLookupQuery = (jobIdentifier, userId) => {
 
   const orConditions = [
     { upworkJobId: normalizedIdentifier },
+    { freelancerJobId: normalizedIdentifier },
     { sourceJobId: normalizedIdentifier },
   ];
 
@@ -125,14 +126,22 @@ export const generateProposal = async (req, res, next) => {
 
     if (!proposal) {
       // Create draft proposal
-      proposal = await Proposal.create({
+      const proposalPayload = {
         userId,
         jobId: jobObjectId,
-        upworkJobId: job.upworkJobId,
         content: '',
         status: 'draft',
         aiService: preferredAIService,
-      });
+      };
+
+      // Set platform-specific job id on proposal for traceability
+      if (String(job?.source || '').includes('freelancer')) {
+        proposalPayload.freelancerJobId = job.freelancerJobId;
+      } else {
+        proposalPayload.upworkJobId = job.upworkJobId;
+      }
+
+      proposal = await Proposal.create(proposalPayload);
     } else {
       proposal.content = '';
       proposal.status = proposal.status === 'sent' ? proposal.status : 'draft';
@@ -182,9 +191,9 @@ export const generateProposal = async (req, res, next) => {
     // Return immediately with message
     const workflow = isFreelancerJob
       ? freelancerWorkflowService.buildProposalWorkflowContext({
-        job: job.toObject(),
-        bidInput: req.body,
-      })
+          job: job.toObject(),
+          bidInput: req.body,
+        })
       : null;
     const defaultResponse = getDefaultProposalResponse(
       job?.toObject?.() || job,
@@ -296,7 +305,9 @@ async function generateProposalAsync(
         generatedAt: new Date(),
         contentType: 'original',
         generationAttempts: 2,
-        generationError: String(error?.message || 'Unknown AI generation error'),
+        generationError: String(
+          error?.message || 'Unknown AI generation error'
+        ),
       },
     });
   }
@@ -526,8 +537,8 @@ export const sendProposal = async (req, res, next) => {
       timestamp: new Date(),
       notes: isFreelancerJob
         ? `Bid submitted using Freelancer workflow${
-          freelancerBidId ? ` (bid ID: ${freelancerBidId})` : ''
-        }${usedSystemFreelancerToken ? ' (system account)' : ''}`
+            freelancerBidId ? ` (bid ID: ${freelancerBidId})` : ''
+          }${usedSystemFreelancerToken ? ' (system account)' : ''}`
         : 'Proposal sent to client',
     });
 
@@ -575,9 +586,9 @@ export const sendProposal = async (req, res, next) => {
         proposal,
         workflow: isFreelancerJob
           ? freelancerWorkflowService.buildProposalWorkflowContext({
-            job: proposalJob,
-            bidInput: { bidAmount, estimatedDuration, deliveryDate },
-          })
+              job: proposalJob,
+              bidInput: { bidAmount, estimatedDuration, deliveryDate },
+            })
           : null,
       },
     });
@@ -946,16 +957,16 @@ export const getTopTemplates = async (req, res, next) => {
 
     const matchStage = isAdmin
       ? {
-        status: {
-          $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
-        },
-      }
+          status: {
+            $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
+          },
+        }
       : {
-        userId: req.user?._id || req.user?.id,
-        status: {
-          $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
-        },
-      };
+          userId: req.user?._id || req.user?.id,
+          status: {
+            $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
+          },
+        };
 
     const results = await Proposal.aggregate([
       { $match: matchStage },

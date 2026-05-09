@@ -2,9 +2,9 @@ import Subscription from '../models/subscription.model.js';
 import RefundRequest from '../models/refundRequest.model.js';
 import UsageRecord from '../models/usageRecord.model.js';
 import notificationService from '../services/notification.service.js';
+import { stripe } from '../config/stripe.js';
 
-const getAuthUserId = req =>
-  String(req.user?._id || req.user?.id || '');
+const getAuthUserId = req => String(req.user?._id || req.user?.id || '');
 
 /**
  * Get user subscription usage data
@@ -35,7 +35,10 @@ export const getSubscriptionUsage = async (req, res, next) => {
       createdAt: { $gte: currentMonth },
     });
 
-    const totalUsed = usageRecords.reduce((sum, record) => sum + (record.quantity || 1), 0);
+    const totalUsed = usageRecords.reduce(
+      (sum, record) => sum + (record.quantity || 1),
+      0
+    );
 
     res.json({
       success: true,
@@ -140,7 +143,9 @@ export const createRefundRequest = async (req, res, next) => {
 
     // Check if activated at least once
     if (!subscription.activatedAt) {
-      const error = new Error('Can only request refund for activated subscriptions');
+      const error = new Error(
+        'Can only request refund for activated subscriptions'
+      );
       error.statusCode = 400;
       throw error;
     }
@@ -163,7 +168,9 @@ export const createRefundRequest = async (req, res, next) => {
     });
 
     if (existingRefund) {
-      const error = new Error('Refund request already exists for this subscription');
+      const error = new Error(
+        'Refund request already exists for this subscription'
+      );
       error.statusCode = 400;
       throw error;
     }

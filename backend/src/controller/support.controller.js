@@ -4,7 +4,7 @@ import aiService from '../services/ai.service.js';
 const CHAT_RETENTION_MINUTES = 10;
 const CHAT_RETENTION_MS = CHAT_RETENTION_MINUTES * 60 * 1000;
 
-const getConversationWindow = (latestMessage) => {
+const getConversationWindow = latestMessage => {
   if (!latestMessage?.createdAt) {
     return {
       expired: true,
@@ -31,7 +31,9 @@ const SUPPORT_CHAT_AI_PROVIDER = 'gemini';
 const withTimeout = (promise, timeoutMs, label = 'Operation timed out') => {
   return Promise.race([
     promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error(label)), timeoutMs)),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(label)), timeoutMs)
+    ),
   ]);
 };
 
@@ -62,12 +64,15 @@ export const postUserMessage = async (req, res, next) => {
       },
     });
 
-    const configuredProvider = aiService.resolveProposalProvider(SUPPORT_CHAT_AI_PROVIDER);
+    const configuredProvider = aiService.resolveProposalProvider(
+      SUPPORT_CHAT_AI_PROVIDER
+    );
     if (configuredProvider !== SUPPORT_CHAT_AI_PROVIDER) {
       res.status(503).json({
         success: false,
         error: {
-          message: 'Gemini AI chat is not configured. Please set GOOGLE_GEMINI_API_KEY and retry.',
+          message:
+            'Gemini AI chat is not configured. Please set GOOGLE_GEMINI_API_KEY and retry.',
         },
         data: {
           messages: [userMsg],
@@ -130,7 +135,8 @@ export const postUserMessage = async (req, res, next) => {
           console.error('Background AI reply generation failed:', e);
           if (io) {
             io.to(`user:${userId}`).emit('support-chat:ai-error', {
-              message: 'AI took too long to respond. Please try again or contact support.',
+              message:
+                'AI took too long to respond. Please try again or contact support.',
               timestamp: new Date(),
             });
           }
@@ -164,7 +170,9 @@ export const postUserMessage = async (req, res, next) => {
       },
     });
 
-    res.status(201).json({ success: true, data: { messages: [userMsg, autoMsg] } });
+    res
+      .status(201)
+      .json({ success: true, data: { messages: [userMsg, autoMsg] } });
   } catch (error) {
     next(error);
   }

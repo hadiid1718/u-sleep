@@ -6,7 +6,11 @@ const jobSchema = new mongoose.Schema(
     upworkJobId: {
       type: String,
       required: true,
-      unique: true,
+      index: true,
+    },
+    freelancerJobId: {
+      type: String,
+      required: false,
       index: true,
     },
     source: {
@@ -161,6 +165,12 @@ const jobSchema = new mongoose.Schema(
 
 // Auto-expire cache after 24 hours
 jobSchema.index({ cacheExpiry: 1 }, { expireAfterSeconds: 0 });
+
+// Compound unique indexes to allow the same platform job id for different users
+// while preventing duplicates for the same user.
+// Create two sparse unique indexes: one for upwork jobs, one for freelancer jobs.
+jobSchema.index({ upworkJobId: 1, userId: 1 }, { unique: true, sparse: true });
+jobSchema.index({ freelancerJobId: 1, userId: 1 }, { unique: true, sparse: true });
 
 const Job = mongoose.model('Job', jobSchema);
 

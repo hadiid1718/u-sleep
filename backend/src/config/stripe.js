@@ -46,7 +46,7 @@ if (missingPlans.length > 0) {
   // don't throw (so dev servers still run) — but make the issue very visible in logs
   // Example message: [Stripe] Missing price ids for plans: agency, pro
   // Users should add STRIPE_STARTER_PRICE_ID / STRIPE_PRO_PRICE_ID / STRIPE_AGENCY_PRICE_ID to their env
-  // eslint-disable-next-line no-console
+
   console.warn(
     `[Stripe] Missing price ids for plans: ${missingPlans.join(', ')}. ` +
       'Set STRIPE_STARTER_PRICE_ID, STRIPE_PRO_PRICE_ID and STRIPE_AGENCY_PRICE_ID in your backend env file.'

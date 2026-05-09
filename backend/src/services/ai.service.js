@@ -11,7 +11,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
  * AI Proposal Generation Service
  * Supports both OpenAI and Google Gemini
  */
-class AIProposalService { 
+class AIProposalService {
   constructor() {
     this.openaiApiKey = OPENAI_API_KEY;
     this.openaiModel = OPENAI_MODEL || 'gpt-4-turbo';
@@ -627,15 +627,15 @@ Rules:
       provider === 'openai'
         ? await this.generateJsonWithOpenAI(prompt, systemMessage)
         : await this.generateWithGeminiSdk({
-          prompt,
-          systemInstruction: systemMessage,
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 1200,
-            topP: 0.9,
-          },
-          timeoutMessage: 'Job scoring timed out',
-        });
+            prompt,
+            systemInstruction: systemMessage,
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 1200,
+              topP: 0.9,
+            },
+            timeoutMessage: 'Job scoring timed out',
+          });
 
     const parsed = this.parseJsonPayload(rawResult);
     if (!Array.isArray(parsed)) return null;
@@ -895,8 +895,8 @@ Use this case study as the Proof paragraph. Keep it concrete with tools/methods 
       job?.budgetType === 'fixed'
         ? `Fixed $${job?.budget?.amount || 'N/A'}`
         : `Hourly $${job?.hourlyRate?.min || 'N/A'}-${
-          job?.hourlyRate?.max || 'N/A'
-        }`;
+            job?.hourlyRate?.max || 'N/A'
+          }`;
     const clientName = this.normalizeText(job?.clientInfo?.name || 'Unknown');
     const normalizedProposal = this.normalizeText(proposal);
     const normalizedCaseStudy = this.normalizeText(caseStudy);
@@ -1021,7 +1021,11 @@ INSTRUCTIONS:
    * Generate a short support reply for a user message using configured AI providers.
    * Returns plain text. Throws on failure.
    */
-  async generateChatReply({ message, aiService = 'gemini', maxTokens = 400 } = {}) {
+  async generateChatReply({
+    message,
+    aiService = 'gemini',
+    maxTokens = 400,
+  } = {}) {
     const provider = this.resolveProposalProvider(aiService);
     if (provider === 'fallback') {
       throw new Error('No AI provider configured for chat replies');
@@ -1049,21 +1053,26 @@ Limit your answer to roughly 2-6 short paragraphs and keep it under ${maxTokens}
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
       try {
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${this.openaiApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-          signal: controller.signal,
-        });
+        const response = await fetch(
+          'https://api.openai.com/v1/chat/completions',
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${this.openaiApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+            signal: controller.signal,
+          }
+        );
 
         clearTimeout(timeoutId);
 
         if (!response.ok) {
           const body = await response.json().catch(() => null);
-          throw new Error(`OpenAI Error: ${body?.error?.message || response.statusText}`);
+          throw new Error(
+            `OpenAI Error: ${body?.error?.message || response.statusText}`
+          );
         }
 
         const data = await response.json();
@@ -1093,8 +1102,15 @@ Limit your answer to roughly 2-6 short paragraphs and keep it under ${maxTokens}
    * Generate chat reply with provider failover (Gemini -> OpenAI by default).
    * Returns both reply text and provider used.
    */
-  async generateChatReplyWithFallback({ message, preferred = 'gemini', maxTokens = 400 } = {}) {
-    const first = String(preferred || 'gemini').toLowerCase() === 'openai' ? 'openai' : 'gemini';
+  async generateChatReplyWithFallback({
+    message,
+    preferred = 'gemini',
+    maxTokens = 400,
+  } = {}) {
+    const first =
+      String(preferred || 'gemini').toLowerCase() === 'openai'
+        ? 'openai'
+        : 'gemini';
     const second = first === 'gemini' ? 'openai' : 'gemini';
 
     const attempts = [first, second];
@@ -1102,7 +1118,11 @@ Limit your answer to roughly 2-6 short paragraphs and keep it under ${maxTokens}
 
     for (const provider of attempts) {
       try {
-        const text = await this.generateChatReply({ message, aiService: provider, maxTokens });
+        const text = await this.generateChatReply({
+          message,
+          aiService: provider,
+          maxTokens,
+        });
         if (text) {
           return { text, provider };
         }
@@ -1111,7 +1131,10 @@ Limit your answer to roughly 2-6 short paragraphs and keep it under ${maxTokens}
       }
     }
 
-    throw lastError || new Error('Unable to generate chat reply from configured AI providers');
+    throw (
+      lastError ||
+      new Error('Unable to generate chat reply from configured AI providers')
+    );
   }
 }
 
