@@ -122,7 +122,7 @@ const Dashboard = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  const applyDashboardPayload = payload => {
+  const applyDashboardPayload = React.useCallback(payload => {
     const profile = payload?.profile || {};
     const prompts = payload?.prompts || {};
     const notifications = payload?.notifications || {};
@@ -183,26 +183,28 @@ const Dashboard = () => {
       proposalsSaved: true,
       telegramSaved: true,
     });
-  };
-
-  const loadDashboardConfig = async () => {
-    const response = await userAPI.getDashboardData();
-
-    if (!response.success) {
-      showErrorToast(response.error?.message || 'Failed to load dashboard settings');
-      return;
-    }
-
-    applyDashboardPayload(response.data?.data);
-  };
+  }, [user]);
 
   useEffect(() => {
     if (user) {
       fetchDashboardJobs({ status: 'all' });
       fetchProposalStats();
-      loadDashboardConfig();
+
+      (async () => {
+        try {
+          const response = await userAPI.getDashboardData();
+          if (!response.success) {
+            showErrorToast(response.error?.message || 'Failed to load dashboard settings');
+            return;
+          }
+          applyDashboardPayload(response.data?.data);
+        } catch (err) {
+          console.error(err);
+          showErrorToast('Failed to load dashboard settings');
+        }
+      })();
     }
-  }, [user]);
+  }, [user, fetchDashboardJobs, fetchProposalStats, applyDashboardPayload]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -362,11 +364,25 @@ const Dashboard = () => {
           preferencesResponse.error?.message ||
             'Telegram saved, but email notification preferences failed to update'
         );
-        await loadDashboardConfig();
+        try {
+          const response = await userAPI.getDashboardData();
+          if (response.success) {
+            applyDashboardPayload(response.data?.data);
+          }
+        } catch (err) {
+          console.error(err);
+        }
         return;
       }
 
-      await loadDashboardConfig();
+      try {
+        const response = await userAPI.getDashboardData();
+        if (response.success) {
+          applyDashboardPayload(response.data?.data);
+        }
+      } catch (err) {
+        console.error(err);
+      }
       showSuccessToast('Notification settings updated successfully');
     }
   };

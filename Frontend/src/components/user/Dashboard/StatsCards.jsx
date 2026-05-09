@@ -2,7 +2,7 @@ import React, { useContext } from 'react';
 import { InteractiveCard } from '../ui/InteractiveCard';
 import { AppContext } from '../../../context/Context';
 
-export const StatsCards = ({ dashboardJobs, user }) => {
+export const StatsCards = ({ dashboardJobs }) => {
   const { proposalStats } = useContext(AppContext);
 
   const stats = [

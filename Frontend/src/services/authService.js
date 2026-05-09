@@ -44,7 +44,9 @@ export const parseOAuthUserPayload = userParam => {
 
   try {
     return JSON.parse(userParam);
-  } catch {}
+  } catch {
+    // ignore parse errors
+  }
 
   try {
     return JSON.parse(decodeURIComponent(userParam));

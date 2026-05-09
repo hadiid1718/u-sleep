@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useState, useEffect } from "react";
 import { jobAPI } from '../services/jobService';
 import { proposalAPI } from '../services/proposalService';
@@ -544,6 +545,10 @@ export const ContextProvider = ({ children }) => {
     }
   };
 
+  // Memoize keywords to prevent unnecessary re-renders
+  const keywordsKey = JSON.stringify(formData?.keywords || []);
+  const keywordsMemo = React.useMemo(() => formData?.keywords || [], [formData?.keywords]);
+
   useEffect(() => {
     const loadFreelancerWorkflow = async () => {
       if ((formData?.selectedPlatform || 'upwork') !== 'freelancer') {
@@ -559,7 +564,7 @@ export const ContextProvider = ({ children }) => {
             : '';
 
       const response = await jobAPI.getFreelancerWorkflow({
-        keywords: formData?.keywords || [],
+        keywords: keywordsMemo,
         selectedRole: formData?.accountType || '',
         rateType,
       });
@@ -575,7 +580,8 @@ export const ContextProvider = ({ children }) => {
     formData?.accountType,
     formData?.hourlyRate,
     formData?.fixedRate,
-    JSON.stringify(formData?.keywords || []),
+    keywordsKey,
+    keywordsMemo,
   ]);
 
   return (
@@ -641,4 +647,15 @@ export const ContextProvider = ({ children }) => {
       {children}
     </AppContext.Provider>
   );
+};
+
+/**
+ * Custom hook to use auth context
+ */
+export const useAuth = () => {
+  const context = React.useContext(AppContext);
+  if (!context) {
+    throw new Error('useAuth must be used within ContextProvider');
+  }
+  return context;
 };

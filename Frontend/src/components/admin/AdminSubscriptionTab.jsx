@@ -5,8 +5,8 @@ const AdminSubscriptionTab = () => {
   const [subscriptions, setSubscriptions] = useState([]);
   const [refundRequests, setRefundRequests] = useState([]);
   const [activeTab, setActiveTab] = useState('pending'); // pending, active, refunds
-  const [selectedUser, setSelectedUser] = useState(null);
   const [actionModal, setActionModal] = useState(null);
+  
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {

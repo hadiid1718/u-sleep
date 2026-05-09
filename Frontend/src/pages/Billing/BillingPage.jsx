@@ -12,8 +12,7 @@ const BillingPage = ({ embedded = false }) => {
     proposalLimit,
     proposalsUsed,
     usagePercentage,
-    shouldShowUpgradeWarning,
-    isQuotaExhausted,
+    
     isLoading,
     error,
     startCheckout,

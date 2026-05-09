@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const AdminComparisonPanel = ({ comparisons, loading, onFetch, onCreate, onUpdate, onDelete }) => {
+const AdminComparisonPanel = ({ comparisons, loading, onCreate, onUpdate, onDelete }) => {
   const [expandedForm, setExpandedForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({ feature: '', uSleep: '', human: '', order: 0, isActive: true });

@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useContext, useMemo, useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AppContext } from './Context';
 import billingService from '../services/billingService';
@@ -84,7 +84,7 @@ export const SubscriptionProvider = ({ children }) => {
     },
   });
 
-  const subscription = subscriptionQuery.data || {
+  const subscription = useMemo(() => subscriptionQuery.data || {
     plan: null,
     isActive: false,
     limits: {
@@ -100,7 +100,7 @@ export const SubscriptionProvider = ({ children }) => {
     },
     proposalsRemaining: 0,
     nextResetDate: null,
-  };
+  }, [subscriptionQuery.data]);
 
   const proposalLimit = subscription?.limits?.proposalLimit ?? 0;
   const proposalsUsed = subscription?.usage?.aiProposalsUsed ?? 0;
@@ -115,7 +115,7 @@ export const SubscriptionProvider = ({ children }) => {
       ? subscription.proposalsRemaining <= 0
       : false;
 
-  const startCheckout = async (planId) => {
+  const startCheckout = useCallback(async (planId) => {
     if (!isAuthenticated) {
       window.location.href = '/user/sign-in';
       return null;
@@ -126,9 +126,9 @@ export const SubscriptionProvider = ({ children }) => {
       window.location.href = session.checkoutUrl;
     }
     return session;
-  };
+  }, [isAuthenticated, createCheckoutMutation]);
 
-  const openPortal = async () => {
+  const openPortal = useCallback(async () => {
     if (!isAuthenticated) {
       window.location.href = '/user/sign-in';
       return null;
@@ -139,21 +139,21 @@ export const SubscriptionProvider = ({ children }) => {
       window.location.href = portal.url;
     }
     return portal;
-  };
+  }, [isAuthenticated, createPortalMutation]);
 
-  const cancelAtPeriodEnd = () => {
+  const cancelAtPeriodEnd = useCallback(() => {
     if (!isAuthenticated) {
       window.location.href = '/user/sign-in';
       return Promise.resolve(null);
     }
 
     return cancelSubscriptionMutation.mutateAsync();
-  };
+  }, [isAuthenticated, cancelSubscriptionMutation]);
 
-  const refreshSubscription = async () => {
+  const refreshSubscription = useCallback(async () => {
     if (!isAuthenticated) return;
     await subscriptionQuery.refetch();
-  };
+  }, [isAuthenticated, subscriptionQuery]);
 
   const contextValue = useMemo(
     () => ({
@@ -207,6 +207,10 @@ export const SubscriptionProvider = ({ children }) => {
       createPortalMutation.isPending,
       cancelSubscriptionMutation.error,
       cancelSubscriptionMutation.isPending,
+      startCheckout,
+      openPortal,
+      cancelAtPeriodEnd,
+      refreshSubscription,
     ]
   );
 

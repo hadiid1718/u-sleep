@@ -50,7 +50,7 @@ const JobDetails = ({ job: propJob }) => {
   const totalReviews = clientInfo.totalReviews || 0;
   const rating = clientInfo.rating || 0;
   const totalSpent = clientInfo.totalSpent || 0;
-  const totalHires = clientInfo.totalHires || 0;
+  const _totalHires = clientInfo.totalHires || 0;
   const hireRate = clientInfo.hireRate || 0;
   const country = clientInfo.country || 'Unknown';
 

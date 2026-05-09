@@ -20,6 +20,10 @@ import AdminLogin from './pages/admin/AdminLogin.jsx'
 import AdminDashboard from './pages/admin/AdminDashboard.jsx'
 import RequireAdmin from './components/admin/RequireAdmin.jsx'
 import ProposalGeneratorPage from './pages/ProposalGeneratorPage.jsx'
+import TermsAndConditions from './pages/TermsAndConditions.jsx'
+import SuspensionAppeal from './pages/SuspensionAppeal.jsx'
+import ContactForm from './pages/ContactForm.jsx'
+import AdminSuspensionManagement from './pages/admin/AdminSuspensionManagement.jsx'
 
 const queryClient = new QueryClient()
 
@@ -43,6 +47,18 @@ const router = createBrowserRouter([
       {
         path: "/",
         element: <HomePage />
+      },
+      {
+        path: "/terms-and-conditions",
+        element: <TermsAndConditions />
+      },
+      {
+        path: "/suspension-appeal",
+        element: <SuspensionAppeal />
+      },
+      {
+        path: "/contact",
+        element: <ContactForm />
       },
       {
         path: "/user/sign-in",
@@ -79,6 +95,14 @@ const router = createBrowserRouter([
       {
         path: "/billing/cancelled",
         element: <BillingCancelledPage />,
+      },
+      {
+        path: "/admin/suspension-management",
+        element: (
+          <RequireAdmin>
+            <AdminSuspensionManagement />
+          </RequireAdmin>
+        ),
       },
     ]
   }

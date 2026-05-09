@@ -1,7 +1,7 @@
 import React from 'react';
 import { ExternalLink, MapPin, Clock, DollarSign, Users, CheckCircle, XCircle, Send, Star, Zap } from 'lucide-react';
 
-export const JobCard = ({ job, formData, onAction }) => {
+export const JobCard = ({ job, onAction }) => {
   const status = job.matchStatus || job.status || 'pending';
   const matchScore = job.aiAnalysis?.matchScore || job.score || 0;
   const greenFlags = job.aiAnalysis?.greenFlags || [];

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const AdminDemoPanel = ({ demos, loading, onFetch, onUpdateStatus, onCancel }) => {
+const AdminDemoPanel = ({ demos, loading, onUpdateStatus, onCancel }) => {
   const [expandedDemo, setExpandedDemo] = useState(null);
   const [statusForm, setStatusForm] = useState({ status: 'scheduled' });
 

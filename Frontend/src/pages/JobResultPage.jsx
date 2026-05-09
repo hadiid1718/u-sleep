@@ -270,6 +270,7 @@ const JobResultPage = () => {
                       // optimistic UI handled in context
                       await translateJobDescription(jobId, 'English');
                     } catch (err) {
+                      console.error(err)
                       // ignore, context will set error
                     }
                   }}

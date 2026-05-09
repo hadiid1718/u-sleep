@@ -8,7 +8,7 @@ import useSubscription from '../../hooks/useSubscription';
 
 const UserSubscriptionTab = () => {
   const { subscription, proposalsUsed, proposalLimit } = useSubscription();
-  const [usageData, setUsageData] = useState(null);
+  const [_usageData, setUsageData] = useState(null);
   const [analyticsData, setAnalyticsData] = useState(null);
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [showDeclineModal, setShowDeclineModal] = useState(false);

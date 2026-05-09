@@ -10,7 +10,7 @@ const AdminUsersPanel = ({ users, pagination, loading, onFetch, onUpdateUser, on
 
   useEffect(() => {
     onFetch({ page: 1, search, status });
-  }, [search, status]);
+  }, [onFetch, search, status]);
 
   useEffect(() => {
     if (selectedUser) {

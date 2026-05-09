@@ -1,0 +1,10 @@
+.contact-container{display:flex;align-items:center;justify-content:center;padding:40px 16px;background:linear-gradient(180deg,#f6f8fb,#ffffff)}
+.contact-card{width:100%;max-width:720px;background:#fff;border-radius:12px;box-shadow:0 8px 24px rgba(16,24,40,0.06);padding:28px}
+.contact-card h2{margin:0 0 8px;font-size:20px}
+.contact-card p{margin:0 0 18px;color:#6b7280}
+.contact-form label{display:block;margin:12px 0 6px;font-weight:600}
+.contact-form input,.contact-form textarea{width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px}
+.contact-actions{display:flex;justify-content:flex-end;margin-top:16px}
+.contact-actions button{background:#6b21a8;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer}
+.contact-success{margin-top:12px;color:green}
+.contact-error{margin-top:12px;color:#b91c1c}
