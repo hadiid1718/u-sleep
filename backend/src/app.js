@@ -20,6 +20,7 @@ import adminRouter from './routes/admin.router.js';
 import supportRouter from './routes/support.router.js';
 import adminSubscriptionRouter from './routes/admin.subscription.router.js';
 import userSubscriptionRouter from './routes/user.subscription.router.js';
+import suspensionRouter from './routes/suspension.router.js';
 import cookieParser from 'cookie-parser';
 import errorMiddleware from './middleware/error.middleware.js';
 import arcjetMiddleware from './middleware/arcject.middleware.js';
@@ -81,5 +82,6 @@ app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/admin/subscriptions', adminSubscriptionRouter);
 app.use('/api/v1/user', userSubscriptionRouter);
 app.use('/api/v1/support', supportRouter);
+app.use('/api/v1/suspension', suspensionRouter);
 
 export default app;

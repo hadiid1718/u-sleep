@@ -115,7 +115,12 @@ const simpleTranslateText = async (text, targetLanguage) => {
 
 const getJobMatchKey = job => {
   return String(
-    job?.upworkJobId || job?.freelancerJobId || job?.sourceJobId || job?._id || job?.id || ''
+    job?.upworkJobId ||
+      job?.freelancerJobId ||
+      job?.sourceJobId ||
+      job?._id ||
+      job?.id ||
+      ''
   ).trim();
 };
 
@@ -412,8 +417,10 @@ const attachPersistedJobMetadataIfPossible = async (jobs, userId) => {
       $or: [],
     };
 
-    if (upworkJobIds.length > 0) query.$or.push({ upworkJobId: { $in: upworkJobIds } });
-    if (freelancerJobIds.length > 0) query.$or.push({ freelancerJobId: { $in: freelancerJobIds } });
+    if (upworkJobIds.length > 0)
+      query.$or.push({ upworkJobId: { $in: upworkJobIds } });
+    if (freelancerJobIds.length > 0)
+      query.$or.push({ freelancerJobId: { $in: freelancerJobIds } });
 
     if (query.$or.length === 0) return jobs;
 
@@ -439,7 +446,8 @@ const attachPersistedJobMetadataIfPossible = async (jobs, userId) => {
       const upKey = String(job?.upworkJobId || '').trim();
       const frKey = String(job?.freelancerJobId || '').trim();
 
-      const persisted = (upKey && persistedByUpworkJobId.get(upKey)) ||
+      const persisted =
+        (upKey && persistedByUpworkJobId.get(upKey)) ||
         (frKey && persistedByFreelancerJobId.get(frKey));
 
       if (!persisted) return job;

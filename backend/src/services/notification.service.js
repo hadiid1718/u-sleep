@@ -809,7 +809,9 @@ class NotificationService {
 
     for (const job of candidates) {
       const matchScore = Number(job?.aiAnalysis?.matchScore || 0);
-      const jobId = String(job?._id || job?.id || job?.upworkJobId || job?.freelancerJobId || '');
+      const jobId = String(
+        job?._id || job?.id || job?.upworkJobId || job?.freelancerJobId || ''
+      );
       const eventKey = `job_alert:${jobId}:${Math.floor(matchScore / 10)}`;
 
       const notification = await this.dispatch({

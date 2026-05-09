@@ -264,6 +264,20 @@ const userSchema = new mongoose.Schema(
       min: 0,
     },
 
+    // Terms and Conditions
+    termsAccepted: {
+      type: Boolean,
+      default: false,
+    },
+    termsVersion: {
+      type: String,
+      default: null,
+    },
+    termsAcceptedAt: {
+      type: Date,
+      default: null,
+    },
+
     // Subscription
     subscription: {
       plan: {

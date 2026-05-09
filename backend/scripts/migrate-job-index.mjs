@@ -39,7 +39,10 @@ async function run() {
     const singlePlatformIndexes = indexes.filter(i => {
       if (!i.key) return false;
       const keys = Object.keys(i.key);
-      return keys.length === 1 && (keys[0] === 'upworkJobId' || keys[0] === 'freelancerJobId');
+      return (
+        keys.length === 1 &&
+        (keys[0] === 'upworkJobId' || keys[0] === 'freelancerJobId')
+      );
     });
 
     for (const idx of singlePlatformIndexes) {
@@ -54,8 +57,14 @@ async function run() {
 
     console.log('Creating compound unique indexes for platform ids...');
     try {
-      await Job.collection.createIndex({ upworkJobId: 1, userId: 1 }, { unique: true, sparse: true });
-      await Job.collection.createIndex({ freelancerJobId: 1, userId: 1 }, { unique: true, sparse: true });
+      await Job.collection.createIndex(
+        { upworkJobId: 1, userId: 1 },
+        { unique: true, sparse: true }
+      );
+      await Job.collection.createIndex(
+        { freelancerJobId: 1, userId: 1 },
+        { unique: true, sparse: true }
+      );
       console.log('Compound unique indexes created.');
     } catch (err) {
       console.error('Failed to create compound indexes:', err.message);

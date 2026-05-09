@@ -18,6 +18,24 @@ const authorize = async (req, res, next) => {
       if (decoded.userId) {
         const user = await User.findById(decoded.userId).select('-password');
         if (!user) return res.status(401).json({ message: 'Unauthorized' });
+
+        // Check account status
+        if (user.accountStatus === 'blocked') {
+          return res.status(403).json({
+            success: false,
+            message: 'Account has been permanently blocked',
+            code: 'ACCOUNT_BLOCKED',
+          });
+        }
+
+        // Check if account is suspended
+        if (user.accountStatus === 'suspended') {
+          // Allow access but mark as suspended
+          req.user = user;
+          req.accountSuspended = true;
+          return next();
+        }
+
         req.user = user;
       }
 
