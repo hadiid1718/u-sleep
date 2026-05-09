@@ -35,39 +35,30 @@ async function run() {
     const indexes = await Job.collection.indexes();
     console.log('Existing indexes:', indexes.map(i => i.name).join(', '));
 
-    // Find single-field index on upworkJobId (not the compound one)
-    const singleUpworkIndex = indexes.find(i => {
+    // Find and drop any single-field platform id indexes (upworkJobId or freelancerJobId)
+    const singlePlatformIndexes = indexes.filter(i => {
       if (!i.key) return false;
       const keys = Object.keys(i.key);
-      // single-field index whose only key is upworkJobId
-      return keys.length === 1 && keys[0] === 'upworkJobId';
+      return keys.length === 1 && (keys[0] === 'upworkJobId' || keys[0] === 'freelancerJobId');
     });
 
-    if (singleUpworkIndex) {
-      console.log(`Dropping index: ${singleUpworkIndex.name}`);
+    for (const idx of singlePlatformIndexes) {
+      console.log(`Dropping index: ${idx.name}`);
       try {
-        await Job.collection.dropIndex(singleUpworkIndex.name);
-        console.log('Dropped single-field upworkJobId index');
+        await Job.collection.dropIndex(idx.name);
+        console.log(`Dropped index ${idx.name}`);
       } catch (err) {
         console.warn('Failed to drop index:', err.message);
       }
-    } else {
-      console.log(
-        'No single-field upworkJobId index found (or already dropped)'
-      );
     }
 
-    console.log(
-      'Creating compound unique index { upworkJobId: 1, userId: 1 }...'
-    );
+    console.log('Creating compound unique indexes for platform ids...');
     try {
-      await Job.collection.createIndex(
-        { upworkJobId: 1, userId: 1 },
-        { unique: true }
-      );
-      console.log('Compound unique index created.');
+      await Job.collection.createIndex({ upworkJobId: 1, userId: 1 }, { unique: true, sparse: true });
+      await Job.collection.createIndex({ freelancerJobId: 1, userId: 1 }, { unique: true, sparse: true });
+      console.log('Compound unique indexes created.');
     } catch (err) {
-      console.error('Failed to create compound index:', err.message);
+      console.error('Failed to create compound indexes:', err.message);
       process.exitCode = 2;
     }
   } catch (error) {

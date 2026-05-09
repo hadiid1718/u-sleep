@@ -484,7 +484,7 @@ ${text}
 
   getJobMatchKey(job) {
     return String(
-      job?.upworkJobId || job?.sourceJobId || job?._id || job?.id || ''
+      job?.upworkJobId || job?.freelancerJobId || job?.sourceJobId || job?._id || job?.id || ''
     ).trim();
   }
 

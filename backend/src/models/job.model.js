@@ -5,7 +5,7 @@ const jobSchema = new mongoose.Schema(
     // Upwork Job Identifiers
     upworkJobId: {
       type: String,
-      required: true,
+      required: false,
       index: true,
     },
     freelancerJobId: {

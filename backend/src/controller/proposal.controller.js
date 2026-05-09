@@ -374,7 +374,7 @@ export const getUserProposals = async (req, res, next) => {
     }
 
     const proposals = await Proposal.find(filter)
-      .populate('jobId', 'title upworkJobId budgetType budget hourlyRate')
+      .populate('jobId', 'title upworkJobId freelancerJobId budgetType budget hourlyRate')
       .sort(sortBy)
       .skip(skip)
       .limit(parseInt(limit));
