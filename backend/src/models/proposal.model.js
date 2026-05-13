@@ -17,7 +17,9 @@ const proposalSchema = new mongoose.Schema(
     },
     upworkJobId: {
       type: String,
-      required: true,
+    },
+    freelancerJobId: {
+      type: String,
     },
 
     // Proposal Content
@@ -126,6 +128,7 @@ const proposalSchema = new mongoose.Schema(
 proposalSchema.index({ userId: 1, jobId: 1 }, { unique: true });
 proposalSchema.index({ userId: 1, status: 1 });
 proposalSchema.index({ upworkJobId: 1, userId: 1 });
+proposalSchema.index({ freelancerJobId: 1, userId: 1 });
 
 const Proposal = mongoose.model('Proposal', proposalSchema);
 

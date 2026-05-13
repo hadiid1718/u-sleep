@@ -38,6 +38,14 @@ const normalizeSelectedLanguage = language => {
   return normalized || null;
 };
 
+const safeDecodeURIComponent = value => {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return null;
+  }
+};
+
 const simpleTranslateText = async (text, targetLanguage) => {
   // Map of language names to language codes
   const languageMap = {
@@ -321,6 +329,91 @@ const buildScopedJobLookupQuery = (jobIdentifier, userId) => {
       },
     ],
   };
+};
+
+const normalizeIncomingJobData = (jobData = {}) => {
+  if (!jobData || typeof jobData !== 'object') return null;
+
+  const normalizedJob = { ...jobData };
+  const idFields = ['upworkJobId', 'freelancerJobId', 'sourceJobId'];
+  idFields.forEach(field => {
+    if (normalizedJob[field] === null || normalizedJob[field] === undefined) {
+      delete normalizedJob[field];
+      return;
+    }
+
+    const value = String(normalizedJob[field]).trim();
+    if (!value) {
+      delete normalizedJob[field];
+    } else {
+      normalizedJob[field] = value;
+    }
+  });
+
+  delete normalizedJob._id;
+  delete normalizedJob.id;
+  delete normalizedJob.__v;
+  delete normalizedJob.createdAt;
+  delete normalizedJob.updatedAt;
+  delete normalizedJob.userId;
+  delete normalizedJob.matchStatus;
+  delete normalizedJob.rejectionReason;
+
+  return normalizedJob;
+};
+
+const buildJobIdUnset = job => {
+  const unset = {};
+  const idFields = ['upworkJobId', 'freelancerJobId', 'sourceJobId'];
+  idFields.forEach(field => {
+    const value = job?.[field];
+    if (value === null || value === undefined) {
+      unset[field] = '';
+      return;
+    }
+
+    if (typeof value === 'string' && value.trim() === '') {
+      unset[field] = '';
+    }
+  });
+  return unset;
+};
+
+const upsertJobFromPayload = async (jobIdentifier, userId, jobData) => {
+  const normalizedJobData = normalizeIncomingJobData(jobData);
+  if (!normalizedJobData) return null;
+
+  const candidateId =
+    normalizedJobData.freelancerJobId ||
+    normalizedJobData.upworkJobId ||
+    normalizedJobData.sourceJobId ||
+    String(jobIdentifier || '').trim();
+
+  const lookupQuery = buildScopedJobLookupQuery(candidateId, userId);
+  if (!lookupQuery) return null;
+
+  if (
+    !normalizedJobData.title ||
+    !normalizedJobData.description ||
+    !normalizedJobData.budgetType
+  ) {
+    return null;
+  }
+
+  return Job.findOneAndUpdate(
+    lookupQuery,
+    {
+      $setOnInsert: {
+        ...normalizedJobData,
+        isActive: true,
+        matchStatus: normalizedJobData.matchStatus || 'pending',
+      },
+      $set: {
+        userId,
+      },
+    },
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
+  );
 };
 
 const buildFreelancerWorkflow = ({
@@ -670,8 +763,8 @@ export const searchJobs = async (req, res, next) => {
       message:
         diagnostics.filtersRelaxed && diagnostics.filtersRelaxed.length > 0
           ? `Total Jobs Found: ${filteredJobs.length} (relaxed ${diagnostics.filtersRelaxed.join(
-              ' + '
-            )} filters)`
+            ' + '
+          )} filters)`
           : `Total Jobs Found: ${filteredJobs.length}`,
       data: {
         jobs: filteredJobs,
@@ -761,14 +854,42 @@ export const getJobDetail = async (req, res, next) => {
     const userId =
       req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
-    const lookupQuery = buildScopedJobLookupQuery(jobId, userId);
-    if (!lookupQuery) {
-      const error = new Error('Job ID is required');
-      error.statusCode = 400;
-      throw error;
+    let job = await Job.findOne(buildScopedJobLookupQuery(jobId, userId));
+
+    if (!job && jobId) {
+      // Attempt resilient lookups with common ID variants to avoid false negatives
+      const tried = [];
+      const candidates = new Set();
+      candidates.add(String(jobId || '').trim());
+      const decodedJobId = safeDecodeURIComponent(String(jobId || '').trim());
+      if (decodedJobId) candidates.add(decodedJobId);
+      // strip platform prefix (e.g., "freelancer-40433011" -> "40433011")
+      candidates.add(
+        String(jobId || '')
+          .replace(/^(upwork|freelancer)[-_]*/, '')
+          .trim()
+      );
+      // alphanumeric fallback
+      candidates.add(
+        String(jobId || '')
+          .replace(/[^a-zA-Z0-9]/g, '')
+          .trim()
+      );
+
+      for (const candidate of candidates) {
+        if (!candidate) continue;
+        tried.push(candidate);
+        const altLookup = buildScopedJobLookupQuery(candidate, userId);
+        if (!altLookup) continue;
+
+        job = await Job.findOne(altLookup);
+        if (job) break;
+      }
     }
 
-    const job = await Job.findOne(lookupQuery);
+    if (!job && req.body?.jobData) {
+      job = await upsertJobFromPayload(jobId, userId, req.body.jobData);
+    }
 
     if (!job) {
       const error = new Error('Job not found');
@@ -778,7 +899,9 @@ export const getJobDetail = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      data: job,
+      data: {
+        data: job.toObject ? job.toObject() : job,
+      },
     });
   } catch (error) {
     next(error);
@@ -794,29 +917,63 @@ export const markJobAsMatched = async (req, res, next) => {
     const userId =
       req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
-    const lookupQuery = buildScopedJobLookupQuery(jobId, userId);
-    if (!lookupQuery) {
-      const error = new Error('Job ID is required');
-      error.statusCode = 400;
-      throw error;
+    let job = await Job.findOne(buildScopedJobLookupQuery(jobId, userId));
+
+    if (!job && jobId) {
+      // Attempt resilient lookups with common ID variants to avoid false negatives
+      const tried = [];
+      const candidates = new Set();
+      candidates.add(String(jobId || '').trim());
+      const decodedJobId = safeDecodeURIComponent(String(jobId || '').trim());
+      if (decodedJobId) candidates.add(decodedJobId);
+      // strip platform prefix (e.g., "freelancer-40433011" -> "40433011")
+      candidates.add(
+        String(jobId || '')
+          .replace(/^(upwork|freelancer)[-_]*/, '')
+          .trim()
+      );
+      // alphanumeric fallback
+      candidates.add(
+        String(jobId || '')
+          .replace(/[^a-zA-Z0-9]/g, '')
+          .trim()
+      );
+
+      for (const candidate of candidates) {
+        if (!candidate) continue;
+        tried.push(candidate);
+        const altLookup = buildScopedJobLookupQuery(candidate, userId);
+        if (!altLookup) continue;
+
+        job = await Job.findOne(altLookup);
+        if (job) break;
+      }
     }
 
-    const job = await Job.findOneAndUpdate(
-      lookupQuery,
-      {
-        $set: {
-          matchStatus: 'matched',
-          userId,
-        },
-      },
-      { new: true }
-    );
+    if (!job && req.body?.jobData) {
+      job = await upsertJobFromPayload(jobId, userId, req.body.jobData);
+    }
 
     if (!job) {
       const error = new Error('Job not found');
       error.statusCode = 404;
       throw error;
     }
+
+    const unsetFields = buildJobIdUnset(job);
+    const update = {
+      $set: {
+        matchStatus: 'matched',
+        userId,
+      },
+    };
+    if (Object.keys(unsetFields).length > 0) {
+      update.$unset = unsetFields;
+    }
+
+    const updatedJob = await Job.findByIdAndUpdate(job._id, update, {
+      returnDocument: 'after',
+    });
 
     // Update user stats
     await User.findByIdAndUpdate(userId, {
@@ -826,7 +983,7 @@ export const markJobAsMatched = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'Job marked as matched',
-      data: job,
+      data: updatedJob || job,
     });
   } catch (error) {
     next(error);
@@ -843,24 +1000,42 @@ export const markJobAsRejected = async (req, res, next) => {
     const userId =
       req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
-    const lookupQuery = buildScopedJobLookupQuery(jobId, userId);
-    if (!lookupQuery) {
-      const error = new Error('Job ID is required');
-      error.statusCode = 400;
-      throw error;
+    let job = await Job.findOne(buildScopedJobLookupQuery(jobId, userId));
+
+    if (!job && jobId) {
+      // Attempt resilient lookups with common ID variants to avoid false negatives
+      const tried = [];
+      const candidates = new Set();
+      candidates.add(String(jobId || '').trim());
+      const decodedJobId = safeDecodeURIComponent(String(jobId || '').trim());
+      if (decodedJobId) candidates.add(decodedJobId);
+      // strip platform prefix (e.g., "freelancer-40433011" -> "40433011")
+      candidates.add(
+        String(jobId || '')
+          .replace(/^(upwork|freelancer)[-_]*/, '')
+          .trim()
+      );
+      // alphanumeric fallback
+      candidates.add(
+        String(jobId || '')
+          .replace(/[^a-zA-Z0-9]/g, '')
+          .trim()
+      );
+
+      for (const candidate of candidates) {
+        if (!candidate) continue;
+        tried.push(candidate);
+        const altLookup = buildScopedJobLookupQuery(candidate, userId);
+        if (!altLookup) continue;
+
+        job = await Job.findOne(altLookup);
+        if (job) break;
+      }
     }
 
-    const job = await Job.findOneAndUpdate(
-      lookupQuery,
-      {
-        $set: {
-          matchStatus: 'rejected',
-          rejectionReason: reason,
-          userId,
-        },
-      },
-      { new: true }
-    );
+    if (!job && req.body?.jobData) {
+      job = await upsertJobFromPayload(jobId, userId, req.body.jobData);
+    }
 
     if (!job) {
       const error = new Error('Job not found');
@@ -868,10 +1043,26 @@ export const markJobAsRejected = async (req, res, next) => {
       throw error;
     }
 
+    const unsetFields = buildJobIdUnset(job);
+    const update = {
+      $set: {
+        matchStatus: 'rejected',
+        rejectionReason: reason,
+        userId,
+      },
+    };
+    if (Object.keys(unsetFields).length > 0) {
+      update.$unset = unsetFields;
+    }
+
+    const updatedJob = await Job.findByIdAndUpdate(job._id, update, {
+      returnDocument: 'after',
+    });
+
     res.status(200).json({
       success: true,
       message: 'Job feedback recorded',
-      data: job,
+      data: updatedJob || job,
     });
   } catch (error) {
     next(error);
@@ -1080,8 +1271,8 @@ export const searchJobsWithAIAnalysis = async (req, res, next) => {
         message:
           diagnostics.filtersRelaxed && diagnostics.filtersRelaxed.length > 0
             ? `Total Jobs Found: ${jobsWithScores.length} (relaxed ${diagnostics.filtersRelaxed.join(
-                ' + '
-              )} filters)`
+              ' + '
+            )} filters)`
             : `Total Jobs Found: ${jobsWithScores.length}`,
       },
     });
@@ -1192,11 +1383,48 @@ export const translateJobDescription = async (req, res, next) => {
       throw error;
     }
 
-    const job = await Job.findOne(lookupQuery);
+    let job = await Job.findOne(lookupQuery);
     if (!job) {
-      const error = new Error('Job not found');
-      error.statusCode = 404;
-      throw error;
+      // Attempt resilient lookups with common ID variants to avoid false negatives
+      const tried = [];
+      const candidates = new Set();
+      candidates.add(String(jobId || '').trim());
+      const decodedJobId = safeDecodeURIComponent(String(jobId || '').trim());
+      if (decodedJobId) candidates.add(decodedJobId);
+      // strip common prefixes or fragments
+      candidates.add(
+        String(jobId || '')
+          .replace(/^.*[/#]/, '')
+          .trim()
+      );
+      // alphanumeric fallback
+      candidates.add(
+        String(jobId || '')
+          .replace(/[^a-zA-Z0-9_-]/g, '')
+          .trim()
+      );
+
+      for (const candidate of candidates) {
+        if (!candidate) continue;
+        tried.push(candidate);
+        const altLookup = buildScopedJobLookupQuery(candidate, userId);
+        if (!altLookup) continue;
+
+        job = await Job.findOne(altLookup);
+        if (job) break;
+      }
+
+      if (!job && req.body?.jobData) {
+        job = await upsertJobFromPayload(jobId, userId, req.body.jobData);
+      }
+
+      if (!job) {
+        const error = new Error(
+          `Job not found. Tried identifiers: ${tried.join(', ')}`
+        );
+        error.statusCode = 404;
+        throw error;
+      }
     }
 
     const originalDescription = String(job.description || '').trim();

@@ -51,7 +51,6 @@ app.use('/webhooks', webhookRouter);
 app.use(arcjetMiddleware);
 app.use(helmet());
 app.use(metricsMiddleware);
-app.use(errorMiddleware);
 
 // ACCESS POINTS
 app.get('/api', (req, res) => {
@@ -83,5 +82,15 @@ app.use('/api/v1/admin/subscriptions', adminSubscriptionRouter);
 app.use('/api/v1/user', userSubscriptionRouter);
 app.use('/api/v1/support', supportRouter);
 app.use('/api/v1/suspension', suspensionRouter);
+
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Route not found',
+    code: 'ROUTE_NOT_FOUND',
+  });
+});
+
+app.use(errorMiddleware);
 
 export default app;

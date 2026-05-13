@@ -516,13 +516,13 @@ The Job Finder AI Team
   <p>Dear <strong>${name}</strong>,</p>
   <p>${bodyMessage}</p>
   ${
-    adminResponse
-      ? `<div style="background-color: ${bgColor}; padding: 15px; border-left: 4px solid #1976d2; margin: 20px 0;">
+  adminResponse
+    ? `<div style="background-color: ${bgColor}; padding: 15px; border-left: 4px solid #1976d2; margin: 20px 0;">
     <h4>Admin Response:</h4>
     <p>${adminResponse}</p>
   </div>`
-      : ''
-  }
+    : ''
+}
   <p>If you have any questions or concerns, please contact our support team.</p>
   <br/>
   <p>Best regards,<br/><strong>The Job Finder AI Team</strong></p>

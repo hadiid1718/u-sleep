@@ -7,6 +7,39 @@ import {
 } from '../config/env.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+const PROPOSAL_STYLE_VARIANTS = [
+  {
+    id: 'outcome-first',
+    hook: 'Lead with the outcome and business impact the client wants.',
+    proof: 'Use a metrics-first example with tools and measurable results.',
+    approach: 'Frame the plan as milestones with fast validation checkpoints.',
+  },
+  {
+    id: 'risk-first',
+    hook: 'Open by naming the biggest risk and how you reduce it.',
+    proof: 'Show a similar risk resolved with concrete methods and outcomes.',
+    approach: 'Describe a risk-controlled delivery sequence with QA gates.',
+  },
+  {
+    id: 'timeline-first',
+    hook: 'Start with timeline pressure and how you keep it on track.',
+    proof: 'Reference a delivery that hit a tight deadline with metrics.',
+    approach: 'Lay out a short sprint plan and communication cadence.',
+  },
+  {
+    id: 'quality-first',
+    hook: 'Open with quality expectations and how you protect them.',
+    proof: 'Describe a quality-focused project with tooling and results.',
+    approach: 'Detail review loops, checkpoints, and acceptance criteria.',
+  },
+];
+
+const PROPOSAL_MIN_WORDS = 170;
+const PROPOSAL_MAX_WORDS = 230;
+const PROPOSAL_MIN_SENTENCES_HOOK = 3;
+const PROPOSAL_MIN_SENTENCES_PROOF = 3;
+const PROPOSAL_MIN_SENTENCES_APPROACH = 2;
+
 /**
  * AI Proposal Generation Service
  * Supports both OpenAI and Google Gemini
@@ -62,25 +95,79 @@ My approach is simple: clarify must-haves, ship an initial milestone quickly, an
     return String(value || '').trim();
   }
 
+  truncateText(value, maxChars = 900) {
+    const normalized = this.normalizeText(value);
+    if (normalized.length <= maxChars) return normalized;
+    return normalized.slice(0, maxChars).trim();
+  }
+
+  buildProposalVariation(job) {
+    const seed = `${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+    const index = Math.floor(Math.random() * PROPOSAL_STYLE_VARIANTS.length);
+    const variant = PROPOSAL_STYLE_VARIANTS[index];
+    const jobKey = this.getJobMatchKey(job);
+
+    return {
+      seed,
+      jobKey,
+      variant,
+      directive: `Variation seed: ${seed}. Style angle: ${variant.id}. Hook focus: ${variant.hook} Proof focus: ${variant.proof} Approach focus: ${variant.approach} Use distinct wording and sentence structure from any prior draft. Do not mention this seed.`,
+    };
+  }
+
   countWords(text) {
     return this.normalizeText(text).split(/\s+/).filter(Boolean).length;
   }
 
-  isProposalCompliant(text) {
+  countSentences(text) {
+    return String(text || '')
+      .split(/[.!?]+/)
+      .map(sentence => sentence.trim())
+      .filter(Boolean).length;
+  }
+
+  estimateTranslationTokens(text) {
+    const normalized = this.normalizeText(text);
+    if (!normalized) return 1500;
+
+    const wordCount = this.countWords(normalized);
+    const charCount = normalized.length;
+    const estimated = Math.ceil(Math.max(wordCount * 2.2, charCount / 3));
+
+    return Math.max(1500, Math.min(4096, estimated));
+  }
+
+  isProposalCompliant(text, user = null) {
     const normalized = this.normalizeText(text);
     if (!normalized) return false;
 
     const paragraphs = normalized.split(/\n\s*\n/).filter(Boolean);
     if (paragraphs.length !== 3) return false;
 
+    const hookSentences = this.countSentences(paragraphs[0]);
+    const proofSentences = this.countSentences(paragraphs[1]);
+    const approachSentences = this.countSentences(paragraphs[2]);
+
+    if (hookSentences < PROPOSAL_MIN_SENTENCES_HOOK) return false;
+    if (proofSentences < PROPOSAL_MIN_SENTENCES_PROOF) return false;
+    if (approachSentences < PROPOSAL_MIN_SENTENCES_APPROACH) return false;
+
     const wordCount = this.countWords(normalized);
-    if (wordCount < 130 || wordCount > 230) return false;
+    if (wordCount < PROPOSAL_MIN_WORDS || wordCount > PROPOSAL_MAX_WORDS) {
+      return false;
+    }
 
     const firstWord = normalized
       .split(/\s+/)[0]
       .replace(/[^a-zA-Z]/g, '')
       .toLowerCase();
     if (['hi', 'hello', 'i'].includes(firstWord)) return false;
+
+    const userName = this.normalizeText(user?.name || '');
+    if (userName) {
+      const firstName = userName.split(/\s+/)[0].toLowerCase();
+      if (firstName && firstWord === firstName) return false;
+    }
 
     const lowered = normalized.toLowerCase();
     const bannedPhrases = [
@@ -218,7 +305,18 @@ My approach is simple: clarify must-haves, ship an initial milestone quickly, an
     try {
       return JSON.parse(jsonCandidate);
     } catch {
-      return null;
+      const sanitized = jsonCandidate
+        .replace(/[\u201C\u201D]/g, '"')
+        .replace(/\u2019/g, '\'')
+        .replace(/,\s*([}\]])/g, '$1');
+
+      if (sanitized === jsonCandidate) return null;
+
+      try {
+        return JSON.parse(sanitized);
+      } catch {
+        return null;
+      }
     }
   }
 
@@ -364,7 +462,7 @@ ${text}
     };
   }
 
-  async translateWithOpenAI(prompt) {
+  async translateWithOpenAI(prompt, maxTokens = 1500) {
     const payload = {
       model: this.openaiModel,
       messages: [
@@ -379,7 +477,7 @@ ${text}
         },
       ],
       temperature: 0.1,
-      max_tokens: 1500,
+      max_tokens: maxTokens,
       top_p: 0.9,
     };
 
@@ -420,15 +518,16 @@ ${text}
     }
   }
 
-  async translateWithGemini(prompt) {
+  async translateWithGemini(prompt, maxOutputTokens = 1500) {
     return this.generateWithGeminiSdk({
       prompt,
       systemInstruction:
         'You are a translation assistant. Output strict JSON only, with no markdown.',
       generationConfig: {
         temperature: 0.1,
-        maxOutputTokens: 1500,
+        maxOutputTokens,
         topP: 0.9,
+        responseMimeType: 'application/json',
       },
       timeoutMessage: 'Translation timed out',
     });
@@ -463,15 +562,37 @@ ${text}
     const provider = this.resolveTranslationProvider(aiService);
     const prompt = this.buildTranslationPrompt(sourceText, target);
 
+    const maxOutputTokens = this.estimateTranslationTokens(sourceText);
     const rawResult =
       provider === 'openai'
-        ? await this.translateWithOpenAI(prompt)
-        : await this.translateWithGemini(prompt);
+        ? await this.translateWithOpenAI(prompt, maxOutputTokens)
+        : await this.translateWithGemini(prompt, maxOutputTokens);
 
     const parsed = this.parseJsonPayload(rawResult);
 
     if (!parsed || typeof parsed !== 'object') {
-      throw new Error('Translation response is not valid JSON');
+      const fallbackText = this.normalizeText(rawResult);
+
+      if (fallbackText) {
+        return this.normalizeTranslationResult(
+          {
+            translatedText: fallbackText,
+            isTranslated: true,
+          },
+          sourceText,
+          target,
+          provider
+        );
+      }
+
+      return {
+        provider,
+        sourceLanguage: null,
+        sourceLanguageCode: null,
+        targetLanguage: target || null,
+        isTranslated: false,
+        translatedText: sourceText,
+      };
     }
 
     return this.normalizeTranslationResult(
@@ -632,15 +753,15 @@ Rules:
       provider === 'openai'
         ? await this.generateJsonWithOpenAI(prompt, systemMessage)
         : await this.generateWithGeminiSdk({
-            prompt,
-            systemInstruction: systemMessage,
-            generationConfig: {
-              temperature: 0.1,
-              maxOutputTokens: 1200,
-              topP: 0.9,
-            },
-            timeoutMessage: 'Job scoring timed out',
-          });
+          prompt,
+          systemInstruction: systemMessage,
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 1200,
+            topP: 0.9,
+          },
+          timeoutMessage: 'Job scoring timed out',
+        });
 
     const parsed = this.parseJsonPayload(rawResult);
     if (!Array.isArray(parsed)) return null;
@@ -674,7 +795,13 @@ Rules:
    * @returns {Promise<String>} - Generated proposal text
    */
   async generateProposal(params) {
-    const { aiService = 'gemini', job, user, caseStudy } = params;
+    const {
+      aiService = 'gemini',
+      job,
+      user,
+      caseStudy,
+      previousProposal = '',
+    } = params;
 
     if (!job || !user) {
       throw new Error('Job and user details are required');
@@ -690,12 +817,21 @@ Rules:
         throw error;
       }
 
+      const variation = this.buildProposalVariation(job);
+      const priorDraft = this.normalizeText(previousProposal);
+
       let proposal;
 
       if (provider === 'gemini') {
-        proposal = await this.generateWithGemini(job, user, caseStudy);
+        proposal = await this.generateWithGemini(job, user, caseStudy, {
+          variation,
+          previousProposal: priorDraft,
+        });
       } else {
-        proposal = await this.generateWithOpenAI(job, user, caseStudy);
+        proposal = await this.generateWithOpenAI(job, user, caseStudy, {
+          variation,
+          previousProposal: priorDraft,
+        });
       }
 
       if (!this.normalizeText(proposal)) {
@@ -704,12 +840,45 @@ Rules:
         throw error;
       }
 
-      if (!this.isProposalCompliant(proposal)) {
-        // Keep AI-generated content instead of replacing it with a static template.
+      if (this.isProposalCompliant(proposal, user)) {
         return proposal;
       }
 
-      return proposal;
+      const repaired = await this.rewriteProposalToComply({
+        rawProposal: proposal,
+        job,
+        user,
+        caseStudy,
+        aiService: provider,
+        variation,
+        previousProposal: priorDraft,
+      });
+
+      if (this.isProposalCompliant(repaired, user)) {
+        return repaired;
+      }
+
+      const retryVariation = this.buildProposalVariation(job);
+      const retry =
+        provider === 'gemini'
+          ? await this.generateWithGemini(job, user, caseStudy, {
+              variation: retryVariation,
+              previousProposal: priorDraft,
+            })
+          : await this.generateWithOpenAI(job, user, caseStudy, {
+              variation: retryVariation,
+              previousProposal: priorDraft,
+            });
+
+      if (this.isProposalCompliant(retry, user)) {
+        return retry;
+      }
+
+      const error = new Error(
+        'AI proposal did not meet length or format requirements.'
+      );
+      error.code = 'AI_NON_COMPLIANT';
+      throw error;
     } catch (error) {
       console.error(`Error generating proposal with ${aiService}:`, error);
       throw error;
@@ -719,8 +888,8 @@ Rules:
   /**
    * Generate proposal using OpenAI
    */
-  async generateWithOpenAI(job, user, caseStudy) {
-    const prompt = this.buildPrompt(job, user, caseStudy);
+  async generateWithOpenAI(job, user, caseStudy, options = {}) {
+    const prompt = this.buildPrompt(job, user, caseStudy, options);
     const platform =
       job?.source === 'freelancer_api' ? 'Freelancer.com' : 'Upwork';
 
@@ -734,10 +903,9 @@ Constraints:
 - 3 paragraphs, separated by a blank line.
 - Target 180-200 words total (aim for closer to 200, not shorter).
 - First word must NOT be "Hi", "Hello", "I", or the freelancer's name.
-- Each paragraph must be 3-4 sentences (not 2-3, aim for more detail).
-- Paragraph 1: Open with a specific client problem or goal from the job details.
-- Paragraph 2: Include concrete past project examples with tools/methods and measurable outcomes.
-- Paragraph 3: Describe your approach and process, then end with ONE smart question or confident call to action.
+- Paragraph 1: 3-4 sentences opening with a specific client problem or goal.
+- Paragraph 2: 3-4 sentences with concrete past project examples, tools/methods, and measurable outcomes.
+- Paragraph 3: 2-3 sentences describing your approach/process, ending with ONE smart question or confident call to action.
 - Tone: conversational, direct, client-focused. No fluff.
 - Do not restate the job description; reference specifics once with depth.
 - Avoid banned phrases: "I am the perfect candidate", "I would love to work with you", "passionate", "dedicated", "detail-oriented", "guru", "ninja", "rockstar".
@@ -793,8 +961,8 @@ Constraints:
   /**
    * Generate proposal using Google Gemini
    */
-  async generateWithGemini(job, user, caseStudy) {
-    const prompt = this.buildPrompt(job, user, caseStudy);
+  async generateWithGemini(job, user, caseStudy, options = {}) {
+    const prompt = this.buildPrompt(job, user, caseStudy, options);
     const platform =
       job?.source === 'freelancer_api' ? 'Freelancer.com' : 'Upwork';
     return this.generateWithGeminiSdk({
@@ -803,18 +971,17 @@ Constraints:
     Constraints:
     - 3 paragraphs, separated by a blank line.
     - Target 180-200 words total (aim for closer to 200, not shorter).
-    - Each paragraph must be 3-4 sentences (not 2-3, aim for more detail).
     - First word must NOT be "Hi", "Hello", "I", or the freelancer's name.
-    - Paragraph 1: Open with a specific client problem or goal from the job details.
-    - Paragraph 2: Include concrete past project examples with tools/methods and measurable outcomes.
-    - Paragraph 3: Describe your approach and process, then end with ONE smart question or confident call to action.
+    - Paragraph 1: 3-4 sentences opening with a specific client problem or goal.
+    - Paragraph 2: 3-4 sentences with concrete past project examples, tools/methods, and measurable outcomes.
+    - Paragraph 3: 2-3 sentences describing your approach/process, ending with ONE smart question or confident call to action.
     - Tone: conversational, direct, client-focused. No fluff.
     - Do not restate the job description; reference specifics once with depth.
     - Avoid banned phrases: "I am the perfect candidate", "I would love to work with you", "passionate", "dedicated", "detail-oriented", "guru", "ninja", "rockstar".
     - Output ONLY the proposal text - write in full detail.`,
       generationConfig: {
         temperature: 1.0,
-        maxOutputTokens: 1700,
+        maxOutputTokens: 2000,
         topP: 0.9,
       },
       timeoutMessage: 'Proposal generation timed out',
@@ -824,7 +991,7 @@ Constraints:
   /**
    * Build proposal prompt
    */
-  buildPrompt(job, user, caseStudy) {
+  buildPrompt(job, user, caseStudy, options = {}) {
     const platform =
       job?.source === 'freelancer_api' ? 'Freelancer.com' : 'Upwork';
     const profileUrl =
@@ -836,6 +1003,15 @@ Constraints:
         ? `$${user.jobPreferences?.hourlyRate}/hour`
         : `$${user.jobPreferences?.fixedRate} fixed`;
     const clientName = this.normalizeText(job?.clientInfo?.name || '');
+
+    const variation = options?.variation || null;
+    const previousProposal = this.truncateText(
+      options?.previousProposal || '',
+      900
+    );
+    const variationDirective = variation?.directive
+      ? `\n11. Variation: ${variation.directive}`
+      : '';
 
     let prompt = `Generate a professional ${platform} proposal for the following job:
 
@@ -860,13 +1036,22 @@ Keywords/Expertise: ${user.jobPreferences?.keywords?.join(', ') || 'N/A'}
 1. Use the job details and description; reference a specific requirement from the job.
 2. Output exactly 3 paragraphs separated by a blank line.
 3. Word count MUST be between 180-200 words total. Aim for closer to 200. Write a comprehensive proposal, not a short one.
-4. Paragraph 1 (Hook): start with the client's problem/goal (3 sentences); first word must NOT be "Hi", "Hello", "I", or the freelancer's name. Be specific about their challenge.
+4. Paragraph 1 (Hook): start with the client's problem/goal (3-4 sentences); first word must NOT be "Hi", "Hello", "I", or the freelancer's name. Be specific about their challenge.
 5. Paragraph 2 (Proof): give 1-2 concrete past projects with tools/methods and measurable outcomes (3-4 sentences). Include specific results and what made them successful.
-6. Paragraph 3 (Approach + CTA): 3-4 sentences on how you'll solve THIS job, your process, and timeline, then end with ONE specific question or direct call to action.
+6. Paragraph 3 (Approach + CTA): 2-3 sentences on how you'll solve THIS job, your process, and timeline, then end with ONE specific question or direct call to action.
 7. Tone: conversational, direct, client-focused. No fluff. Do not restate the job description.
 8. Each paragraph should be detailed and substantive - minimum 3 sentences each. Provide depth and specifics.
 9. Avoid banned phrases: "I am the perfect candidate", "I would love to work with you", "passionate", "dedicated", "detail-oriented", "guru", "ninja", "rockstar".
-10. No subject line, no greeting, no labels, no placeholders. Output ONLY the full proposal text - aim for 190-200 words.`;
+10. No subject line, no greeting, no labels, no placeholders. Output ONLY the full proposal text - aim for 190-200 words.${variationDirective}`;
+
+  if (previousProposal) {
+    prompt += `
+
+**PREVIOUS DRAFT (avoid reusing phrasing or sentence structure):**
+"""
+${previousProposal}
+"""`;
+  }
 
     if (caseStudy) {
       prompt += `
@@ -878,6 +1063,180 @@ Use this case study as the Proof paragraph. Keep it concrete with tools/methods 
     }
 
     return prompt;
+  }
+
+  buildComplianceRewritePrompt({
+    rawProposal,
+    job,
+    user,
+    caseStudy,
+    variation,
+    previousProposal,
+  }) {
+    const platform =
+      job?.source === 'freelancer_api' ? 'Freelancer.com' : 'Upwork';
+    const profileUrl =
+      platform === 'Freelancer.com'
+        ? user.jobPreferences?.freelancerProfileUrl || 'N/A'
+        : user.jobPreferences?.upworkProfileUrl || 'N/A';
+    const profileRate =
+      user.jobPreferences?.rateType === 'hourly'
+        ? `$${user.jobPreferences?.hourlyRate}/hour`
+        : `$${user.jobPreferences?.fixedRate} fixed`;
+    const clientName = this.normalizeText(job?.clientInfo?.name || '');
+    const sanitizedDraft = this.truncateText(rawProposal, 1200);
+    const priorDraft = this.truncateText(previousProposal, 900);
+    const variationDirective = variation?.directive
+      ? `\nVARIATION DIRECTIVE (do not mention explicitly): ${variation.directive}`
+      : '';
+
+    let prompt = `Rewrite the proposal to fully comply with the constraints below. Keep the facts aligned with the job and profile but rewrite all phrasing and sentence structure.
+
+JOB DETAILS:
+Title: ${job.title}
+Description: ${job.description}
+Budget: ${job.budgetType === 'fixed' ? `Fixed $${job.budget?.amount}` : `Hourly $${job.hourlyRate?.min}-${job.hourlyRate?.max}`}
+Skills Required: ${job.skills?.join(', ') || 'N/A'}
+Client Name: ${clientName || 'Unknown'}
+Client Rating: ${job.clientInfo?.rating || 'N/A'}
+Proposals Received: ${job.proposalsCount || 'N/A'}
+
+FREELANCER PROFILE:
+Name: ${user.name}
+Role: ${user.jobPreferences?.userRole || 'Freelancer'}
+Rate: ${profileRate}
+Platform: ${platform}
+Profile URL: ${profileUrl}
+Keywords/Expertise: ${user.jobPreferences?.keywords?.join(', ') || 'N/A'}
+
+EXISTING DRAFT (rewrite; do not reuse phrasing):
+"""
+${sanitizedDraft}
+"""
+
+CONSTRAINTS:
+- 3 paragraphs separated by a blank line.
+- 180-200 words total (target 190-200).
+- Paragraph 1: 3-4 sentences hook with the client's specific problem or goal.
+- Paragraph 2: 3-4 sentences proof with concrete past project(s), tools, and measurable outcomes.
+- Paragraph 3: 2-3 sentences approach + CTA; end with ONE specific question or confident call to action.
+- First word must NOT be "Hi", "Hello", "I", or the freelancer's name.
+- Tone: conversational, direct, client-focused. No fluff.
+- Do not restate the job description; reference specifics once with depth.
+- Avoid banned phrases: "I am the perfect candidate", "I would love to work with you", "passionate", "dedicated", "detail-oriented", "guru", "ninja", "rockstar".
+- No subject line, no greeting, no labels, no placeholders. Output ONLY the full proposal text.`;
+
+    if (priorDraft) {
+      prompt += `
+
+PREVIOUS DRAFT (avoid reusing phrases or sentence structure):
+"""
+${priorDraft}
+"""`;
+    }
+
+    if (caseStudy) {
+      prompt += `
+
+CASE STUDY TO INCORPORATE AS PROOF:
+${caseStudy}
+Use this case study for the proof paragraph with tools/methods and measurable outcomes.`;
+    }
+
+    if (variationDirective) {
+      prompt += `
+${variationDirective}`;
+    }
+
+    return prompt;
+  }
+
+  async rewriteProposalToComply({
+    rawProposal,
+    job,
+    user,
+    caseStudy,
+    aiService = 'gemini',
+    variation = null,
+    previousProposal = '',
+  }) {
+    const provider = this.resolveProposalProvider(aiService);
+    if (provider === 'fallback') {
+      throw new Error(
+        'No AI provider is configured for proposal generation. Set GOOGLE_GEMINI_API_KEY or OPENAI_API_KEY.'
+      );
+    }
+
+    const prompt = this.buildComplianceRewritePrompt({
+      rawProposal,
+      job,
+      user,
+      caseStudy,
+      variation,
+      previousProposal,
+    });
+    const systemInstruction =
+      'You are an expert proposal editor. Output only the rewritten proposal text and enforce the constraints strictly.';
+
+    if (provider === 'openai') {
+      const payload = {
+        model: this.openaiModel,
+        messages: [
+          { role: 'system', content: systemInstruction },
+          { role: 'user', content: prompt },
+        ],
+        temperature: 0.7,
+        max_tokens: 1400,
+        top_p: 0.9,
+      };
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+      try {
+        const response = await fetch(
+          'https://api.openai.com/v1/chat/completions',
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${this.openaiApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+            signal: controller.signal,
+          }
+        );
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => null);
+          throw new Error(
+            `OpenAI API Error: ${error?.error?.message || response.statusText}`
+          );
+        }
+
+        const data = await response.json();
+        return data?.choices?.[0]?.message?.content || '';
+      } catch (error) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+          throw new Error('Proposal rewrite timed out', { cause: error });
+        }
+        throw error;
+      }
+    }
+
+    return this.generateWithGeminiSdk({
+      prompt,
+      systemInstruction,
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 2000,
+        topP: 0.9,
+      },
+      timeoutMessage: 'Proposal rewrite timed out',
+    });
   }
 
   /**
@@ -900,8 +1259,8 @@ Use this case study as the Proof paragraph. Keep it concrete with tools/methods 
       job?.budgetType === 'fixed'
         ? `Fixed $${job?.budget?.amount || 'N/A'}`
         : `Hourly $${job?.hourlyRate?.min || 'N/A'}-${
-            job?.hourlyRate?.max || 'N/A'
-          }`;
+          job?.hourlyRate?.max || 'N/A'
+        }`;
     const clientName = this.normalizeText(job?.clientInfo?.name || 'Unknown');
     const normalizedProposal = this.normalizeText(proposal);
     const normalizedCaseStudy = this.normalizeText(caseStudy);
@@ -1016,7 +1375,7 @@ INSTRUCTIONS:
         'You are an expert proposal editor. Enforce a 3-paragraph, 150-220 word response with a hook, proof using the case study, and an approach ending with one question or CTA. No greetings, no labels, no placeholders.',
       generationConfig: {
         temperature: 0.1,
-        maxOutputTokens: 900,
+        maxOutputTokens: 2000,
       },
       timeoutMessage: 'Proposal upgrade timed out',
     });

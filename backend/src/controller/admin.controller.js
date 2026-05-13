@@ -6,6 +6,7 @@ import Subscription from '../models/subscription.model.js';
 import BillingPlan from '../models/billingPlan.model.js';
 import ReviewVideo from '../models/reviewVideo.model.js';
 import { sendMail } from '../config/nodemailer.js';
+import aiService from '../services/ai.service.js';
 import {
   getMetricsSnapshot,
   getMetricsSummary,
@@ -349,6 +350,92 @@ export const deleteUser = async (req, res, next) => {
       success: true,
       message: 'User deleted',
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Check configured AI providers and basic reachability
+ */
+export const checkAIProviders = async (req, res, next) => {
+  try {
+    const results = [];
+
+    // OpenAI check
+    const hasOpenAI = Boolean(aiService.openaiApiKey);
+    if (!hasOpenAI) {
+      results.push({
+        provider: 'openai',
+        configured: false,
+        reachable: false,
+        detail: 'OPENAI_API_KEY not set',
+      });
+    } else {
+      try {
+        const model = aiService.openaiModel || 'gpt-4-turbo';
+        const resp = await fetch(`https://api.openai.com/v1/models/${model}`, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${aiService.openaiApiKey}` },
+        });
+
+        if (resp.ok) {
+          results.push({
+            provider: 'openai',
+            configured: true,
+            reachable: true,
+            detail: `Model ${model} reachable`,
+          });
+        } else {
+          const txt = await resp.text().catch(() => '');
+          results.push({
+            provider: 'openai',
+            configured: true,
+            reachable: false,
+            detail: `HTTP ${resp.status}: ${txt.substring(0, 200)}`,
+          });
+        }
+      } catch (err) {
+        results.push({
+          provider: 'openai',
+          configured: true,
+          reachable: false,
+          detail: String(err.message),
+        });
+      }
+    }
+
+    // Gemini check
+    const hasGemini = Boolean(aiService.geminiApiKey);
+    if (!hasGemini) {
+      results.push({
+        provider: 'gemini',
+        configured: false,
+        reachable: false,
+        detail: 'GOOGLE_GEMINI_API_KEY not set',
+      });
+    } else {
+      try {
+        const model = aiService.geminiModel || 'gemini-2.5-flash';
+        // Attempt to resolve the Gemini model via the client
+        await aiService.getGeminiModel();
+        results.push({
+          provider: 'gemini',
+          configured: true,
+          reachable: true,
+          detail: `Model ${model} reachable`,
+        });
+      } catch (err) {
+        results.push({
+          provider: 'gemini',
+          configured: true,
+          reachable: false,
+          detail: String(err.message),
+        });
+      }
+    }
+
+    res.status(200).json({ success: true, data: results });
   } catch (error) {
     next(error);
   }

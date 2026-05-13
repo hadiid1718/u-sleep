@@ -168,11 +168,24 @@ jobSchema.index({ cacheExpiry: 1 }, { expireAfterSeconds: 0 });
 
 // Compound unique indexes to allow the same platform job id for different users
 // while preventing duplicates for the same user.
-// Create two sparse unique indexes: one for upwork jobs, one for freelancer jobs.
-jobSchema.index({ upworkJobId: 1, userId: 1 }, { unique: true, sparse: true });
+// Create two partial unique indexes: only enforce uniqueness when IDs are real strings.
+jobSchema.index(
+  { upworkJobId: 1, userId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      upworkJobId: { $type: 'string', $ne: '' },
+    },
+  }
+);
 jobSchema.index(
   { freelancerJobId: 1, userId: 1 },
-  { unique: true, sparse: true }
+  {
+    unique: true,
+    partialFilterExpression: {
+      freelancerJobId: { $type: 'string', $ne: '' },
+    },
+  }
 );
 
 const Job = mongoose.model('Job', jobSchema);

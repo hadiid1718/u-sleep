@@ -347,8 +347,8 @@ class FreelancerService {
       category: rawJob?.type || rawJob?.project_type || null,
       skills: Array.isArray(rawJob?.jobs)
         ? rawJob.jobs
-            .map(j => this.normalizeText(j?.name || j?.seo_url || j))
-            .filter(Boolean)
+          .map(j => this.normalizeText(j?.name || j?.seo_url || j))
+          .filter(Boolean)
         : [],
       proposalsCount: Number(
         rawJob?.bid_stats?.bid_count || rawJob?.bid_count || 0
@@ -364,10 +364,10 @@ class FreelancerService {
       },
       hourlyRate: hasHourly
         ? {
-            min: Number(minHourly || maxHourly || 0),
-            max: Number(maxHourly || minHourly || 0),
-            currency: rawJob?.currency?.code || 'USD',
-          }
+          min: Number(minHourly || maxHourly || 0),
+          max: Number(maxHourly || minHourly || 0),
+          currency: rawJob?.currency?.code || 'USD',
+        }
         : null,
       clientInfo: {
         name: owner?.username || owner?.display_name || null,
@@ -450,6 +450,31 @@ class FreelancerService {
     }
   }
 
+  async fetchSelfProfile(oauthToken) {
+    if (!oauthToken && !FREELANCER_OAUTH_ACCESS_TOKEN) return null;
+
+    const url = `${this.baseUrl}/api/users/0.1/self/`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.requestTimeoutMs);
+
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: this.buildAuthHeaders(oauthToken),
+        signal: controller.signal,
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) return null;
+
+      return payload?.result || payload?.user || null;
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
   async enrichUsersMapForProjects(projects, usersMap, oauthToken, diagnostics) {
     if (!this.shouldEnrichClientInfo()) return usersMap;
     if (!Array.isArray(projects) || projects.length === 0) return usersMap;
@@ -496,6 +521,8 @@ class FreelancerService {
     periodDays,
     description,
     oauthToken,
+    bidderId,
+    milestonePercentage,
   }) {
     const normalizedProjectId = Number(projectId);
     if (!Number.isFinite(normalizedProjectId)) {
@@ -526,10 +553,40 @@ class FreelancerService {
       throw error;
     }
 
+    let resolvedBidderId = bidderId ? Number(bidderId) : null;
+    if (!Number.isFinite(resolvedBidderId)) {
+      const selfProfile = await this.fetchSelfProfile(oauthToken);
+      const selfId = selfProfile?.id || selfProfile?.user_id || null;
+      resolvedBidderId = selfId ? Number(selfId) : null;
+    }
+
+    if (!Number.isFinite(resolvedBidderId)) {
+      const error = new Error(
+        'Freelancer bidder_id is missing. Reconnect your Freelancer account to refresh your profile.'
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const normalizedMilestone = Number(milestonePercentage ?? 100);
+    if (
+      !Number.isFinite(normalizedMilestone) ||
+      normalizedMilestone <= 0 ||
+      normalizedMilestone > 100
+    ) {
+      const error = new Error(
+        'Milestone percentage must be a number between 1 and 100.'
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
     const payload = {
       project_id: normalizedProjectId,
       amount: normalizedBidAmount,
       period: normalizedPeriod,
+      bidder_id: resolvedBidderId,
+      milestone_percentage: normalizedMilestone,
     };
 
     const normalizedDescription = this.normalizeText(description);

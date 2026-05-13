@@ -70,6 +70,129 @@ const buildJobLookupQuery = (jobIdentifier, userId) => {
   };
 };
 
+const safeDecodeURIComponent = value => {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Resilient job lookup with variant handling (strips prefixes, decodes URI components)
+ */
+const findJobWithVariants = async (jobIdentifier, userId) => {
+  const tried = [];
+  const candidates = new Set();
+  const normalizedId = String(jobIdentifier || '').trim();
+
+  candidates.add(normalizedId);
+  const decodedId = safeDecodeURIComponent(normalizedId);
+  if (decodedId) candidates.add(decodedId);
+
+  // strip platform prefix (e.g., "freelancer-40433011" -> "40433011", "upwork-123" -> "123")
+  const strippedPrefix = normalizedId
+    .replace(/^(upwork|freelancer)[-_]*/, '')
+    .trim();
+  if (strippedPrefix) candidates.add(strippedPrefix);
+
+  // alphanumeric only (removes all special chars)
+  const alphanumericOnly = normalizedId.replace(/[^a-zA-Z0-9]/g, '').trim();
+  if (alphanumericOnly) candidates.add(alphanumericOnly);
+
+  console.log(
+    `[Job Lookup] Searching for job "${normalizedId}" with variants:`,
+    Array.from(candidates)
+  );
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    tried.push(candidate);
+    const lookupQuery = buildJobLookupQuery(candidate, userId);
+    if (!lookupQuery) continue;
+
+    const job = await Job.findOne(lookupQuery);
+    if (job) {
+      console.log(`[Job Lookup] Found job using variant "${candidate}"`);
+      return job;
+    }
+  }
+
+  console.log(
+    `[Job Lookup] Job not found. Tried variants: ${tried.join(', ')}`
+  );
+  return null;
+};
+
+const normalizeIncomingJobData = (jobData = {}) => {
+  if (!jobData || typeof jobData !== 'object') return null;
+
+  const normalizedJob = { ...jobData };
+  const idFields = ['upworkJobId', 'freelancerJobId', 'sourceJobId'];
+  idFields.forEach(field => {
+    if (normalizedJob[field] === null || normalizedJob[field] === undefined) {
+      delete normalizedJob[field];
+      return;
+    }
+
+    const value = String(normalizedJob[field]).trim();
+    if (!value) {
+      delete normalizedJob[field];
+    } else {
+      normalizedJob[field] = value;
+    }
+  });
+
+  delete normalizedJob._id;
+  delete normalizedJob.id;
+  delete normalizedJob.__v;
+  delete normalizedJob.createdAt;
+  delete normalizedJob.updatedAt;
+  delete normalizedJob.userId;
+  delete normalizedJob.matchStatus;
+  delete normalizedJob.rejectionReason;
+
+  return normalizedJob;
+};
+
+const upsertJobFromPayload = async (jobIdentifier, userId, jobData) => {
+  const normalizedJobData = normalizeIncomingJobData(jobData);
+  if (!normalizedJobData) return null;
+
+  const candidateId =
+    normalizedJobData.freelancerJobId ||
+    normalizedJobData.upworkJobId ||
+    normalizedJobData.sourceJobId ||
+    String(jobIdentifier || '').trim();
+
+  const lookupQuery = buildJobLookupQuery(candidateId, userId);
+  if (!lookupQuery) return null;
+
+  const hasRequiredFields =
+    normalizedJobData.title &&
+    normalizedJobData.description &&
+    normalizedJobData.budgetType;
+
+  if (!hasRequiredFields) return null;
+
+  const job = await Job.findOneAndUpdate(
+    lookupQuery,
+    {
+      $setOnInsert: {
+        ...normalizedJobData,
+        isActive: true,
+        matchStatus: normalizedJobData.matchStatus || 'pending',
+      },
+      $set: {
+        userId,
+      },
+    },
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
+  );
+
+  return job;
+};
+
 /**
  * Generate proposal for a job
  * Asynchronous operation - returns placeholder immediately
@@ -87,15 +210,17 @@ export const generateProposal = async (req, res, next) => {
       throw error;
     }
 
-    // Get job
-    const lookupQuery = buildJobLookupQuery(jobIdentifier, userId);
-    if (!lookupQuery) {
+    // Get job - use resilient lookup to handle various ID formats
+    if (!jobIdentifier || String(jobIdentifier).trim() === '') {
       const error = new Error('Job ID is required');
       error.statusCode = 400;
       throw error;
     }
 
-    const job = await Job.findOne(lookupQuery);
+    let job = await findJobWithVariants(jobIdentifier, userId);
+    if (!job && req.body?.jobData) {
+      job = await upsertJobFromPayload(jobIdentifier, userId, req.body.jobData);
+    }
     if (!job) {
       const error = new Error('Job not found');
       error.statusCode = 404;
@@ -121,6 +246,18 @@ export const generateProposal = async (req, res, next) => {
 
     // Check if proposal already exists
     let proposal = await Proposal.findOne({ jobId: jobObjectId, userId });
+    let previousContent = '';
+
+    // Validate AI provider is configured for the requested service before creating a draft
+    const providerCheck = aiService.resolveProposalProvider(preferredAIService);
+    if (providerCheck === 'fallback') {
+      const error = new Error(
+        `Selected AI service '${preferredAIService}' is not configured on the server. Please set GOOGLE_GEMINI_API_KEY or OPENAI_API_KEY.`
+      );
+      error.code = 'AI_PROVIDER_NOT_CONFIGURED';
+      error.statusCode = 400;
+      throw error;
+    }
 
     const isFreelancerJob = String(job?.source || '').includes('freelancer');
 
@@ -143,6 +280,7 @@ export const generateProposal = async (req, res, next) => {
 
       proposal = await Proposal.create(proposalPayload);
     } else {
+      previousContent = proposal.content || '';
       proposal.content = '';
       proposal.status = proposal.status === 'sent' ? proposal.status : 'draft';
       proposal.aiService = preferredAIService;
@@ -172,7 +310,7 @@ export const generateProposal = async (req, res, next) => {
       },
       {
         upsert: true,
-        new: true,
+        returnDocument: 'after',
         setDefaultsOnInsert: true,
       }
     );
@@ -184,16 +322,22 @@ export const generateProposal = async (req, res, next) => {
     });
 
     // Generate proposal asynchronously (non-blocking)
-    generateProposalAsync(proposal._id, job, user, preferredAIService).catch(
+    generateProposalAsync(
+      proposal._id,
+      job,
+      user,
+      preferredAIService,
+      previousContent
+    ).catch(
       error => console.error('Background proposal generation error:', error)
     );
 
     // Return immediately with message
     const workflow = isFreelancerJob
       ? freelancerWorkflowService.buildProposalWorkflowContext({
-          job: job.toObject(),
-          bidInput: req.body,
-        })
+        job: job.toObject(),
+        bidInput: req.body,
+      })
       : null;
     const defaultResponse = getDefaultProposalResponse(
       job?.toObject?.() || job,
@@ -223,8 +367,11 @@ async function generateProposalAsync(
   proposalId,
   job,
   user,
-  preferredAIService
+  preferredAIService,
+  previousContent = ''
 ) {
+  let attemptsUsed = 0;
+
   try {
     const resolvedProvider =
       aiService.resolveProposalProvider(preferredAIService);
@@ -240,7 +387,6 @@ async function generateProposalAsync(
     const maxAttempts = 2;
     let generatedContent = '';
     let generationError = null;
-    let attemptsUsed = 0;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       attemptsUsed = attempt;
@@ -249,6 +395,7 @@ async function generateProposalAsync(
           aiService: preferredAIService,
           job: job.toObject(),
           user: user.toObject(),
+          previousProposal: previousContent,
         });
         generationError = null;
         break;
@@ -265,46 +412,66 @@ async function generateProposalAsync(
     }
 
     const normalizedGenerated = String(generatedContent || '').trim();
+    const complianceUser = user?.toObject?.() || user;
+    if (!aiService.isProposalCompliant(normalizedGenerated, complianceUser)) {
+      const error = new Error(
+        'AI proposal did not meet length or format requirements.'
+      );
+      error.code = 'AI_NON_COMPLIANT';
+      throw error;
+    }
     const normalizedDefault = String(defaultResponse || '').trim();
     const usedFallbackTemplate =
       normalizedGenerated.length === 0 ||
       normalizedGenerated === normalizedDefault;
 
-    // Update proposal with generated content
-    await Proposal.findByIdAndUpdate(proposalId, {
-      $set: {
-        content: usedFallbackTemplate ? defaultResponse : generatedContent,
-        aiModel: usedFallbackTemplate
-          ? 'fallback-template'
-          : resolvedModel || storedService,
-        aiService: storedService,
-        generatedAt: new Date(),
-        contentType: 'original',
-        generationAttempts: attemptsUsed,
-        generationError: usedFallbackTemplate
-          ? 'AI generation returned fallback/default content.'
-          : null,
-      },
-    });
+    if (usedFallbackTemplate) {
+      // Do NOT persist a static fallback template. Mark generation as failed
+      // so the UI can surface the error and avoid showing a fallback proposal.
+      await Proposal.findByIdAndUpdate(proposalId, {
+        $set: {
+          content: '',
+          status: 'failed',
+          aiModel: null,
+          aiService: storedService,
+          generatedAt: new Date(),
+          contentType: 'original',
+          generationAttempts: attemptsUsed,
+          generationError: 'AI generation returned empty or default content.',
+        },
+      });
+    } else {
+      // Update proposal with generated content
+      await Proposal.findByIdAndUpdate(proposalId, {
+        $set: {
+          content: generatedContent,
+          aiModel: resolvedModel || storedService,
+          aiService: storedService,
+          generatedAt: new Date(),
+          contentType: 'original',
+          generationAttempts: attemptsUsed,
+          generationError: null,
+        },
+      });
+    }
   } catch (error) {
     console.error('Proposal generation failed:', error);
-    const defaultResponse = getDefaultProposalResponse(
-      job?.toObject?.() || job,
-      user?.toObject?.() || user
-    );
 
-    // Persist default content as a reliable fallback
+    // Do NOT save a fallback/template proposal. Mark the proposal as failed so
+    // the frontend can show an explicit error and avoid presenting auto-generated
+    // fallback text to users.
     await Proposal.findByIdAndUpdate(proposalId, {
       $set: {
-        content: defaultResponse,
-        aiModel: 'fallback-template',
+        content: '',
+        status: 'failed',
+        aiModel: null,
         aiService:
           aiService.resolveProposalProvider(preferredAIService) === 'fallback'
             ? null
             : preferredAIService,
         generatedAt: new Date(),
         contentType: 'original',
-        generationAttempts: 2,
+        generationAttempts: attemptsUsed || 2,
         generationError: String(
           error?.message || 'Unknown AI generation error'
         ),
@@ -417,7 +584,8 @@ export const getUserProposals = async (req, res, next) => {
 export const sendProposal = async (req, res, next) => {
   try {
     const { proposalId } = req.params;
-    const { bidAmount, estimatedDuration, deliveryDate } = req.body;
+    const { bidAmount, estimatedDuration, deliveryDate, milestonePercentage } =
+      req.body;
     const userId =
       req.user?.id || req.user?._id || req.admin?.id || req.admin?._id;
 
@@ -476,6 +644,7 @@ export const sendProposal = async (req, res, next) => {
     if (isFreelancerJob) {
       const user = await User.findById(userId).select('freelancerAuth').lean();
       const freelancerToken = user?.freelancerAuth?.accessToken || null;
+      const freelancerBidderId = user?.freelancerAuth?.freelancerUserId || null;
       usedSystemFreelancerToken = !freelancerToken;
 
       const periodDays = getFreelancerPeriodDays(
@@ -505,6 +674,8 @@ export const sendProposal = async (req, res, next) => {
         periodDays,
         description: proposal.content,
         oauthToken: freelancerToken,
+        bidderId: freelancerBidderId,
+        milestonePercentage,
       });
 
       freelancerBidId =
@@ -540,8 +711,8 @@ export const sendProposal = async (req, res, next) => {
       timestamp: new Date(),
       notes: isFreelancerJob
         ? `Bid submitted using Freelancer workflow${
-            freelancerBidId ? ` (bid ID: ${freelancerBidId})` : ''
-          }${usedSystemFreelancerToken ? ' (system account)' : ''}`
+          freelancerBidId ? ` (bid ID: ${freelancerBidId})` : ''
+        }${usedSystemFreelancerToken ? ' (system account)' : ''}`
         : 'Proposal sent to client',
     });
 
@@ -589,9 +760,9 @@ export const sendProposal = async (req, res, next) => {
         proposal,
         workflow: isFreelancerJob
           ? freelancerWorkflowService.buildProposalWorkflowContext({
-              job: proposalJob,
-              bidInput: { bidAmount, estimatedDuration, deliveryDate },
-            })
+            job: proposalJob,
+            bidInput: { bidAmount, estimatedDuration, deliveryDate },
+          })
           : null,
       },
     });
@@ -960,16 +1131,16 @@ export const getTopTemplates = async (req, res, next) => {
 
     const matchStage = isAdmin
       ? {
-          status: {
-            $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
-          },
-        }
+        status: {
+          $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
+        },
+      }
       : {
-          userId: req.user?._id || req.user?.id,
-          status: {
-            $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
-          },
-        };
+        userId: req.user?._id || req.user?.id,
+        status: {
+          $in: ['sent', 'accepted', 'rejected', 'viewed', 'received'],
+        },
+      };
 
     const results = await Proposal.aggregate([
       { $match: matchStage },

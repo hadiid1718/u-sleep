@@ -310,12 +310,12 @@ const toClientPayload = notification => ({
   group: notification.group,
   billing_meta: notification.billingMeta
     ? {
-        plan: notification.billingMeta.plan || null,
-        amount: notification.billingMeta.amount,
-        currency: notification.billingMeta.currency || 'USD',
-        due_date: toIsoDate(notification.billingMeta.dueDate),
-        invoice_url: notification.billingMeta.invoiceUrl || null,
-      }
+      plan: notification.billingMeta.plan || null,
+      amount: notification.billingMeta.amount,
+      currency: notification.billingMeta.currency || 'USD',
+      due_date: toIsoDate(notification.billingMeta.dueDate),
+      invoice_url: notification.billingMeta.invoiceUrl || null,
+    }
     : null,
 });
 

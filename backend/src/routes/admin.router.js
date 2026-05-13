@@ -44,4 +44,16 @@ adminRouter.patch(
   updateSubscription
 );
 
+// Check AI providers (OpenAI / Google Gemini) connectivity and config
+adminRouter.get('/ai/providers', adminAuthorize, async (req, res, next) => {
+  // lazy import to avoid circular deps
+  try {
+    const { checkAIProviders } =
+      await import('../controller/admin.controller.js');
+    return checkAIProviders(req, res, next);
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default adminRouter;
