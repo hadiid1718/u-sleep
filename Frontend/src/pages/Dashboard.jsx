@@ -10,6 +10,7 @@ import  SettingsView  from '../components/user/settings/SettingsView';
 import SubscriptionView from '../components/user/subscription/SubscriptionView';
 import { userAPI } from '../services/userService';
 import { notificationAPI } from '../services/notificationService';
+import { proposalAPI } from '../services/proposalService';
 import { showErrorToast, showSuccessToast } from '../utils/toast';
 
 const DEFAULT_PROPOSALS = [
@@ -109,6 +110,38 @@ const Dashboard = () => {
     telegramSaved: true,
   });
 
+  const tryPendingFreelancerSend = React.useCallback(async () => {
+    let pending = null;
+
+    try {
+      const raw = localStorage.getItem('pendingFreelancerSend');
+      pending = raw ? JSON.parse(raw) : null;
+    } catch {
+      pending = null;
+    }
+
+    if (!pending?.proposalId) return;
+
+    const createdAt = Number(pending.createdAt || 0);
+    if (createdAt && Date.now() - createdAt > 20 * 60 * 1000) {
+      localStorage.removeItem('pendingFreelancerSend');
+      return;
+    }
+
+    const result = await proposalAPI.sendProposal(
+      pending.proposalId,
+      pending.payload || {}
+    );
+
+    if (result.success) {
+      localStorage.removeItem('pendingFreelancerSend');
+      await fetchProposalStats();
+      showSuccessToast('Pending Freelancer bid submitted successfully.');
+    } else {
+      showErrorToast(result.error?.message || 'Failed to submit pending bid.');
+    }
+  }, [fetchProposalStats]);
+
   // Check if mobile
   useEffect(() => {
     const checkMobile = () => {
@@ -187,24 +220,55 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (user) {
-      fetchDashboardJobs({ status: 'all' });
-      fetchProposalStats();
+      tryPendingFreelancerSend();
 
-      (async () => {
+      // Sequentially load dashboard data to avoid rate limiting
+      // Each request waits for the previous to complete, with explicit delay
+      const loadSequentially = async () => {
         try {
+          // Step 1: Load jobs
+          await fetchDashboardJobs({ status: 'all' });
+          await new Promise(resolve => setTimeout(resolve, 300)); // Wait 300ms before next request
+          
+          // Step 2: Load proposal stats
+          await fetchProposalStats();
+          await new Promise(resolve => setTimeout(resolve, 300)); // Wait 300ms before next request
+          
+          // Step 3: Load dashboard settings
           const response = await userAPI.getDashboardData();
           if (!response.success) {
             showErrorToast(response.error?.message || 'Failed to load dashboard settings');
-            return;
+          } else {
+            applyDashboardPayload(response.data?.data);
           }
-          applyDashboardPayload(response.data?.data);
         } catch (err) {
-          console.error(err);
-          showErrorToast('Failed to load dashboard settings');
+          console.error('Dashboard loading error:', err);
+          showErrorToast('Failed to load dashboard');
         }
-      })();
+      };
+
+      loadSequentially();
     }
-  }, [user, fetchDashboardJobs, fetchProposalStats, applyDashboardPayload]);
+  }, [
+    user,
+    fetchDashboardJobs,
+    fetchProposalStats,
+    applyDashboardPayload,
+    tryPendingFreelancerSend,
+  ]);
+
+  useEffect(() => {
+    if (!user) return undefined;
+
+    const handleStorage = event => {
+      if (event.key === 'pendingFreelancerSend') {
+        tryPendingFreelancerSend();
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, [user, tryPendingFreelancerSend]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -412,7 +476,7 @@ const Dashboard = () => {
   };
 
   const handleJobAction = async (job, action = 'match') => {
-    const jobId = job?._id || job?.id || job?.upworkJobId || job?.sourceJobId;
+    const jobId = job?._id || job?.id || job?.upworkJobId || job?.freelancerJobId || job?.sourceJobId;
     if (!jobId) return;
 
     if (action === 'review') {

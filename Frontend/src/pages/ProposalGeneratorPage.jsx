@@ -24,7 +24,7 @@ const ProposalGeneratorPage = () => {
   );
 
   const getJobIdentifier = () =>
-    job?._id || job?.id || job?.upworkJobId || job?.sourceJobId || resolvedJobId;
+    job?._id || job?.id || job?.upworkJobId || job?.freelancerJobId || job?.sourceJobId || resolvedJobId;
 
   const handleBackToResults = () => {
     const jobIdentifier = getJobIdentifier();
@@ -43,6 +43,7 @@ const ProposalGeneratorPage = () => {
         candidate?._id,
         candidate?.id,
         candidate?.upworkJobId,
+        candidate?.freelancerJobId,
         candidate?.sourceJobId,
       ]
         .filter(Boolean)

@@ -96,7 +96,7 @@ export const JobsGrid = ({
             <div className="space-y-3">
               {paginatedJobs.map((job, index) => (
                 <JobCard
-                  key={job._id || job.id || job.upworkJobId || job.sourceJobId || `job-${index}`}
+                  key={job._id || job.id || job.upworkJobId || job.freelancerJobId || job.sourceJobId || `job-${index}`}
                   job={job}
                   formData={formData}
                   onAction={handleJobAction}

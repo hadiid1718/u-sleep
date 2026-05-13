@@ -34,7 +34,7 @@ const JobResponseGenerator = ({ job, aiService = 'gemini', onBack = null }) => {
       setGenerationError('');
       setResponseText('');
       const jobId =
-        job?._id || job?.id || job?.upworkJobId || job?.sourceJobId;
+        job?._id || job?.id || job?.upworkJobId || job?.freelancerJobId || job?.sourceJobId;
       if (!jobId) {
         setGenerationError(
           'Missing job identifier. Please refresh the job list and try again.'
@@ -50,7 +50,7 @@ const JobResponseGenerator = ({ job, aiService = 'gemini', onBack = null }) => {
       generationKeyRef.current = generationKey;
 
       try {
-        const result = await generateProposal(jobId, aiService);
+        const result = await generateProposal(jobId, aiService, job);
         if (!result.success) {
           setGenerationError(
             result.error?.message || 'Proposal generation failed.'
@@ -99,6 +99,48 @@ const JobResponseGenerator = ({ job, aiService = 'gemini', onBack = null }) => {
     pollProposal,
     refreshSubscription,
   ]);
+
+  // Regenerate handler exposed to child component so user can retry generation
+  const regenerate = async () => {
+    setGenerationError('');
+    setResponseText('');
+    setCurrentScreen('loading');
+
+    const jobId = job?._id || job?.id || job?.upworkJobId || job?.freelancerJobId || job?.sourceJobId;
+    if (!jobId) {
+      setGenerationError('Missing job identifier. Please refresh the job list and try again.');
+      setCurrentScreen('response');
+      return;
+    }
+
+    try {
+      const result = await generateProposal(jobId, aiService, job);
+      if (!result.success) {
+        setGenerationError(result.error?.message || 'Proposal generation failed.');
+        setCurrentScreen('response');
+        return;
+      }
+
+      const proposalId = result.data?.data?.proposalId;
+      if (proposalId) {
+        const pollResult = await pollProposal(proposalId);
+        if (pollResult.success) {
+          const content = pollResult.data?.data?.content || '';
+          setResponseText(content);
+          setGenerationError('');
+        } else {
+          setGenerationError(pollResult.error?.message || 'Proposal generation timed out.');
+        }
+      } else {
+        setGenerationError('Proposal ID missing from the server response.');
+      }
+    } catch (err) {
+      console.error('Proposal regeneration error:', err);
+      setGenerationError(err.message || 'Proposal regeneration failed.');
+    } finally {
+      setCurrentScreen('response');
+    }
+  };
 
   const handleDislike = () => {
     setShowFeedbackModal(true);
@@ -177,6 +219,7 @@ const JobResponseGenerator = ({ job, aiService = 'gemini', onBack = null }) => {
             onDislike={handleDislike}
             onUpgrade={handleUpgradeClick}
             onBack={onBack}
+            onRegenerate={regenerate}
             responseText={responseText}
             generationError={generationError}
             job={job}

@@ -107,7 +107,7 @@ export const jobAPI = {
   translateJobDescription: async (
     jobId,
     targetLanguage,
-    { aiService = 'gemini' } = {}
+    { aiService = 'gemini', jobData = null } = {}
   ) => {
     if (!jobId) {
       return {
@@ -125,11 +125,11 @@ export const jobAPI = {
 
     return apiRequest(`/jobs/${jobId}/translate-description`, {
       method: 'POST',
-      body: JSON.stringify({ targetLanguage, aiService }),
+      body: JSON.stringify({ targetLanguage, aiService, jobData }),
     });
   },
 
-  markJobAsMatched: async jobId => {
+  markJobAsMatched: async (jobId, jobData = null) => {
     if (!jobId) {
       return {
         success: false,
@@ -138,10 +138,11 @@ export const jobAPI = {
     }
     return apiRequest(`/jobs/${jobId}/match`, {
       method: 'PUT',
+      body: JSON.stringify({ jobData }),
     });
   },
 
-  markJobAsRejected: async (jobId, reason = '') => {
+  markJobAsRejected: async (jobId, reason = '', jobData = null) => {
     if (!jobId) {
       return {
         success: false,
@@ -150,7 +151,7 @@ export const jobAPI = {
     }
     return apiRequest(`/jobs/${jobId}/reject`, {
       method: 'PUT',
-      body: JSON.stringify({ reason }),
+      body: JSON.stringify({ reason, jobData }),
     });
   },
 

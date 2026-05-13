@@ -12,6 +12,7 @@ const GeneratedResponse = ({
   onDislike,
   onUpgrade,
   onBack,
+  onRegenerate,
   responseText,
   generationError = '',
   job,
@@ -35,6 +36,8 @@ const GeneratedResponse = ({
   const usedFallbackTemplate = currentProposal?.aiModel === 'fallback-template';
   const aiFailureReason = currentProposal?.generationError || '';
   const displayText = responseText || currentProposal?.content || '';
+
+  const [isRetrying, setIsRetrying] = useState(false);
 
   const initialBidAmount = useMemo(() => {
     const draftBidAmount = workflow?.draftBidInput?.bidAmount;
@@ -153,6 +156,23 @@ const GeneratedResponse = ({
     setBidFormError('');
     setSending(true);
 
+    const storePendingSend = () => {
+      if (!isFreelancerJob) return;
+
+      const pending = {
+        proposalId,
+        payload,
+        createdAt: Date.now(),
+        returnTo: `${window.location.pathname}${window.location.search}`,
+      };
+
+      try {
+        localStorage.setItem('pendingFreelancerSend', JSON.stringify(pending));
+      } catch {
+        // ignore storage failures
+      }
+    };
+
     try {
       const result = await proposalAPI.sendProposal(proposalId, payload);
       if (result.success) {
@@ -162,6 +182,7 @@ const GeneratedResponse = ({
         const status = result.error?.statusCode || result.error?.status || 0;
 
         if (status === 401 || status === 403) {
+          storePendingSend();
           // Show connect option for Freelancer OAuth
           const url = authAPI.getFreelancerOAuthUrl('connect-from-proposal');
           setConnectUrl(url);
@@ -176,6 +197,7 @@ const GeneratedResponse = ({
     } catch (err) {
       const status = err.statusCode || err.status || 0;
       if (status === 401 || status === 403) {
+        storePendingSend();
         const url = authAPI.getFreelancerOAuthUrl('connect-from-proposal');
         setConnectUrl(url);
         setShowConnectBanner(true);
@@ -355,11 +377,29 @@ const GeneratedResponse = ({
         </div>
       )}
 
-      {(generationError || usedFallbackTemplate) && (
-        <div className="mb-6 rounded-xl border border-amber-300 dark:border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 p-4 text-sm text-amber-800 dark:text-amber-200">
-          {generationError ||
-            aiFailureReason ||
-            'AI generation returned a fallback template. Please verify your AI API keys and try again.'}
+      {(generationError || aiFailureReason || currentProposal?.status === 'failed') && (
+        <div className="mb-6 rounded-xl border border-amber-300 dark:border-amber-500/50 bg-amber-50 dark:bg-amber-950/20 p-4 text-sm text-amber-800 dark:text-amber-200 flex items-center justify-between">
+          <div>
+            {generationError || aiFailureReason || 'AI generation failed. Please verify your AI API keys and try again.'}
+          </div>
+          <div>
+            {onRegenerate && (
+              <button
+                onClick={async () => {
+                  try {
+                    setIsRetrying(true);
+                    await onRegenerate();
+                  } finally {
+                    setIsRetrying(false);
+                  }
+                }}
+                className="ml-3 px-3 py-2 bg-lime-500 hover:bg-lime-600 text-white rounded-md font-semibold"
+                disabled={isRetrying}
+              >
+                {isRetrying ? 'Retrying...' : 'Retry'}
+              </button>
+            )}
+          </div>
         </div>
       )}
 

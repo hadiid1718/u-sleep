@@ -1,7 +1,7 @@
 import { apiRequest } from './core/apiClient';
 
 export const proposalAPI = {
-  generateProposal: async (jobId, aiService = 'gemini') => {
+  generateProposal: async (jobId, aiService = 'gemini', jobData = null) => {
     if (!jobId) {
       return {
         success: false,
@@ -10,7 +10,7 @@ export const proposalAPI = {
     }
     return apiRequest(`/proposals/job/${jobId}/generate`, {
       method: 'POST',
-      body: JSON.stringify({ aiService }),
+      body: JSON.stringify({ aiService, jobData }),
     });
   },
 

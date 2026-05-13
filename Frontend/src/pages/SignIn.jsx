@@ -5,6 +5,7 @@ import {
   authAPI,
   parseOAuthUserPayload,
 } from '../services/authService';
+import { proposalAPI } from '../services/proposalService';
 import { getErrorMessage, setToken } from '../services/core/apiClient';
 
 const SignIn = () => {
@@ -22,25 +23,58 @@ const SignIn = () => {
 
     if (!oauthStatus) return;
 
-    if (oauthStatus === "success") {
-      const token = searchParams.get("token");
-      const user = parseOAuthUserPayload(searchParams.get("user"));
+    const handleOAuth = async () => {
+      if (oauthStatus === "success") {
+        const token = searchParams.get("token");
+        const user = parseOAuthUserPayload(searchParams.get("user"));
 
-      if (token && user) {
-        setToken(token);
-        login(user, token);
-        window.location.replace("/user/dashboard");
+        if (token && user) {
+          setToken(token);
+          login(user, token);
+
+          let pending = null;
+          try {
+            const raw = localStorage.getItem('pendingFreelancerSend');
+            pending = raw ? JSON.parse(raw) : null;
+          } catch {
+            pending = null;
+          }
+
+          if (pending?.createdAt && Date.now() - pending.createdAt > 20 * 60 * 1000) {
+            localStorage.removeItem('pendingFreelancerSend');
+            pending = null;
+          }
+
+          if (pending?.proposalId) {
+            try {
+              const sendResult = await proposalAPI.sendProposal(
+                pending.proposalId,
+                pending.payload || {}
+              );
+              if (sendResult.success) {
+                localStorage.removeItem('pendingFreelancerSend');
+              }
+            } catch {
+              // keep pending item for manual retry
+            }
+          }
+
+          const redirectTo = pending?.returnTo || "/user/dashboard";
+          window.location.replace(redirectTo);
+          return;
+        }
+
+        setLocalError("OAuth login succeeded but user session could not be initialized.");
         return;
       }
 
-      setLocalError("OAuth login succeeded but user session could not be initialized.");
-      return;
-    }
+      if (oauthStatus === "failed") {
+        const message = searchParams.get("message");
+        setLocalError(message || "OAuth login failed. Please try again.");
+      }
+    };
 
-    if (oauthStatus === "failed") {
-      const message = searchParams.get("message");
-      setLocalError(message || "OAuth login failed. Please try again.");
-    }
+    handleOAuth();
   }, [login, navigate, searchParams]);
 
   const handleSignIn = async (e) => {

@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useState, useEffect } from "react";
+import React, { createContext, useState, useEffect, useCallback, useRef } from "react";
 import { jobAPI } from '../services/jobService';
 import { proposalAPI } from '../services/proposalService';
 
@@ -108,6 +108,7 @@ export const ContextProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [coinBalance, setCoinBalance] = useState(0);
+  const pendingSendAttemptedRef = useRef(false);
 
   // Fetch coin balance from API and sync with user
   const fetchCoinBalance = async () => {
@@ -124,6 +125,46 @@ export const ContextProvider = ({ children }) => {
     }
   }, [error]);
 
+  const tryPendingFreelancerSend = useCallback(async () => {
+    if (pendingSendAttemptedRef.current) return;
+
+    let pending = null;
+    try {
+      const raw = localStorage.getItem('pendingFreelancerSend');
+      pending = raw ? JSON.parse(raw) : null;
+    } catch {
+      pending = null;
+    }
+
+    if (!pending?.proposalId) return;
+
+    const createdAt = Number(pending.createdAt || 0);
+    if (createdAt && Date.now() - createdAt > 20 * 60 * 1000) {
+      localStorage.removeItem('pendingFreelancerSend');
+      return;
+    }
+
+    pendingSendAttemptedRef.current = true;
+
+    const result = await proposalAPI.sendProposal(
+      pending.proposalId,
+      pending.payload || {}
+    );
+
+    if (result.success) {
+      localStorage.removeItem('pendingFreelancerSend');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      pendingSendAttemptedRef.current = false;
+      return;
+    }
+
+    tryPendingFreelancerSend();
+  }, [user, tryPendingFreelancerSend]);
+
   /* =========================
      Job State
   ========================== */
@@ -135,7 +176,7 @@ export const ContextProvider = ({ children }) => {
   const [jobSearching, setJobSearching] = useState(false);
 
   const getJobIdentifiers = (job) => {
-    return [job?._id, job?.id, job?.upworkJobId, job?.sourceJobId]
+    return [job?._id, job?.id, job?.upworkJobId, job?.freelancerJobId, job?.sourceJobId]
       .filter(Boolean)
       .map(String);
   };
@@ -253,7 +294,7 @@ export const ContextProvider = ({ children }) => {
   };
 
   // Fetch filtered/cached jobs for dashboard
-  const fetchDashboardJobs = async ({ page = 1, limit = 20, status = 'all' } = {}) => {
+  const fetchDashboardJobs = React.useCallback(async ({ page = 1, limit = 20, status = 'all' } = {}) => {
     setDashboardLoading(true);
     try {
       const result = await jobAPI.getFilteredJobs({ page, limit, status });
@@ -285,7 +326,7 @@ export const ContextProvider = ({ children }) => {
     } finally {
       setDashboardLoading(false);
     }
-  };
+  }, [user]);
 
   // Persist dashboardJobs to localStorage per-user so history survives logout/login
   useEffect(() => {
@@ -319,9 +360,9 @@ export const ContextProvider = ({ children }) => {
   }, [user]);
 
   // Match a job
-  const matchJob = async (jobId) => {
+  const matchJob = async (jobId, jobData = null) => {
     try {
-      const result = await jobAPI.markJobAsMatched(jobId);
+      const result = await jobAPI.markJobAsMatched(jobId, jobData);
       if (result.success) {
         const updatedJob = result.data?.data;
         setJobResults((prev) =>
@@ -347,9 +388,9 @@ export const ContextProvider = ({ children }) => {
   };
 
   // Reject a job
-  const rejectJob = async (jobId, reason = "") => {
+  const rejectJob = async (jobId, reason = "", jobData = null) => {
     try {
-      const result = await jobAPI.markJobAsRejected(jobId, reason);
+      const result = await jobAPI.markJobAsRejected(jobId, reason, jobData);
       if (result.success) {
         const updatedJob = result.data?.data;
         setJobResults((prev) =>
@@ -384,11 +425,12 @@ export const ContextProvider = ({ children }) => {
   const translateJobDescription = async (
     jobId,
     targetLanguage,
-    { aiService = 'gemini' } = {}
+    { aiService = 'gemini', jobData = null } = {}
   ) => {
     try {
       const result = await jobAPI.translateJobDescription(jobId, targetLanguage, {
         aiService,
+        jobData,
       });
 
       if (result.success) {
@@ -433,11 +475,34 @@ export const ContextProvider = ({ children }) => {
     useState(null);
   const [proposalLoading, setProposalLoading] = useState(false);
 
+  const isProposalCompliant = text => {
+    const normalized = String(text || '').trim();
+    if (!normalized) return false;
+
+    const paragraphs = normalized.split(/\n\s*\n/).filter(Boolean);
+    if (paragraphs.length !== 3) return false;
+
+    const wordCount = normalized.split(/\s+/).filter(Boolean).length;
+    if (wordCount < 170 || wordCount > 230) return false;
+
+    const countSentences = paragraph =>
+      paragraph
+        .split(/[.!?]+/)
+        .map(sentence => sentence.trim())
+        .filter(Boolean).length;
+
+    if (countSentences(paragraphs[0]) < 3) return false;
+    if (countSentences(paragraphs[1]) < 3) return false;
+    if (countSentences(paragraphs[2]) < 2) return false;
+
+    return true;
+  };
+
   // Generate proposal for a job
-  const generateProposal = async (jobId, aiService = 'gemini') => {
+  const generateProposal = async (jobId, aiService = 'gemini', jobData = null) => {
     setProposalLoading(true);
     try {
-      const result = await proposalAPI.generateProposal(jobId, aiService);
+      const result = await proposalAPI.generateProposal(jobId, aiService, jobData);
       if (result.success) {
         setCurrentProposal(result.data?.data || null);
         setFreelancerProposalWorkflow(result.data?.data?.workflow || null);
@@ -466,6 +531,16 @@ export const ContextProvider = ({ children }) => {
         latestProposal = proposal;
 
         if (proposal?.content && proposal.content !== '') {
+          if (!isProposalCompliant(proposal.content)) {
+            return {
+              success: false,
+              error: {
+                message:
+                  'AI output was too short or malformed. Please regenerate the proposal.',
+              },
+            };
+          }
+
           setCurrentProposal(proposal);
 
           if (proposal?.aiModel === 'fallback-template') {
@@ -484,28 +559,13 @@ export const ContextProvider = ({ children }) => {
       await new Promise((resolve) => setTimeout(resolve, interval));
     }
 
-    const fallbackResponse =
-      latestProposal?.defaultResponse ||
-      currentProposal?.defaultResponse ||
-      '';
-
-    if (fallbackResponse) {
-      const fallbackProposal = {
-        ...(latestProposal || currentProposal || {}),
-        content: fallbackResponse,
-        aiModel: latestProposal?.aiModel || 'fallback-template',
-      };
-
-      setCurrentProposal(fallbackProposal);
-
+    // Do not auto-insert fallback/template content. If the latest proposal
+    // explicitly failed (backend marks status='failed'), return that error so
+    // the UI can show an explicit failure and allow manual retry by the user.
+    if (latestProposal?.status === 'failed') {
       return {
-        success: true,
-        data: {
-          data: fallbackProposal,
-        },
-        warning: {
-          message: 'Proposal generation timed out and a fallback template was returned.',
-        },
+        success: false,
+        error: { message: latestProposal?.generationError || 'AI generation failed' },
       };
     }
 
@@ -533,7 +593,7 @@ export const ContextProvider = ({ children }) => {
   };
 
   // Fetch proposal stats
-  const fetchProposalStats = async () => {
+  const fetchProposalStats = React.useCallback(async () => {
     try {
       const result = await proposalAPI.getProposalStats();
       if (result.success) {
@@ -543,7 +603,7 @@ export const ContextProvider = ({ children }) => {
     } catch (err) {
       return { success: false, error: { message: err.message } };
     }
-  };
+  }, []);
 
   // Memoize keywords to prevent unnecessary re-renders
   const keywordsKey = JSON.stringify(formData?.keywords || []);

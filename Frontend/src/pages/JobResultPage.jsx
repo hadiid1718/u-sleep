@@ -1,9 +1,10 @@
 import React, { useState, useContext, useEffect } from "react";
 import JobResponseGenerator from "../components/jobs/JobResponseGenerator";
 import ReasonModal from "../components/models/ReasonModal";
-import { ExternalLink, AlertTriangle } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { ExternalLink, AlertTriangle, Globe } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
 import { AppContext } from "../context/Context";
+import { jobAPI } from "../services/jobService";
 
 /* =======================
    COMPONENT
@@ -26,10 +27,16 @@ const JobResultPage = () => {
   const [showReasonModel, setShowReasonModel] = useState(false);
   const [reason, setReason] = useState("");
   const [showJobResponse, setShowJobResponse] = useState(false);
+  const { jobId: routeJobId } = useParams();
+  const [routeJob, setRouteJob] = useState(null);
+  const [routeLoading, setRouteLoading] = useState(false);
+  const [routeError, setRouteError] = useState('');
 
   const jobs = jobResults || [];
   const totalJobs = jobs.length;
-  const currentJob = jobs[currentJobIndex];
+
+  // If a route param is present, prefer that job (either from cache or fetched)
+  const currentJob = routeJob || jobs[currentJobIndex];
 
   useEffect(() => {
     if (totalJobs === 0) return;
@@ -38,8 +45,55 @@ const JobResultPage = () => {
     }
   }, [currentJobIndex, totalJobs]);
 
+  // Load job when a route param is present (e.g. /job-result/:jobId)
+  useEffect(() => {
+    let active = true;
+    const loadRouteJob = async () => {
+      if (!routeJobId) return;
+      // Try to find in cached results first
+      const found = (jobs || []).find((j) => {
+        const ids = [j?._id, j?.id, j?.upworkJobId, j?.freelancerJobId, j?.sourceJobId]
+          .filter(Boolean)
+          .map(String);
+        return ids.includes(String(routeJobId));
+      });
+
+      if (found) {
+        setRouteJob(found);
+        return;
+      }
+
+      setRouteLoading(true);
+      setRouteError('');
+      try {
+        const resp = await jobAPI.getJobDetail(routeJobId);
+        if (resp.success) {
+          if (!active) return;
+          // Backend returns { success, data: { data: job } }
+          const jobData = resp.data?.data;
+          if (jobData) {
+            setRouteJob(jobData);
+          } else {
+            setRouteError('No job data in response');
+          }
+        } else {
+          setRouteError(resp.error?.message || 'Failed to load job details');
+        }
+      } catch (err) {
+        setRouteError(err.message || 'Failed to load job details');
+      } finally {
+        setRouteLoading(false);
+      }
+    };
+
+    loadRouteJob();
+    return () => {
+      active = false;
+    };
+  }, [routeJobId, jobs]);
+
   const getJobId = job =>
-    job?._id || job?.id || job?.upworkJobId || job?.sourceJobId;
+    job?._id || job?.id || job?.upworkJobId || job?.freelancerJobId || job?.sourceJobId;
 
   const handleDismatch = () => setShowReasonModel(true);
 
@@ -56,7 +110,7 @@ const JobResultPage = () => {
 
     const jobId = getJobId(currentJob);
     if (jobId) {
-      await rejectJob(jobId, reason);
+      await rejectJob(jobId, reason, currentJob);
     }
 
     moveToNextJob();
@@ -66,7 +120,7 @@ const JobResultPage = () => {
   const handleMatch = async () => {
     const jobId = getJobId(currentJob);
     if (jobId) {
-      await matchJob(jobId);
+      await matchJob(jobId, currentJob);
     }
 
     setShowJobResponse(true);
@@ -98,6 +152,41 @@ const JobResultPage = () => {
         job={currentJob}
         onBack={handleBackToResults}
       />
+    );
+  }
+
+  /* =======================
+     LOADING STATE (Route Job)
+  ======================= */
+
+  if (routeJobId && routeLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center transition-colors">
+        <div className="text-center max-w-2xl px-6">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">Loading job...</h2>
+        </div>
+      </div>
+    );
+  }
+
+  /* =======================
+     ERROR STATE (Route Job)
+  ======================= */
+
+  if (routeJobId && routeError) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center transition-colors">
+        <div className="text-center max-w-2xl px-6">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">Error Loading Job</h2>
+          <p className="text-red-600 dark:text-red-400 mb-4">{routeError}</p>
+          <button
+            onClick={() => navigate('/job-result')}
+            className="bg-lime-400 text-gray-900 px-6 py-3 rounded-lg font-semibold hover:bg-lime-300 transition"
+          >
+            Back to Results
+          </button>
+        </div>
+      </div>
     );
   }
 
@@ -203,7 +292,7 @@ const JobResultPage = () => {
     const jobId = getJobId(currentJob);
 
     if (jobId) {
-      await matchJob(jobId);
+      await matchJob(jobId, currentJob);
       navigate(`/job-result/${jobId}/proposal`, {
         state: { job: currentJob },
       });
@@ -258,27 +347,40 @@ const JobResultPage = () => {
               </p>
             </div>
           </div>
-          <div className="mb-6 flex items-center gap-3">
-            {/* Show translate button when description appears non-English and not already translated */}
-            {currentJob?.descriptionLanguage &&
-              currentJob.descriptionLanguage.toLowerCase() !== 'english' && (
-                <button
-                  onClick={async () => {
-                    const jobId = getJobId(currentJob);
-                    if (!jobId) return;
-                    try {
-                      // optimistic UI handled in context
-                      await translateJobDescription(jobId, 'English');
-                    } catch (err) {
-                      console.error(err)
-                      // ignore, context will set error
-                    }
-                  }}
-                  className="text-sm bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-500 transition"
-                >
-                  Translate with AI
-                </button>
-              )}
+
+          <div className="mb-6 flex flex-wrap items-center gap-3">
+            {/* Show translate button - always available for manual translation */}
+            {!currentJob?.translatedDescription && (
+              <button
+                onClick={async () => {
+                  const jobId = getJobId(currentJob);
+                  if (!jobId) {
+                    alert('Job ID not found. Please refresh the page and try again.');
+                    console.error('Unable to get job ID from:', currentJob);
+                    return;
+                  }
+                  try {
+                    await translateJobDescription(jobId, 'English', { jobData: currentJob });
+                  } catch (err) {
+                    console.error('Translation error:', err);
+                    alert('Translation failed: ' + (err.message || 'Unknown error'));
+                  }
+                }}
+                className="flex items-center gap-2 text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors font-medium"
+                title="Translate job description to English using AI"
+              >
+                <Globe size={16} />
+                Translate to English
+              </button>
+            )}
+
+            {/* Show if already translated */}
+            {currentJob?.translatedDescription && (
+              <span className="flex items-center gap-2 text-sm bg-green-600/20 text-green-400 px-4 py-2 rounded-lg border border-green-600/30">
+                <Globe size={16} />
+                Translated to English
+              </span>
+            )}
           </div>
 
           <a
