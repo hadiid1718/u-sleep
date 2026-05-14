@@ -104,6 +104,12 @@ export const adminAPI = {
       body: JSON.stringify(payload),
     });
   },
+  sendDemoMail: async (demoId, payload) => {
+    return adminApiRequest(`/demo/${demoId}/send-mail`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
   cancelDemo: async demoId => {
     return adminApiRequest(`/demo/${demoId}`, {
       method: 'DELETE',

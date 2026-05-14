@@ -201,6 +201,14 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleSendDemoMail = async (demoId, payload) => {
+    const response = await adminAPI.sendDemoMail(demoId, payload);
+    if (response.success) {
+      return response.data?.data || null;
+    }
+    return null;
+  };
+
   const handleCancelDemo = async demoId => {
     const response = await adminAPI.cancelDemo(demoId);
     if (response.success) {
@@ -346,6 +354,7 @@ const AdminDashboard = () => {
                 loading={demoLoading}
                 onFetch={loadDemos}
                 onUpdateStatus={handleUpdateDemoStatus}
+                onSendMail={handleSendDemoMail}
                 onCancel={handleCancelDemo}
               />
             )}
