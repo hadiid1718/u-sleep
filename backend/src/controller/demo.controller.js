@@ -1,4 +1,5 @@
 import Demo from '../models/demo.model.js';
+import { sendMail } from '../config/nodemailer.js';
 
 // Helper function to generate available dates (next 30 days, excluding weekends)
 const generateAvailableDates = () => {
@@ -51,6 +52,78 @@ const getBookedSlots = async date => {
     console.error('Error fetching booked slots:', error);
     return [];
   }
+};
+
+const formatDemoDate = demoDate => {
+  if (!demoDate) return 'N/A';
+
+  const date = new Date(demoDate);
+  if (Number.isNaN(date.getTime())) return 'N/A';
+
+  return date.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+};
+
+const getDemoDateKey = demoDate => {
+  if (!demoDate) return null;
+
+  const date = new Date(demoDate);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return date.toISOString().split('T')[0];
+};
+
+const isSameDemoSlot = (leftDemo, rightDemo) => {
+  return (
+    getDemoDateKey(leftDemo?.demoDate) === getDemoDateKey(rightDemo?.demoDate) &&
+    String(leftDemo?.timeSlot || '') === String(rightDemo?.timeSlot || '')
+  );
+};
+
+const buildDemoMailContent = ({ demo, subject, message, meetUrl }) => {
+  const demoDetails = [
+    `Name: ${demo.name || 'N/A'}`,
+    `Email: ${demo.email || 'N/A'}`,
+    `Company: ${demo.company || 'N/A'}`,
+    `Phone: ${demo.phone || 'N/A'}`,
+    `Demo Date: ${formatDemoDate(demo.demoDate)}`,
+    `Time Slot: ${demo.timeSlot || 'N/A'}`,
+    `Status: ${demo.status || 'scheduled'}`,
+  ].join('\n');
+
+  const text = [
+    message,
+    '',
+    `Google Meet URL: ${meetUrl}`,
+    '',
+    'Demo details:',
+    demoDetails,
+  ].join('\n');
+
+  const html = `
+    <div style="font-family:Segoe UI,Arial,sans-serif;line-height:1.7;color:#0f172a;">
+      <h2 style="margin:0 0 12px;color:#047857;">${subject}</h2>
+      <p style="margin:0 0 16px;white-space:pre-wrap;">${message}</p>
+      <p style="margin:0 0 16px;"><strong>Google Meet URL:</strong> <a href="${meetUrl}" target="_blank" rel="noreferrer">${meetUrl}</a></p>
+      <div style="border:1px solid #e2e8f0;border-radius:12px;padding:16px;background:#f8fafc;">
+        <h3 style="margin:0 0 10px;font-size:16px;">Demo details</h3>
+        <ul style="margin:0;padding-left:18px;">
+          <li><strong>Name:</strong> ${demo.name || 'N/A'}</li>
+          <li><strong>Email:</strong> ${demo.email || 'N/A'}</li>
+          <li><strong>Company:</strong> ${demo.company || 'N/A'}</li>
+          <li><strong>Phone:</strong> ${demo.phone || 'N/A'}</li>
+          <li><strong>Demo Date:</strong> ${formatDemoDate(demo.demoDate)}</li>
+          <li><strong>Time Slot:</strong> ${demo.timeSlot || 'N/A'}</li>
+          <li><strong>Status:</strong> ${demo.status || 'scheduled'}</li>
+        </ul>
+      </div>
+    </div>`;
+
+  return { text, html };
 };
 
 // Get available dates
@@ -233,6 +306,93 @@ export const getAllDemos = async (req, res, next) => {
       totalPages,
       limit,
       data: demos,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Send demo details email to the user
+export const sendDemoMail = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { subject, message, meetUrl } = req.body;
+
+    if (!subject || !message || !meetUrl) {
+      const error = new Error('Subject, message, and Google Meet URL are required');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    let parsedMeetUrl;
+    try {
+      parsedMeetUrl = new URL(String(meetUrl).trim());
+    } catch {
+      const error = new Error('Please provide a valid Google Meet URL');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const normalizedMeetUrl = parsedMeetUrl.toString();
+    const demo = await Demo.findById(id);
+
+    if (!demo) {
+      const error = new Error('Demo not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const emailSubject = String(subject).trim();
+    const emailMessage = String(message).trim();
+
+    const existingMeetUrlUsage = await Demo.find({
+      meetUrl: normalizedMeetUrl,
+      _id: { $ne: demo._id },
+    }).select('demoDate timeSlot email meetUrl');
+
+    const hasConflictingUsage = existingMeetUrlUsage.some(
+      otherDemo => !isSameDemoSlot(otherDemo, demo)
+    );
+
+    if (hasConflictingUsage) {
+      const conflictDemo = existingMeetUrlUsage.find(
+        otherDemo => !isSameDemoSlot(otherDemo, demo)
+      );
+      const error = new Error(
+        `This Google Meet URL is already used for another demo on ${formatDemoDate(conflictDemo?.demoDate)} at ${conflictDemo?.timeSlot || 'N/A'}. Use the same date and time slot or generate a different Meet link.`
+      );
+      error.statusCode = 409;
+      throw error;
+    }
+
+    demo.meetUrl = normalizedMeetUrl;
+    demo.meetUrlSentAt = new Date();
+    await demo.save();
+
+    const { text, html } = buildDemoMailContent({
+      demo,
+      subject: emailSubject,
+      message: emailMessage,
+      meetUrl: normalizedMeetUrl,
+    });
+
+    await sendMail({
+      to: demo.email,
+      subject: emailSubject,
+      text,
+      html,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Demo mail sent successfully',
+      data: {
+        demoId: demo._id,
+        email: demo.email,
+        subject: emailSubject,
+        meetUrl: normalizedMeetUrl,
+        sentAt: new Date(),
+      },
     });
   } catch (error) {
     next(error);

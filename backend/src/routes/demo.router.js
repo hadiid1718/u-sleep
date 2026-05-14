@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import adminAuthorize from '../middleware/admin.middleware.js';
 import {
   getAvailableDates,
   getAvailableTimes,
@@ -7,8 +8,8 @@ import {
   getDemoById,
   updateDemoStatus,
   cancelDemo,
+  sendDemoMail,
 } from '../controller/demo.controller.js';
-import authorize from '../middleware/auth.middleware.js';
 
 const demoRouter = Router();
 
@@ -18,9 +19,10 @@ demoRouter.get('/available-times/:date', getAvailableTimes);
 demoRouter.post('/schedule', scheduleDemo);
 
 // Admin routes
-demoRouter.get('/all', authorize, getAllDemos);
-demoRouter.get('/:id', authorize, getDemoById);
-demoRouter.put('/:id/status', authorize, updateDemoStatus);
-demoRouter.delete('/:id', authorize, cancelDemo);
+demoRouter.get('/all', adminAuthorize, getAllDemos);
+demoRouter.post('/:id/send-mail', adminAuthorize, sendDemoMail);
+demoRouter.get('/:id', adminAuthorize, getDemoById);
+demoRouter.put('/:id/status', adminAuthorize, updateDemoStatus);
+demoRouter.delete('/:id', adminAuthorize, cancelDemo);
 
 export default demoRouter;

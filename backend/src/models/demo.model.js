@@ -57,6 +57,15 @@ const demoSchema = new mongoose.Schema(
       type: String,
       maxlength: [500, 'Notes must be at most 500 characters long'],
     },
+    meetUrl: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    meetUrlSentAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );
