@@ -28,6 +28,14 @@ const authorize = async (req, res, next) => {
           });
         }
 
+        if (!user.isEmailVerified) {
+          return res.status(403).json({
+            success: false,
+            message: 'Email verification required',
+            code: 'EMAIL_NOT_VERIFIED',
+          });
+        }
+
         // Check if account is suspended
         if (user.accountStatus === 'suspended') {
           // Allow access but mark as suspended

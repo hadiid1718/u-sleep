@@ -10,6 +10,10 @@ import {
   startFreelancerOAuth,
   handleFreelancerOAuthCallback,
   adminSignIn,
+  verifyEmail,
+  resendVerificationEmail,
+  forgotPassword,
+  resetPassword,
 } from '../controller/auth.controller.js';
 import authorize from '../middleware/auth.middleware.js';
 
@@ -19,6 +23,10 @@ const authRouter = Router();
 authRouter.post('/sign-up', signUp);
 authRouter.post('/sign-in', signIn);
 authRouter.post('/sign-out', signOut);
+authRouter.get('/verify-email', verifyEmail);
+authRouter.post('/resend-verification', resendVerificationEmail);
+authRouter.post('/forgot-password', forgotPassword);
+authRouter.post('/reset-password', resetPassword);
 authRouter.post('/admin/sign-in', adminSignIn);
 authRouter.get('/google', startGoogleOAuth);
 authRouter.get('/google/callback', handleGoogleOAuthCallback);

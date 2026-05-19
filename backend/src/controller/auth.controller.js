@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import crypto from 'crypto';
 import User from '../models/user.model.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -26,6 +26,7 @@ import {
   ADMIN_PASSWORD,
   ADMIN_JWT_EXPIRES_IN,
 } from '../config/env.js';
+import { sendMail } from '../config/nodemailer.js';
 
 const GOOGLE_OAUTH_AUTHORIZE_URL =
   'https://accounts.google.com/o/oauth2/v2/auth';
@@ -67,8 +68,76 @@ const sanitizeUser = user => ({
   email: user.email,
   profilePicture: user.profilePicture || null,
   authProvider: user.authProvider,
+  isEmailVerified: Boolean(user.isEmailVerified),
   freelancerConnected: Boolean(user.freelancerAuth?.accessToken),
 });
+
+const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
+const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000;
+const FRONTEND_BASE_URL = (FRONTEND_URL || '').replace(/\/$/, '');
+
+const hashToken = token =>
+  crypto.createHash('sha256').update(token).digest('hex');
+
+const getPublicBaseUrl = req => {
+  const forwarded = String(req.headers['x-forwarded-proto'] || '').trim();
+  const protocol = forwarded ? forwarded.split(',')[0].trim() : req.protocol;
+  return `${protocol}://${req.get('host')}`;
+};
+
+const getVerificationLink = (req, token) =>
+  `${getPublicBaseUrl(req)}/api/v1/auth/verify-email?token=${encodeURIComponent(token)}`;
+
+const getPasswordResetLink = (req, token) => {
+  const baseUrl = FRONTEND_BASE_URL || getPublicBaseUrl(req);
+  return `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
+};
+
+const sendVerificationEmail = async (user, req) => {
+  if (!user?.email) return;
+
+  const token = crypto.randomBytes(32).toString('hex');
+  user.emailVerificationToken = hashToken(token);
+  user.emailVerificationExpiresAt = new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS);
+  await user.save();
+
+  const verifyUrl = getVerificationLink(req, token);
+  const subject = 'Verify your email address';
+  const text = `Hi ${user.name || 'there'},\n\nPlease verify your email address by clicking the link below:\n${verifyUrl}\n\nIf you did not request this, you can ignore this email.`;
+  const html = `
+    <div style="font-family:Segoe UI,Arial,sans-serif;max-width:640px;margin:0 auto;padding:20px;border:1px solid #e2e8f0;border-radius:12px;">
+      <p style="font-size:14px;color:#334155;margin:0 0 10px 0;">Hi ${user.name || 'there'},</p>
+      <p style="font-size:14px;color:#334155;line-height:1.5;margin:0 0 16px 0;">Please verify your email address to continue.</p>
+      <a href="${verifyUrl}" style="display:inline-block;padding:10px 16px;background:#0f766e;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Verify email</a>
+      <p style="font-size:12px;color:#64748b;margin-top:16px;">If you did not request this, you can ignore this email.</p>
+    </div>
+  `;
+
+  await sendMail({ to: user.email, subject, text, html });
+};
+
+const sendPasswordResetEmail = async (user, req) => {
+  if (!user?.email) return;
+
+  const token = crypto.randomBytes(32).toString('hex');
+  user.passwordResetToken = hashToken(token);
+  user.passwordResetExpiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_MS);
+  await user.save();
+
+  const resetUrl = getPasswordResetLink(req, token);
+  const subject = 'Reset your password';
+  const text = `Hi ${user.name || 'there'},\n\nYou requested a password reset. Use the link below to reset your password:\n${resetUrl}\n\nIf you did not request this, you can ignore this email.`;
+  const html = `
+    <div style="font-family:Segoe UI,Arial,sans-serif;max-width:640px;margin:0 auto;padding:20px;border:1px solid #e2e8f0;border-radius:12px;">
+      <p style="font-size:14px;color:#334155;margin:0 0 10px 0;">Hi ${user.name || 'there'},</p>
+      <p style="font-size:14px;color:#334155;line-height:1.5;margin:0 0 16px 0;">You requested a password reset. Use the link below to set a new password.</p>
+      <a href="${resetUrl}" style="display:inline-block;padding:10px 16px;background:#0f766e;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Reset password</a>
+      <p style="font-size:12px;color:#64748b;margin-top:16px;">If you did not request this, you can ignore this email.</p>
+    </div>
+  `;
+
+  await sendMail({ to: user.email, subject, text, html });
+};
 
 const ensureGoogleOAuthConfig = () => {
   if (
@@ -141,8 +210,6 @@ const redirectGoogleFailure = (res, code, message) => {
 //----------------------- User Auth ----------------------//
 
 export const signUp = async (req, res, next) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
   try {
     //Logic to create a new User
     const { name, email, password } = req.body;
@@ -169,33 +236,66 @@ export const signUp = async (req, res, next) => {
     const salt = await bcrypt.genSalt(10);
     const hashedpassword = await bcrypt.hash(password, salt);
 
-    const newUsers = await User.create(
-      [
-        {
-          name,
-          email,
-          password: hashedpassword,
-          authProvider: 'local',
-        },
-      ],
-      { session }
-    );
+    const newUser = await User.create({
+      name,
+      email,
+      password: hashedpassword,
+      authProvider: 'local',
+    });
 
-    const token = createUserToken(newUsers[0]._id);
+    try {
+      await sendVerificationEmail(newUser, req);
+    } catch (emailError) {
+      emailError.statusCode = emailError.statusCode || 500;
+      emailError.code = emailError.code || 'EMAIL_VERIFICATION_SEND_FAILED';
+      throw emailError;
+    }
 
-    await session.commitTransaction();
-    session.endSession();
     res.status(201).json({
       success: true,
-      message: 'User created successfully',
+      message: 'Account created. Please verify your email to continue.',
       data: {
-        token,
-        user: sanitizeUser(newUsers[0]),
+        verificationRequired: true,
+        email: newUser.email,
       },
     });
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
+    next(error);
+  }
+};
+
+export const resendVerificationEmail = async (req, res, next) => {
+  try {
+    const email = normalizeEmail(req.body?.email || '');
+    if (!email) {
+      const error = new Error('Email is required');
+      error.statusCode = 400;
+      error.code = 'EMAIL_REQUIRED';
+      throw error;
+    }
+
+    const user = await User.findOne({ email });
+
+    if (user && !user.isEmailVerified) {
+      try {
+        await sendVerificationEmail(user, req);
+      } catch (emailError) {
+        emailError.statusCode = emailError.statusCode || 500;
+        emailError.code = emailError.code || 'EMAIL_VERIFICATION_SEND_FAILED';
+        throw emailError;
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: user?.isEmailVerified
+        ? 'Email is already verified.'
+        : 'If the account exists, a verification link has been sent.',
+      data: {
+        email,
+      },
+    });
+  } catch (error) {
     next(error);
   }
 };
@@ -232,6 +332,24 @@ export const signIn = async (req, res, next) => {
       error.statusCode = 401;
       throw error;
     }
+
+    if (!user.isEmailVerified) {
+      try {
+        await sendVerificationEmail(user, req);
+      } catch (emailError) {
+        emailError.statusCode = emailError.statusCode || 500;
+        emailError.code = emailError.code || 'EMAIL_VERIFICATION_SEND_FAILED';
+        throw emailError;
+      }
+
+      return res.status(403).json({
+        success: false,
+        message:
+          'Email verification required. We sent a verification link to your email.',
+        code: 'EMAIL_NOT_VERIFIED',
+      });
+    }
+
     const token = createUserToken(user._id);
 
     res.status(200).json({
@@ -255,6 +373,141 @@ export const signOut = async (req, res, next) => {
       success: true,
       message: 'User signed out successfully',
     }); // Invalidate the token on the client side by clearing it from storage
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const verifyEmail = async (req, res, next) => {
+  try {
+    const token = String(req.query?.token || '').trim();
+    if (!token) {
+      const error = new Error('Verification token is required');
+      error.statusCode = 400;
+      error.code = 'VERIFICATION_TOKEN_MISSING';
+      throw error;
+    }
+
+    const tokenHash = hashToken(token);
+    const user = await User.findOne({
+      emailVerificationToken: tokenHash,
+      emailVerificationExpiresAt: { $gt: new Date() },
+    });
+
+    if (!user) {
+      const error = new Error('Invalid or expired verification token');
+      error.statusCode = 400;
+      error.code = 'VERIFICATION_TOKEN_INVALID';
+      throw error;
+    }
+
+    user.isEmailVerified = true;
+    user.emailVerificationToken = null;
+    user.emailVerificationExpiresAt = null;
+    await user.save();
+
+    if (FRONTEND_BASE_URL) {
+      const token = createUserToken(user._id);
+      const successUrl = new URL(`${FRONTEND_BASE_URL}/user/sign-in`);
+      successUrl.searchParams.set('oauth', 'success');
+      successUrl.searchParams.set('provider', 'email');
+      successUrl.searchParams.set('token', token);
+      successUrl.searchParams.set(
+        'user',
+        encodeURIComponent(JSON.stringify(sanitizeUser(user)))
+      );
+      return res.redirect(successUrl.toString());
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Email verified successfully',
+      data: {
+        user: sanitizeUser(user),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const forgotPassword = async (req, res, next) => {
+  try {
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    if (!email) {
+      const error = new Error('Email is required');
+      error.statusCode = 400;
+      error.code = 'EMAIL_REQUIRED';
+      throw error;
+    }
+
+    const user = await User.findOne({ email });
+    if (user) {
+      try {
+        await sendPasswordResetEmail(user, req);
+      } catch (emailError) {
+        emailError.statusCode = emailError.statusCode || 500;
+        emailError.code = emailError.code || 'PASSWORD_RESET_SEND_FAILED';
+        throw emailError;
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'If the account exists, a reset link has been sent.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resetPassword = async (req, res, next) => {
+  try {
+    const token = String(req.body?.token || '').trim();
+    const password = String(req.body?.password || '').trim();
+
+    if (!token || !password) {
+      const error = new Error('Token and new password are required');
+      error.statusCode = 400;
+      error.code = 'RESET_CREDENTIALS_MISSING';
+      throw error;
+    }
+
+    if (password.length < 6) {
+      const error = new Error('Password must be at least 6 characters long');
+      error.statusCode = 400;
+      error.code = 'PASSWORD_TOO_SHORT';
+      throw error;
+    }
+
+    const tokenHash = hashToken(token);
+    const user = await User.findOne({
+      passwordResetToken: tokenHash,
+      passwordResetExpiresAt: { $gt: new Date() },
+    });
+
+    if (!user) {
+      const error = new Error('Invalid or expired reset token');
+      error.statusCode = 400;
+      error.code = 'RESET_TOKEN_INVALID';
+      throw error;
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
+    user.passwordResetToken = null;
+    user.passwordResetExpiresAt = null;
+
+    if (user.authProvider === 'google' || user.authProvider === 'freelancer') {
+      user.authProvider = 'both';
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Password reset successful',
+    });
   } catch (error) {
     next(error);
   }

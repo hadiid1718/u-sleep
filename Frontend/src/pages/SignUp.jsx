@@ -13,6 +13,10 @@ const SignUp = () => {
   const [password, setPassword] = useState("");
   const [localError, setLocalError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showVerifyDialog, setShowVerifyDialog] = useState(false);
+  const [verifyEmail, setVerifyEmail] = useState("");
+  const [resendStatus, setResendStatus] = useState(null);
+  const [resendLoading, setResendLoading] = useState(false);
 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -70,15 +74,20 @@ const SignUp = () => {
 
       // Handle successful sign up
       const { data: responseData } = response;
-      if (responseData.data) {
-        const userData = responseData.data.user || responseData.data;
-        const token = responseData.data.token;
+      const payload = responseData?.data || {};
 
+      if (payload.verificationRequired) {
+        setVerifyEmail(payload.email || email);
+        setShowVerifyDialog(true);
+        return;
+      }
+
+      if (payload.token && payload.user) {
         // Save token to localStorage
-        setToken(token);
+        setToken(payload.token);
 
         // Update global context
-        login(userData, token);
+        login(payload.user, payload.token);
 
         // Redirect to dashboard
         navigate("/user/dashboard");
@@ -101,8 +110,91 @@ const SignUp = () => {
     window.location.href = authAPI.getGoogleOAuthUrl("signup");
   };
 
+  const handleResendVerification = async () => {
+    const targetEmail = (verifyEmail || email || "").trim();
+    if (!targetEmail) {
+      setResendStatus({
+        type: "error",
+        message: "Please enter a valid email address.",
+      });
+      return;
+    }
+
+    setResendLoading(true);
+    setResendStatus(null);
+
+    try {
+      const response = await authAPI.resendVerification(targetEmail);
+      if (!response.success) {
+        setResendStatus({
+          type: "error",
+          message: getErrorMessage(response),
+        });
+        return;
+      }
+
+      const message =
+        response.data?.message ||
+        "Verification link sent. Please check your email.";
+      setResendStatus({ type: "success", message });
+    } catch (error) {
+      setResendStatus({
+        type: "error",
+        message: "Unable to resend verification link. Please try again.",
+      });
+      console.error("Resend verification error:", error);
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-6">
+      {showVerifyDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-lg border border-gray-200 bg-white p-6 text-gray-900 shadow-xl">
+            <h2 className="text-lg font-semibold">Verify your email</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Please verify your email to continue. We sent a verification link to
+              {" "}
+              <span className="font-medium text-gray-900">
+                {verifyEmail || email}
+              </span>
+              .
+            </p>
+
+            {resendStatus && (
+              <div
+                className={`mt-3 rounded-md border px-3 py-2 text-xs ${
+                  resendStatus.type === "error"
+                    ? "border-red-200 bg-red-50 text-red-700"
+                    : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                }`}
+              >
+                {resendStatus.message}
+              </div>
+            )}
+
+            <div className="mt-5 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowVerifyDialog(false)}
+                className="flex-1 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleResendVerification}
+                disabled={resendLoading}
+                className="flex-1 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-60"
+              >
+                {resendLoading ? "Sending..." : "Resend verification link"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="bg-gray-800 rounded-lg p-8 w-full max-w-md">
         <h1 className="text-2xl font-bold text-white mb-6">
           Create your account

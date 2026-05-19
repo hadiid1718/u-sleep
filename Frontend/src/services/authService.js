@@ -27,6 +27,13 @@ export const authAPI = {
     });
   },
 
+  resendVerification: async email => {
+    return apiRequest('/auth/resend-verification', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  },
+
   getGoogleOAuthUrl: (state = 'signin') => {
     const separator = GOOGLE_OAUTH_START_URL.includes('?') ? '&' : '?';
     return `${GOOGLE_OAUTH_START_URL}${separator}state=${encodeURIComponent(state)}`;
