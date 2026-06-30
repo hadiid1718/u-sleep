@@ -178,6 +178,44 @@ export const postUserMessage = async (req, res, next) => {
   }
 };
 
+export const postContactMessage = async (req, res, next) => {
+  try {
+    const { name, email, message } = req.body;
+
+    if (!name || !String(name).trim()) {
+      const err = new Error('Name is required');
+      err.statusCode = 400;
+      throw err;
+    }
+    if (!email || !String(email).trim()) {
+      const err = new Error('Email is required');
+      err.statusCode = 400;
+      throw err;
+    }
+    if (!message || String(message).trim().length < 10) {
+      const err = new Error('Message must be at least 10 characters');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    await SupportChat.create({
+      name: String(name).trim(),
+      email: String(email).trim(),
+      sender: 'guest',
+      message: String(message).trim(),
+      auditTrail: {
+        createdBy: 'public-contact-form',
+      },
+    });
+
+    res
+      .status(201)
+      .json({ success: true, message: 'Your message has been received' });
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const getUserMessages = async (req, res, next) => {
   try {
     const userId = req.user?.id || req.user?._id;

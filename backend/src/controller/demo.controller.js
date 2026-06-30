@@ -79,7 +79,8 @@ const getDemoDateKey = demoDate => {
 
 const isSameDemoSlot = (leftDemo, rightDemo) => {
   return (
-    getDemoDateKey(leftDemo?.demoDate) === getDemoDateKey(rightDemo?.demoDate) &&
+    getDemoDateKey(leftDemo?.demoDate) ===
+      getDemoDateKey(rightDemo?.demoDate) &&
     String(leftDemo?.timeSlot || '') === String(rightDemo?.timeSlot || '')
   );
 };
@@ -319,7 +320,9 @@ export const sendDemoMail = async (req, res, next) => {
     const { subject, message, meetUrl } = req.body;
 
     if (!subject || !message || !meetUrl) {
-      const error = new Error('Subject, message, and Google Meet URL are required');
+      const error = new Error(
+        'Subject, message, and Google Meet URL are required'
+      );
       error.statusCode = 400;
       throw error;
     }

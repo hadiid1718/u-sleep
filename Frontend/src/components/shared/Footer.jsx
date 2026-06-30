@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 const Footer = () => {
     return (
   <footer className="bg-gradient-to-br bg-black text-gray-100 py-8 px-6 border-t border-gray-800">
@@ -8,9 +10,15 @@ const Footer = () => {
         </div>
         
         <div className="flex items-center space-x-6 text-sm">
-          <a href="#" className="text-gray-500 hover:text-gray-600">Privacy Policy</a>
-          <a href="#" className="text-gray-500 hover:text-gray-600">Terms of Service</a>
-          <a href="#" className="text-gray-500 hover:text-gray-600">Contact</a>
+          <Link to="/privacy" className="text-gray-500 hover:text-gray-600">
+            Privacy Policy
+          </Link>
+          <Link to="/terms-and-conditions" className="text-gray-500 hover:text-gray-600">
+            Terms of Service
+          </Link>
+          <Link to="/contact" className="text-gray-500 hover:text-gray-600">
+            Contact
+          </Link>
           <div className="flex items-center space-x-4">
             <div className=" cursor-pointer w-7 h-5 bg-gray-600 rounded flex items-center justify-center text-white hover:bg-lime-400 hover:transition-all hover:text-black">𝕏</div>
             <div className="cursor-pointer w-7 h-5 bg-gray-600 rounded text-white flex items-center justify-center font-bold hover:bg-lime-400 hover:text-black hover:transition-all">in</div>

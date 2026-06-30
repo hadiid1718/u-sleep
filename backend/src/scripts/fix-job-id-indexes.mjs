@@ -2,7 +2,10 @@ import mongoose from 'mongoose';
 import connectToDatabase from '../config/db.js';
 import Job from '../models/job.model.js';
 
-const INDEXES_TO_DROP = ['upworkJobId_1_userId_1', 'freelancerJobId_1_userId_1'];
+const INDEXES_TO_DROP = [
+  'upworkJobId_1_userId_1',
+  'freelancerJobId_1_userId_1',
+];
 
 const fixJobIdIndexes = async () => {
   try {

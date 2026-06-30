@@ -98,7 +98,9 @@ const sendVerificationEmail = async (user, req) => {
 
   const token = crypto.randomBytes(32).toString('hex');
   user.emailVerificationToken = hashToken(token);
-  user.emailVerificationExpiresAt = new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS);
+  user.emailVerificationExpiresAt = new Date(
+    Date.now() + EMAIL_VERIFICATION_TTL_MS
+  );
   await user.save();
 
   const verifyUrl = getVerificationLink(req, token);
@@ -350,6 +352,25 @@ export const signIn = async (req, res, next) => {
       });
     }
 
+    // Block suspended/blocked accounts from signing in
+    if (user.accountStatus === 'blocked') {
+      const error = new Error(
+        'Your account has been blocked. Please contact support if you believe this is a mistake.'
+      );
+      error.statusCode = 403;
+      error.code = 'ACCOUNT_BLOCKED';
+      throw error;
+    }
+
+    if (user.accountStatus === 'suspended') {
+      const error = new Error(
+        'Your account has been suspended. You can submit an appeal to request reinstatement.'
+      );
+      error.statusCode = 403;
+      error.code = 'ACCOUNT_SUSPENDED';
+      throw error;
+    }
+
     const token = createUserToken(user._id);
 
     res.status(200).json({
@@ -433,7 +454,9 @@ export const verifyEmail = async (req, res, next) => {
 
 export const forgotPassword = async (req, res, next) => {
   try {
-    const email = String(req.body?.email || '').trim().toLowerCase();
+    const email = String(req.body?.email || '')
+      .trim()
+      .toLowerCase();
     if (!email) {
       const error = new Error('Email is required');
       error.statusCode = 400;

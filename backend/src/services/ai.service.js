@@ -862,13 +862,13 @@ Rules:
       const retry =
         provider === 'gemini'
           ? await this.generateWithGemini(job, user, caseStudy, {
-              variation: retryVariation,
-              previousProposal: priorDraft,
-            })
+            variation: retryVariation,
+            previousProposal: priorDraft,
+          })
           : await this.generateWithOpenAI(job, user, caseStudy, {
-              variation: retryVariation,
-              previousProposal: priorDraft,
-            });
+            variation: retryVariation,
+            previousProposal: priorDraft,
+          });
 
       if (this.isProposalCompliant(retry, user)) {
         return retry;
@@ -1044,14 +1044,14 @@ Keywords/Expertise: ${user.jobPreferences?.keywords?.join(', ') || 'N/A'}
 9. Avoid banned phrases: "I am the perfect candidate", "I would love to work with you", "passionate", "dedicated", "detail-oriented", "guru", "ninja", "rockstar".
 10. No subject line, no greeting, no labels, no placeholders. Output ONLY the full proposal text - aim for 190-200 words.${variationDirective}`;
 
-  if (previousProposal) {
-    prompt += `
+    if (previousProposal) {
+      prompt += `
 
 **PREVIOUS DRAFT (avoid reusing phrasing or sentence structure):**
 """
 ${previousProposal}
 """`;
-  }
+    }
 
     if (caseStudy) {
       prompt += `

@@ -328,8 +328,8 @@ export const generateProposal = async (req, res, next) => {
       user,
       preferredAIService,
       previousContent
-    ).catch(
-      error => console.error('Background proposal generation error:', error)
+    ).catch(error =>
+      console.error('Background proposal generation error:', error)
     );
 
     // Return immediately with message

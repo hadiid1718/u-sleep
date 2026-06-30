@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState,useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminSidebar from '../../components/admin/AdminSidebar';
 import AdminDashboardOverview from '../../components/admin/AdminDashboardOverview';
@@ -49,15 +49,17 @@ const AdminDashboard = () => {
     metricsInFlightRef.current = false;
   };
 
-  const loadUsers = async ({ page = 1, search = '', status = '' } = {}) => {
-    setUserLoading(true);
-    const response = await adminAPI.getUsers({ page, limit: 10, search, status });
-    if (response.success) {
-      setUsers(response.data?.data?.items || []);
-      setUserPagination(response.data?.data?.pagination || null);
-    }
-    setUserLoading(false);
-  };
+  
+
+const loadUsers = useCallback(async ({ page = 1, search = '', status = '' } = {}) => {
+  setUserLoading(true);
+  const response = await adminAPI.getUsers({ page, limit: 10, search, status });
+  if (response.success) {
+    setUsers(response.data?.data?.items || []);
+    setUserPagination(response.data?.data?.pagination || null);
+  }
+  setUserLoading(false);
+}, []); // empty deps — setUserLoading/setUsers/setUserPagination are stable, adminAPI shouldn't change
 
   const loadCases = async ({ page = 1, status = '' } = {}) => {
     setCaseLoading(true);
