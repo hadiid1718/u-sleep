@@ -163,13 +163,21 @@ const getGoogleSuccessRedirectUrl = () =>
 const getGoogleFailureRedirectUrl = () =>
   GOOGLE_OAUTH_FAILURE_REDIRECT_URL || getGoogleSuccessRedirectUrl();
 
-const getFreelancerSuccessRedirectUrl = () =>
-  `${FRONTEND_URL || 'http://localhost:5173'}/user/sign-in`;
+const getFreelancerSuccessRedirectUrl = (returnTo = null) => {
+  const baseUrl = FRONTEND_URL || 'http://localhost:5173';
+  if (returnTo) {
+    const normalized = String(returnTo).trim();
+    if (normalized.startsWith('/') && !normalized.includes('//')) {
+      return `${baseUrl}${normalized}`;
+    }
+  }
+  return `${baseUrl}/user/sign-in`;
+};
 
-const getFreelancerFailureRedirectUrl = () => getFreelancerSuccessRedirectUrl();
+const getFreelancerFailureRedirectUrl = (returnTo = null) => getFreelancerSuccessRedirectUrl(returnTo);
 
-const redirectFreelancerFailure = (res, code, message) => {
-  const failureUrl = new URL(getFreelancerFailureRedirectUrl());
+const redirectFreelancerFailure = (res, code, message, returnTo = null) => {
+  const failureUrl = new URL(getFreelancerFailureRedirectUrl(returnTo));
   failureUrl.searchParams.set('oauth', 'failed');
   failureUrl.searchParams.set('provider', 'freelancer');
   failureUrl.searchParams.set('code', code);
@@ -177,12 +185,13 @@ const redirectFreelancerFailure = (res, code, message) => {
   return res.redirect(failureUrl.toString());
 };
 
-const createFreelancerState = (userId = null, intent = 'connect') =>
+const createFreelancerState = (userId = null, intent = 'connect', returnTo = null) =>
   jwt.sign(
     {
       provider: 'freelancer',
       userId,
       intent,
+      returnTo: returnTo ? String(returnTo).trim() : null,
     },
     JWT_SECRET,
     { expiresIn: '15m' }
@@ -946,9 +955,11 @@ export const startFreelancerOAuth = async (req, res, next) => {
       req.query.advanced_scopes ?? FREELANCER_OAUTH_ADVANCED_SCOPES ?? '',
       ','
     );
+    const returnTo = String(req.query.returnTo || '').trim() || null;
     const state = createFreelancerState(
       userId ? String(userId) : null,
-      String(req.query.state || 'connect')
+      String(req.query.state || 'connect'),
+      returnTo
     );
 
     const params = new URLSearchParams({
@@ -986,13 +997,17 @@ export const handleFreelancerOAuthCallback = async (req, res, next) => {
       error_description: errorDescription,
     } = req.query;
 
+    const decodedState = readFreelancerState(state);
+    const returnTo = decodedState?.returnTo || null;
+
     if (oauthError) {
       return redirectFreelancerFailure(
         res,
         'FREELANCER_OAUTH_DENIED',
         errorDescription
           ? `Freelancer OAuth failed: ${String(errorDescription)}`
-          : `Freelancer OAuth failed: ${String(oauthError)}`
+          : `Freelancer OAuth failed: ${String(oauthError)}`,
+        returnTo
       );
     }
 
@@ -1000,7 +1015,8 @@ export const handleFreelancerOAuthCallback = async (req, res, next) => {
       return redirectFreelancerFailure(
         res,
         'FREELANCER_OAUTH_CODE_MISSING',
-        'Missing authorization code from Freelancer callback.'
+        'Missing authorization code from Freelancer callback.',
+        returnTo
       );
     }
 
@@ -1027,7 +1043,8 @@ export const handleFreelancerOAuthCallback = async (req, res, next) => {
       return redirectFreelancerFailure(
         res,
         'FREELANCER_TOKEN_EXCHANGE_FAILED',
-        'Could not exchange Freelancer authorization code for access token.'
+        'Could not exchange Freelancer authorization code for access token.',
+        returnTo
       );
     }
 
@@ -1062,7 +1079,6 @@ export const handleFreelancerOAuthCallback = async (req, res, next) => {
       : null;
     const identityEmail = freelancerEmail || fallbackEmail;
 
-    const decodedState = readFreelancerState(state);
     let user = null;
 
     if (decodedState?.userId) {
@@ -1116,13 +1132,15 @@ export const handleFreelancerOAuthCallback = async (req, res, next) => {
       return redirectFreelancerFailure(
         res,
         'FREELANCER_ACCOUNT_LINK_FAILED',
-        'Freelancer account connected but could not be linked to an app user.'
+        'Freelancer account connected but could not be linked to an app user.',
+        decodedState?.returnTo
       );
     }
 
-    const successUrl = new URL(getFreelancerSuccessRedirectUrl());
+    const successUrl = new URL(getFreelancerSuccessRedirectUrl(returnTo));
     successUrl.searchParams.set('oauth', 'success');
     successUrl.searchParams.set('provider', 'freelancer');
+    successUrl.searchParams.set('freelancer_connected', 'true');
 
     if (user) {
       const token = createUserToken(user._id);
@@ -1141,5 +1159,106 @@ export const handleFreelancerOAuthCallback = async (req, res, next) => {
       error.message ||
       'An unexpected error occurred while completing Freelancer OAuth.';
     return next(error);
+  }
+};
+
+export const refreshFreelancerToken = async (req, res, next) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    if (!userId) {
+      const error = new Error('User not authenticated');
+      error.statusCode = 401;
+      throw error;
+    }
+
+    const user = await User.findById(userId).select('freelancerAuth');
+    if (!user) {
+      const error = new Error('User not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const freelancerAuth = user.freelancerAuth || {};
+    const accessToken = freelancerAuth.accessToken;
+    const refreshToken = freelancerAuth.refreshToken;
+    const expiresAt = freelancerAuth.expiresAt ? new Date(freelancerAuth.expiresAt) : null;
+    const now = new Date();
+
+    // If token is still valid (not expired), return it
+    if (accessToken && expiresAt && expiresAt > now) {
+      return res.status(200).json({
+        success: true,
+        message: 'Freelancer token is still valid',
+        data: {
+          accessToken,
+          expiresAt,
+          isValid: true,
+        },
+      });
+    }
+
+    // If no refresh token, cannot refresh
+    if (!refreshToken) {
+      const error = new Error(
+        'Freelancer OAuth token expired and cannot be refreshed. Reconnect your Freelancer account.'
+      );
+      error.statusCode = 401;
+      error.code = 'FREELANCER_TOKEN_EXPIRED_NO_REFRESH';
+      throw error;
+    }
+
+    // Attempt silent refresh using refresh token
+    ensureFreelancerOAuthConfig();
+
+    const tokenResponse = await fetch(
+      `${FREELANCER_DEFAULT_ACCOUNTS_URL}/oauth/token`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: String(refreshToken),
+          client_id: FREELANCER_CLIENT_ID,
+          client_secret: FREELANCER_CLIENT_SECRET,
+        }),
+      }
+    );
+
+    const tokenData = await tokenResponse.json().catch(() => null);
+
+    if (!tokenResponse.ok || !tokenData?.access_token) {
+      const error = new Error(
+        'Failed to refresh Freelancer token. Reconnect your Freelancer account.'
+      );
+      error.statusCode = 401;
+      error.code = 'FREELANCER_TOKEN_REFRESH_FAILED';
+      throw error;
+    }
+
+    // Update user's token
+    user.freelancerAuth.accessToken = tokenData.access_token;
+    if (tokenData.refresh_token) {
+      user.freelancerAuth.refreshToken = tokenData.refresh_token;
+    }
+    user.freelancerAuth.expiresAt = tokenData.expires_in
+      ? new Date(Date.now() + Number(tokenData.expires_in) * 1000)
+      : null;
+    user.freelancerAuth.scope = tokenData.scope || user.freelancerAuth.scope;
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Freelancer token refreshed successfully',
+      data: {
+        accessToken: tokenData.access_token,
+        expiresAt: user.freelancerAuth.expiresAt,
+        isValid: true,
+      },
+    });
+  } catch (error) {
+    next(error);
   }
 };

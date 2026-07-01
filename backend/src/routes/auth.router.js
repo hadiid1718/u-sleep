@@ -9,6 +9,7 @@ import {
   handleUpworkOAuthCallback,
   startFreelancerOAuth,
   handleFreelancerOAuthCallback,
+  refreshFreelancerToken,
   adminSignIn,
   verifyEmail,
   resendVerificationEmail,
@@ -38,5 +39,6 @@ authRouter.get('/upwork/callback', handleUpworkOAuthCallback);
 // Freelancer OAuth Routes
 authRouter.get('/freelancer/connect', startFreelancerOAuth);
 authRouter.get('/freelancer/callback', handleFreelancerOAuthCallback);
+authRouter.post('/freelancer/refresh', authorize, refreshFreelancerToken);
 
 export default authRouter;

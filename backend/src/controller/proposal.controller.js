@@ -668,15 +668,51 @@ export const sendProposal = async (req, res, next) => {
         throw error;
       }
 
-      const bidResponse = await freelancerService.submitBid({
-        projectId,
-        bidAmount: Number(bidAmount),
-        periodDays,
-        description: proposal.content,
-        oauthToken: freelancerToken,
-        bidderId: freelancerBidderId,
-        milestonePercentage,
-      });
+      if (!freelancerToken) {
+        const error = new Error(
+          'Freelancer OAuth token is missing. Connect your Freelancer account first.'
+        );
+        error.statusCode = 401;
+        error.code = 'FREELANCER_AUTH_MISSING';
+        throw error;
+      }
+
+      let bidResponse;
+      try {
+        bidResponse = await freelancerService.submitBid({
+          projectId,
+          bidAmount: Number(bidAmount),
+          periodDays,
+          description: proposal.content,
+          oauthToken: freelancerToken,
+          bidderId: freelancerBidderId,
+          milestonePercentage,
+        });
+      } catch (bidError) {
+        // Log the error for debugging
+        console.error('Freelancer bid submission failed:', {
+          projectId,
+          error: bidError.message,
+          code: bidError.code,
+          statusCode: bidError.statusCode,
+        });
+
+        // Record error in status history (proposal stays as draft since submission failed)
+        proposal.statusHistory.push({
+          status: 'draft',
+          timestamp: new Date(),
+          notes: `Freelancer bid submission failed: ${bidError.message || 'Unknown error'}`,
+        });
+        await proposal.save();
+
+        // Re-throw with proper error code
+        const error = new Error(
+          bidError.message || 'Failed to submit bid to Freelancer. Please try again.'
+        );
+        error.statusCode = bidError.statusCode || 500;
+        error.code = bidError.code || 'FREELANCER_BID_SUBMISSION_FAILED';
+        throw error;
+      }
 
       freelancerBidId =
         bidResponse?.result?.bid?.id ||

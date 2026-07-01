@@ -371,8 +371,9 @@ class FreelancerService {
         : null,
       clientInfo: {
         name: owner?.username || owner?.display_name || null,
-        rating: owner?.reputation?.entire_history?.overall || null,
-        totalReviews: owner?.reputation?.entire_history?.reviews || null,
+        // Use employer_reputation for client ratings (job poster side), not freelancer reputation
+        rating: owner?.employer_reputation?.entire_history?.overall || null,
+        totalReviews: owner?.employer_reputation?.entire_history?.reviews || null,
         totalSpent: owner?.employer_reputation?.entire_history?.all || null,
         jobsPosted:
           owner?.employer_reputation?.entire_history?.projects_posted || null,
@@ -419,9 +420,12 @@ class FreelancerService {
     if (!Number.isFinite(normalizedId)) return null;
 
     const url = new URL(`${this.baseUrl}/api/users/0.1/users/${normalizedId}/`);
+    // Request extended data blocks needed for client info display
     url.searchParams.set('user_details', 'true');
     url.searchParams.set('user_reputation', 'true');
     url.searchParams.set('user_employer_reputation', 'true');
+    url.searchParams.set('location', 'true');
+    url.searchParams.set('status', 'true');
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.requestTimeoutMs);
@@ -434,16 +438,42 @@ class FreelancerService {
       });
 
       const payload = await response.json().catch(() => null);
-      if (!response.ok) return null;
+      if (!response.ok) {
+        console.warn(`Freelancer API user fetch failed for ID ${normalizedId}:`, {
+          status: response.status,
+          statusText: response.statusText,
+        });
+        return null;
+      }
 
-      return (
+      const user =
         payload?.result ||
         payload?.user ||
         payload?.users?.[0] ||
         payload?.result?.users?.[0] ||
-        null
-      );
-    } catch {
+        null;
+
+      if (!user) {
+        console.warn(`Freelancer API returned empty user data for ID ${normalizedId}`);
+        return null;
+      }
+
+      // Debug log to verify data structure
+      if (this.normalizeNodeEnv() === 'development') {
+        console.debug(`Fetched user details for ${normalizedId}:`, {
+          hasReputation: Boolean(user?.reputation),
+          hasEmployerReputation: Boolean(user?.employer_reputation),
+          hasLocation: Boolean(user?.location),
+          hasStatus: Boolean(user?.status),
+        });
+      }
+
+      return user;
+    } catch (error) {
+      console.error(`Freelancer API user fetch error for ID ${normalizedId}:`, {
+        message: error?.message,
+        code: error?.code,
+      });
       return null;
     } finally {
       clearTimeout(timeout);
