@@ -39,10 +39,14 @@ export const authAPI = {
     return `${GOOGLE_OAUTH_START_URL}${separator}state=${encodeURIComponent(state)}`;
   },
 
-  getFreelancerOAuthUrl: (state = 'connect') => {
+  getFreelancerOAuthUrl: (state = 'connect', returnTo = null) => {
     const token = localStorage.getItem('token') || '';
     const separator = FREELANCER_OAUTH_START_URL.includes('?') ? '&' : '?';
-    return `${FREELANCER_OAUTH_START_URL}${separator}state=${encodeURIComponent(state)}&appToken=${encodeURIComponent(token)}`;
+    let url = `${FREELANCER_OAUTH_START_URL}${separator}state=${encodeURIComponent(state)}&appToken=${encodeURIComponent(token)}`;
+    if (returnTo) {
+      url += `&returnTo=${encodeURIComponent(returnTo)}`;
+    }
+    return url;
   },
 };
 

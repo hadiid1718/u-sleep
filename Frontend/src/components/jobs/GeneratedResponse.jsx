@@ -155,6 +155,7 @@ const GeneratedResponse = ({
 
     setBidFormError('');
     setSending(true);
+    setShowConnectBanner(false);
 
     const storePendingSend = () => {
       if (!isFreelancerJob) return;
@@ -174,36 +175,64 @@ const GeneratedResponse = ({
     };
 
     try {
+      // For Freelancer jobs, check and refresh OAuth token if needed
+      if (isFreelancerJob) {
+        try {
+          const refreshResult = await proposalAPI.refreshFreelancerToken();
+          if (!refreshResult.success) {
+            throw new Error(
+              refreshResult.error?.message ||
+              'Failed to verify Freelancer token. Please reconnect your account.'
+            );
+          }
+        } catch (refreshError) {
+          // If token refresh fails, ask user to reconnect
+          if (refreshError.statusCode === 401 || refreshError.code === 'FREELANCER_AUTH_MISSING' || refreshError.code === 'FREELANCER_TOKEN_EXPIRED_NO_REFRESH') {
+            storePendingSend();
+            const url = authAPI.getFreelancerOAuthUrl('connect-from-proposal');
+            setConnectUrl(url);
+            setShowConnectBanner(true);
+            setSending(false);
+            return;
+          }
+          // For other errors, continue anyway (might succeed)
+          console.warn('Token refresh warning:', refreshError.message);
+        }
+      }
+
       const result = await proposalAPI.sendProposal(proposalId, payload);
       if (result.success) {
         setSent(true);
         await refreshSubscription();
       } else {
         const status = result.error?.statusCode || result.error?.status || 0;
+        const message = result.error?.message || 'Failed to send proposal';
+        const code = result.error?.code || '';
 
-        if (status === 401 || status === 403) {
+        // Check if it's an auth error
+        if (status === 401 || status === 403 || code === 'FREELANCER_AUTH_MISSING') {
           storePendingSend();
-          // Show connect option for Freelancer OAuth
           const url = authAPI.getFreelancerOAuthUrl('connect-from-proposal');
           setConnectUrl(url);
           setShowConnectBanner(true);
         } else {
-          const extra = result.error?.responseText
-            ? `\n\nServer response:\n${result.error.responseText}`
-            : '';
-          alert((result.error?.message || 'Failed to send proposal') + extra);
+          // Show the specific error from Freelancer API or backend
+          setBidFormError(message);
         }
       }
     } catch (err) {
       const status = err.statusCode || err.status || 0;
-      if (status === 401 || status === 403) {
+      const message = err.message || 'Failed to send proposal';
+      const code = err.code || '';
+
+      if (status === 401 || status === 403 || code === 'FREELANCER_AUTH_MISSING') {
         storePendingSend();
         const url = authAPI.getFreelancerOAuthUrl('connect-from-proposal');
         setConnectUrl(url);
         setShowConnectBanner(true);
       } else {
         const extra = err.responseText ? `\n\nServer response:\n${err.responseText}` : '';
-        alert((err.message || 'Failed to send proposal') + extra);
+        setBidFormError(message + extra);
       }
     } finally {
       setSending(false);

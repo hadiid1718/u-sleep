@@ -147,6 +147,12 @@ export const proposalAPI = {
       method: 'DELETE',
     });
   },
+
+  refreshFreelancerToken: async () => {
+    return apiRequest('/auth/freelancer/refresh', {
+      method: 'POST',
+    });
+  },
 };
 
 export default proposalAPI;

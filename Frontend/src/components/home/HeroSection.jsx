@@ -26,6 +26,23 @@ const HeroSection = () => {
   const selectedPlatform = formData?.selectedPlatform || 'upwork';
   const platformLabel = selectedPlatform === 'freelancer' ? 'Freelancer' : 'Upwork';
 
+  // Detect OAuth callback and navigate to step 7
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const freelancerConnected = params.get('freelancer_connected');
+    const oauthProvider = params.get('provider');
+    const oauthSuccess = params.get('oauth');
+
+    if (freelancerConnected === 'true' && oauthProvider === 'freelancer' && oauthSuccess === 'success') {
+      // Set wizard to step 7 (Profile URL step)
+      setSteps(7);
+      
+      // Clean OAuth params from URL without reloading
+      const cleanUrl = window.location.pathname + window.location.hash;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+  }, [setSteps]);
+
   // Countdown timer effect
   useEffect(() => {
     if (!jobSearching) {

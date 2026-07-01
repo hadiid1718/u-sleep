@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { AppContext } from '../../../context/Context';
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../../../services/authService';
@@ -17,9 +17,30 @@ const ProfileUrl = () => {
   const [profileLink, setProfileLink] = useState(formData.profileUrl || '');
   // language selection and auto-translate removed per UX change
   const [showError, setShowError] = useState(false);
+  const [showFreelancerConnectSuccess, setShowFreelancerConnectSuccess] = useState(false);
   const selectedPlatform = formData.selectedPlatform || 'upwork';
 
   const navigate = useNavigate();
+
+  // Detect OAuth callback success and clean URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const freelancerConnected = params.get('freelancer_connected');
+    const oauthProvider = params.get('provider');
+    const oauthSuccess = params.get('oauth');
+
+    if (freelancerConnected === 'true' && oauthProvider === 'freelancer' && oauthSuccess === 'success') {
+      setShowFreelancerConnectSuccess(true);
+      // Auto-hide success message after 4 seconds
+      const timer = setTimeout(() => setShowFreelancerConnectSuccess(false), 4000);
+      
+      // Clean OAuth params from URL without reloading
+      const cleanUrl = window.location.pathname + window.location.hash;
+      window.history.replaceState({}, document.title, cleanUrl);
+      
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   const buildSearchPayload = (data) => {
     const jobHourly = data.hourlyRate ? Number(data.hourlyRate) : null;
@@ -90,7 +111,8 @@ const ProfileUrl = () => {
   };
 
   const handleFreelancerConnect = () => {
-    window.location.href = authAPI.getFreelancerOAuthUrl('connect-freelancer');
+    const returnTo = '/'; // Return to homepage where HeroSection/wizard renders
+    window.location.href = authAPI.getFreelancerOAuthUrl('connect-freelancer', returnTo);
   };
 
   return (
@@ -128,6 +150,14 @@ const ProfileUrl = () => {
               <div className="mb-6 p-4 bg-yellow-900/30 border border-yellow-600/50 rounded-lg">
                 <p className="text-yellow-400">
                   Profile link is optional, but recommended.
+                </p>
+              </div>
+            )}
+
+            {showFreelancerConnectSuccess && (
+              <div className="mb-6 p-4 bg-green-900/30 border border-green-600/50 rounded-lg">
+                <p className="text-green-400">
+                  ✓ Freelancer account connected successfully! You're ready to fetch projects.
                 </p>
               </div>
             )}
